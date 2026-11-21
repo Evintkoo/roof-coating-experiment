@@ -12,6 +12,7 @@ const ERROR_RAISED_FIELDS = new Set(["code", "phase", "key"])
 let runId = "unconfigured"
 let minLevel: Level = "info"
 let runDir: string | undefined
+let mirror = false
 
 const issued = new Set<string>()
 
@@ -36,10 +37,13 @@ export function configureLogging(opts: {
   runId: string
   level: Level
   runDir?: string
+  /** Also write each line to stderr (the CLI does; plan 01 "Logging"). */
+  mirrorStderr?: boolean
 }): void {
   runId = opts.runId
   minLevel = opts.level
   runDir = opts.runDir
+  mirror = opts.mirrorStderr ?? false
   setEventSink(emit)
 }
 
@@ -87,8 +91,8 @@ export function emit(event: string, level: Level, fields: Fields): void {
       base.truncated = true
       line = json(base)
     }
-    if (runDir) appendFileSync(join(runDir, "events.jsonl"), `${line}\n`)
-    else process.stderr.write(`${line}\n`)
+    if (runDir) appendFileSync(join(runDir, "run.jsonl"), `${line}\n`)
+    if (!runDir || mirror) process.stderr.write(`${line}\n`)
   } catch {
     // logging must never mask the real error
     try {

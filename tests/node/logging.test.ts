@@ -9,7 +9,7 @@ function setup(level: "debug" | "info" | "warn" | "error" = "debug") {
   const runDir = mkdtempSync(join(tmpdir(), "spandek-log-"))
   configureLogging({ runId: newRunId(), level, runDir })
   const read = () =>
-    readFileSync(join(runDir, "events.jsonl"), "utf8")
+    readFileSync(join(runDir, "run.jsonl"), "utf8")
       .split("\n")
       .filter((l) => l.length > 0)
   return { read }

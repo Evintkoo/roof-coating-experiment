@@ -23,7 +23,7 @@ test("loadsRealFilesAndEmitsConfigLoaded", async () => {
   const w = await loadWeather(weatherPath)
   expect(r.cpvc.value).toBe(0.45)
   expect(w.roof.t_inside_c.value).toBe(30)
-  const lines = readFileSync(join(runDir, "events.jsonl"), "utf8")
+  const lines = readFileSync(join(runDir, "run.jsonl"), "utf8")
     .split("\n")
     .filter(Boolean)
     .map((l) => JSON.parse(l))
