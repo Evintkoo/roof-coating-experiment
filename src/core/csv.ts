@@ -1,11 +1,12 @@
+import { RESULT_NAN_COLUMNS } from "./columns"
 import { DataError } from "./errors"
-import { RESULT_NAN_COLUMNS } from "./schema"
 
 export type CsvOpts = {
   nanColumns?: ReadonlySet<string>
   infColumns?: ReadonlySet<string>
 }
 
+const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/
 const DEFAULT_INF: ReadonlySet<string> = new Set(["gel_time_rel"])
 
 function sets(opts?: CsvOpts) {
@@ -53,13 +54,16 @@ export function toCsv(
   return `${lines.join("\n")}\n`
 }
 
-export function parseCsv(text: string): Record<string, string>[] {
+export function parseCsv(input: string): Record<string, string>[] {
+  const text = input.startsWith("\uFEFF") ? input.slice(1) : input
   const lines = text
     .split("\n")
     .map((l) => (l.endsWith("\r") ? l.slice(0, -1) : l))
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop()
   if (lines.length === 0) return []
   const header = (lines[0] as string).split(",")
+  const dup = header.find((h, i) => header.indexOf(h) !== i)
+  if (dup !== undefined) throw new DataError(dup, "duplicate header column")
   const out: Record<string, string>[] = []
   for (let i = 1; i < lines.length; i++) {
     const parts = (lines[i] as string).split(",")
@@ -90,7 +94,7 @@ export function coerceCell(
     throw new DataError(column, "inf not allowed in this column")
   }
   const n = Number(text)
-  if (!Number.isFinite(n) || text.trim() !== text) {
+  if (!DECIMAL.test(text) || !Number.isFinite(n)) {
     throw new DataError(column, "not a finite number")
   }
   return n

@@ -201,6 +201,19 @@ test("nanAllowedOnlyWhenInfeasible", () => {
   ).toBe("candidate_id")
 })
 
+test("nanInIntervalBoundsOnlyWhenInfeasible", () => {
+  const nan = Number.NaN
+  expect(keyOf(() => validateResults([result({ r_solar_lo: nan })]))).toBe(
+    "r_solar_lo",
+  )
+  expect(keyOf(() => validateResults([result({ r_solar_hi: nan })]))).toBe(
+    "r_solar_hi",
+  )
+  expect(
+    validateResults([result({ r_solar_lo: nan, feasible: false })]),
+  ).toHaveLength(1)
+})
+
 test("infGelTimeAllowedOnFeasible", () => {
   const rows = validateResults([
     result({ gel_time_rel: Number.POSITIVE_INFINITY }),
@@ -229,4 +242,26 @@ test("parseResultsCsvRoundTrip", () => {
   expect(keyOf(() => parseResultsCsv(text.replace("true", "maybe")))).toBe(
     "feasible",
   )
+})
+
+test("resultsHeaderValidation", () => {
+  const text = toCsv(RESULT_COLUMNS, [result()] as never)
+  expect(parseResultsCsv(`\uFEFF${text}`)).toHaveLength(1)
+  expect(parseResultsCsv(text.replaceAll("\n", "\r\n"))).toHaveLength(1)
+  const header = text.split("\n")[0] as string
+  expect(parseResultsCsv(`${header}\n`)).toEqual([])
+  expect(
+    keyOf(() =>
+      parseResultsCsv(
+        text.replace("\n", ",zzz\n").replace(/\n(.*)\n$/, "\n$1,x\n"),
+      ),
+    ),
+  ).toBe("zzz")
+  expect(
+    keyOf(() => parseResultsCsv(text.replace("cost_proxy", "r_solar_pred"))),
+  ).toBe("r_solar_pred")
+  expect(keyOf(() => parseResultsCsv("candidate_id,scenario_id\n"))).toBe(
+    "primer_gptes_molfrac",
+  )
+  expect(keyOf(() => parseResultsCsv(""))).toBe("candidate_id")
 })

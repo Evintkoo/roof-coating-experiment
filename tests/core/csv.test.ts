@@ -65,12 +65,48 @@ test("csvRoundTripExact", () => {
   fc.assert(
     fc.property(fc.double({ noNaN: true, noDefaultInfinity: true }), (x) => {
       const rows = parseCsv(toCsv(["v"], [{ v: x }]))
-      // -0 prints as "0"; numerically equal under ===
-      expect(Number(rows[0]?.v) === x).toBe(true)
-      expect(coerceCell("v", rows[0]?.v ?? "")).toBe(x === 0 ? 0 : x)
+      // toCsv writes "0" for -0 (String(-0)), so -0 round-trips to +0.
+      const want = Object.is(x, -0) ? 0 : x
+      expect(Object.is(Number(rows[0]?.v), want)).toBe(true)
+      expect(Object.is(coerceCell("v", rows[0]?.v ?? ""), want)).toBe(true)
     }),
-    { numRuns: 500 },
+    {
+      numRuns: 500,
+      examples: [
+        [-0],
+        [5e-324],
+        [1e21],
+        [-1e21],
+        [Number.MAX_VALUE],
+        [Number.MIN_VALUE],
+        [0.1 + 0.2],
+      ],
+    },
   )
+  expect(toCsv(["v"], [{ v: -0 }])).toBe("v\n0\n")
+})
+
+test("coerceCellAcceptsOnlyDecimalNumbers", () => {
+  for (const ok of ["1", "-1.5", "+2", "1e21", "1E-7", ".5", "0"]) {
+    expect(Number.isFinite(coerceCell("x", ok))).toBe(true)
+  }
+  for (const bad of [
+    "0x10",
+    "0b1",
+    " 1",
+    "1 ",
+    "1_0",
+    "NaN",
+    "--1",
+    "1e",
+    "-",
+  ]) {
+    expect(dataKey(() => coerceCell("x", bad))).toBe("x")
+  }
+})
+
+test("parseCsvDuplicateHeaderThrows", () => {
+  expect(dataKey(() => parseCsv("a,a\n1,2\n"))).toBe("a")
 })
 
 test("parseCsvRaggedRowsThrow", () => {

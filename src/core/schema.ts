@@ -1,51 +1,12 @@
+import {
+  DESIGN_COLUMNS,
+  DESIGN_FLAG_COLUMNS,
+  NOT_NAN,
+  RESULT_COLUMNS,
+  RESULT_NAN_COLUMNS,
+} from "./columns"
 import { coerceCell, parseCsv } from "./csv"
 import { ConfigError } from "./errors"
-
-export const DESIGN_COLUMNS = [
-  "candidate_id",
-  "primer_gptes_molfrac",
-  "primer_dft_um",
-  "midcoat_pvc",
-  "midcoat_tio2_fraction",
-  "midcoat_dft_um",
-  "topcoat_mtes_molfrac",
-  "topcoat_dft_um",
-] as const
-export const DESIGN_FLAG_COLUMNS = ["feasible", "violations"] as const
-
-export const RESULT_COLUMNS = [
-  ...DESIGN_COLUMNS,
-  "scenario_id",
-  "r_solar_pred",
-  "r_solar_lo",
-  "r_solar_hi",
-  "t_max_pred",
-  "t_max_lo",
-  "t_max_hi",
-  "corrosion_proxy",
-  "corrosion_proxy_lo",
-  "corrosion_proxy_hi",
-  "wetting_proxy",
-  "wetting_proxy_lo",
-  "wetting_proxy_hi",
-  "wetting_theta_pred",
-  "wetting_theta_lo",
-  "wetting_theta_hi",
-  "q_in_mean_w_m2",
-  "q_in_mean_w_m2_lo",
-  "q_in_mean_w_m2_hi",
-  "delam_proxy",
-  "delam_proxy_lo",
-  "delam_proxy_hi",
-  "cost_proxy",
-  "gel_time_rel",
-  "feasible",
-] as const
-
-const NOT_NAN = new Set<string>([...DESIGN_COLUMNS, "scenario_id", "feasible"])
-export const RESULT_NAN_COLUMNS: ReadonlySet<string> = new Set(
-  RESULT_COLUMNS.filter((c) => !NOT_NAN.has(c)),
-)
 
 type NumDesign = Exclude<(typeof DESIGN_COLUMNS)[number], "candidate_id">
 export type DesignRow = { candidate_id: string } & Record<NumDesign, number>
@@ -60,6 +21,13 @@ export type ResultRow = {
     : K extends "feasible"
       ? boolean
       : number
+}
+
+export {
+  DESIGN_COLUMNS,
+  DESIGN_FLAG_COLUMNS,
+  RESULT_COLUMNS,
+  RESULT_NAN_COLUMNS,
 }
 
 const ID = /^SP-\d{3}$/
@@ -87,6 +55,14 @@ function num(row: Record<string, unknown>, c: string, where: string): number {
   return v
 }
 
+export function validateDesign(
+  rows: readonly Record<string, unknown>[],
+  withFlags?: false,
+): DesignRow[]
+export function validateDesign(
+  rows: readonly Record<string, unknown>[],
+  withFlags: true,
+): FlaggedDesignRow[]
 export function validateDesign(
   rows: readonly Record<string, unknown>[],
   withFlags = false,
@@ -226,7 +202,25 @@ export function validateResults(
   return out
 }
 
-export function parseResultsCsv(text: string): ResultRow[] {
+function checkHeader(text: string): void {
+  const first = text.split("\n", 1)[0] ?? ""
+  const header = first.replace(/\r$/, "").split(",")
+  if (header.length === 1 && header[0] === "") header.pop()
+  const allowed = new Set<string>(RESULT_COLUMNS)
+  const seen = new Set<string>()
+  for (const h of header) {
+    if (!allowed.has(h)) throw new ConfigError(h, `unexpected column ${h}`)
+    if (seen.has(h)) throw new ConfigError(h, `duplicate column ${h}`)
+    seen.add(h)
+  }
+  for (const c of RESULT_COLUMNS) {
+    if (!seen.has(c)) throw new ConfigError(c, `missing column ${c}`)
+  }
+}
+
+export function parseResultsCsv(input: string): ResultRow[] {
+  const text = input.startsWith("\uFEFF") ? input.slice(1) : input
+  checkHeader(text)
   const raw = parseCsv(text).map((rec) => {
     const o: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(rec)) {
