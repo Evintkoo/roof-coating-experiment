@@ -6,10 +6,12 @@ import { DataError, PhysicsRangeError } from "../../../src/core/errors"
 import { setEventSink } from "../../../src/core/events"
 import {
   type NKTable,
+  nkAt,
   parseG173,
   parseNk,
   type Spectrum,
 } from "../../../src/core/literature"
+import { mieEfficiencies } from "../../../src/core/models/mie"
 import {
   applyTopcoat,
   kmCoefficients,
@@ -136,9 +138,33 @@ test("g173Total", () => {
         (g173.irradiance_w_m2_um[i - 1] as number)) *
       ((g173.wl_um[i] as number) - (g173.wl_um[i - 1] as number))
   expect(Math.abs(total - 1000.37)).toBeLessThan(1.0)
-  // r = 1 inside 0.3-2.5 um only: the weighted value is the in-band energy fraction, held r beyond.
-  const step = new Float64Array(wl.length).fill(1)
-  expect(solarWeighted(wl, step, g173)).toBeCloseTo(1, 12)
+})
+
+test("solarWeightedInterpolatesAndHoldsTail", () => {
+  // Non-flat r on a coarse grid; expected from numpy (np.interp onto the G173 grid, which holds the
+  // end values below 0.5 um and beyond 2.0 um up to 4.0 um, then np.trapezoid ratio), throwaway script
+  // in the scratchpad (indep check, not from the TS code).
+  const w = f(0.5, 1.0, 2.0)
+  const r = f(0.2, 0.6, 0.4)
+  expect(solarWeighted(w, r, g173)).toBeCloseTo(0.374858033178181, 12)
+  // Same grid with the last value 1 (tail held at 1 from 2 to 4 um), also from numpy.
+  expect(solarWeighted(w, f(0.2, 0.6, 1), g173)).toBeCloseTo(
+    0.4378523095417368,
+    12,
+  )
+})
+
+test("kmSeriesAndTanhBranchesAgree", () => {
+  // t = b*S*X = X*sqrt(K(K+2S)) straddles the 1e-4 branch switch (series below, tanh above).
+  // S = 1, X = 1, Rg = 0.3, K chosen so t = 0.99e-4 and 1.01e-4; expected from mpmath (40 digits).
+  expect(rKm(1, 4.900499987992549e-9, 1, 0.3)).toBeCloseTo(
+    0.5882352910032578,
+    12,
+  )
+  expect(rKm(1, 5.10049998699245e-9, 1, 0.3)).toBeCloseTo(
+    0.5882352908761529,
+    12,
+  )
 })
 
 test("pvcZeroGivesBinderOnlyFinite", () => {
@@ -163,10 +189,81 @@ test("pvcOutOfRangeCode4", () => {
 })
 
 test("edges100And300UmValid", () => {
-  for (const d of [100, 300]) {
+  // R at 0.423971 um from the independent script (see midcoatWiringPinnedToIndependentMie).
+  const i = gridIndex(0.423971)
+  for (const [d, expected] of [
+    [100, 0.9475385893932061],
+    [300, 0.9475409307418439],
+  ] as const) {
     const r = midcoatSpectrum(0.25, 0.5, d, mat, tio2, baso4, wl)
     for (const v of r) expect(v >= 0 && v <= 1).toBe(true)
+    expect(Math.abs((r[i] as number) - expected)).toBeLessThan(1e-9)
   }
+})
+
+test("pvcUpperGuardEdge", () => {
+  expect(() =>
+    midcoatSpectrum(0.6, 0.5, 200, mat, tio2, baso4, wl),
+  ).not.toThrow()
+  expect(() => midcoatSpectrum(0.61, 0.5, 200, mat, tio2, baso4, wl)).toThrow(
+    PhysicsRangeError,
+  )
+})
+
+// Expected values below come from /scratchpad/indep.py (throwaway, python3 -I): Mie by complex
+// spherical Bessel/Riccati-Bessel a_n, b_n (scipy.special) with m = (n+ik)/1.48, x = pi d 1.48/lambda;
+// sigma = 1.5 phi Q/d; K = 2 sigma_a; S = max(0, 3/4 (1-g) sigma_s - sigma_a/4); closed-form Kubelka
+// film with coth; phi_TiO2 = pvc*f, phi_BaSO4 = pvc*(1-f); d_TiO2 0.25, d_BaSO4 1.0 um (n 1.64, k 0);
+// ground 0.65; TiO2 n,k = table rows at the grid wavelengths.
+const gridIndex = (w: number) => {
+  const i = wl.findIndex((v) => Math.abs(v - w) < 1e-9)
+  if (i < 0) throw new Error(`no grid point at ${w}`)
+  return i
+}
+
+test("midcoatWiringPinnedToIndependentMie", () => {
+  const r = midcoatSpectrum(0.25, 0.5, 200, mat, tio2, baso4, wl)
+  for (const [w, expected] of [
+    [0.346606, 0.07654852862243032],
+    [0.388899, 0.7590291012579357],
+    [0.423971, 0.947540930672583],
+    [0.449093, 0.97729958959948],
+  ] as const)
+    expect(Math.abs((r[gridIndex(w)] as number) - expected)).toBeLessThan(1e-9)
+  // Strong UV absorption: S clamps to 0 and the film is a pure absorber (R ~ 0).
+  expect(r[0] as number).toBeLessThan(1e-9)
+})
+
+test("midcoatAsymmetricFractionsPinned", () => {
+  // f = 0.3 (pvc 0.3, 120 um): unlike f = 0.5 this distinguishes phi_TiO2 from phi_BaSO4 and the diameters.
+  const r = midcoatSpectrum(0.3, 0.3, 120, mat, tio2, baso4, wl)
+  for (const [w, expected] of [
+    [0.346606, 0.08049392661375933],
+    [0.388899, 0.7603521937150058],
+    [0.423971, 0.9479059372138544],
+    [0.449093, 0.9762982266699928],
+  ] as const)
+    expect(Math.abs((r[gridIndex(w)] as number) - expected)).toBeLessThan(1e-9)
+})
+
+test("singlePigmentSKRPinnedT_OPT_6", () => {
+  // TiO2 only (f = 1), pvc 0.2, 150 um, at 0.388899 um (independent script: S, K, R).
+  const i = gridIndex(0.388899)
+  const nk = nkAt(tio2, Float64Array.of(0.388899))
+  const mie = mieEfficiencies(
+    nk.n[0] as number,
+    nk.k[0] as number,
+    mat.tio2.diameter_um.value,
+    Float64Array.of(0.388899),
+    mat.binder.n.value,
+  )
+  const { s, k } = kmCoefficients([
+    { mie, dUm: mat.tio2.diameter_um.value, phi: 0.2 },
+  ])
+  expect(Math.abs((s[0] as number) - 1.8512055361029507)).toBeLessThan(1e-9)
+  expect(Math.abs((k[0] as number) - 0.07149838909097356)).toBeLessThan(1e-9)
+  const r = midcoatSpectrum(0.2, 1, 150, mat, tio2, baso4, wl)
+  expect(Math.abs((r[i] as number) - 0.7580216019679951)).toBeLessThan(1e-9)
 })
 
 test("dftOutsideDomainCode4", () => {
@@ -204,8 +301,8 @@ test("singlePigmentFractionsFinite", () => {
 test("defaultMidcoatIsReflective", () => {
   const r = midcoatSpectrum(0.25, 0.5, 200, mat, tio2, baso4, wl)
   const s = rSolarStack(r, wl, g173)
-  expect(s).toBeGreaterThan(0.75)
-  expect(s).toBeLessThan(0.99)
+  // 0.95107 from an independent numpy Mie + KM recomputation (reviewer), narrow band.
+  expect(Math.abs(s - 0.95107)).toBeLessThan(5e-5)
 })
 
 test("thickerNeverLessReflective", () => {
@@ -244,6 +341,7 @@ test("topcoatZeroDftIdentity", () => {
 })
 
 test("mieCacheStatsEventAtDebug", () => {
+  // Counters are cumulative since resetMieCache(); the event fires once per midcoatSpectrum call.
   const seen: { event: string; level: string; hits: number; misses: number }[] =
     []
   setEventSink((event, level, fields) => {
