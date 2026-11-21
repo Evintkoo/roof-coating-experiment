@@ -73,7 +73,7 @@ In: gradients and Hessians of the five objectives and the constraint functions w
 ## Requirements
 - **FR-1** Gradients MUST be computed for the five objective functions and the constraints (`m1 ≤ cpvc`, `p2 + m3 + t2 ≤ 332 µm`, `delam_proxy ≤ 0.5`) in scaled coordinates with bound-aware steps (one-sided at a bound).
 - **FR-2** The scalar objective MUST be the smooth Chebyshev form `S(x) = (1/β)·ln Σ_i exp(β·w_i·g_i(x)) + ρ·Σ_i w_i·g_i(x)` over the five objectives normalised to [0,1] by the screened ranges (plan 3 `results.csv`), `β = 20`, `ρ = 0.05` (log-sum-exp is C^∞, so gradients, KKT and Hessians are meaningful; the true Chebyshev maximum differs from `S` by at most `ln(5)/β = 0.08` and is reported beside it; every baseline in H5 and H13 uses the same `S`). The five objectives are the entries of plan 3 `OBJECTIVES` in that order, read at run time (never re-typed); `delam_proxy` is a constraint (FR-1), not an objective. Weights: the `balanced` vector for the 20 starts, then the 4 `corner` vectors (one objective weighted 0.7, the others 0.075) for the 5 best starts (warm-started): 40 solves per run.
-- **FR-3** The search MUST start from the plan-3 Pareto candidates (top 10 by `pareto_freq`) and 10 Sobol points (`deriveSeed(seed, 300)`) moved to feasibility by bisection toward the best screened feasible candidate; every start is feasible, and the search MUST never return a point worse than its start.
+- **FR-3** The search MUST start from the plan-3 Pareto candidates (top 10 by `pareto_freq`) and 10 Sobol points (`deriveSeed(seed, 300)`; stream 304 is the Sobol starts of `c_min` / `c_max` in the budget table, see the plan 01 D13 registry) moved to feasibility by bisection toward the best screened feasible candidate; every start is feasible, and the search MUST never return a point worse than its start.
 - **FR-4** Constraints: box by projection, linear and nonlinear by exterior penalty with an escalating weight; every reported optimum MUST satisfy all constraints to 1e-9.
 - **FR-5** Robust optimisation MUST re-solve the balanced weight vector for K = 32 uncertainty draws (plan 3 D4 stream `deriveSeed(seed, 301)`) and report the distribution of optimal ingredient levels and the robust optimum (minimising the 90th-percentile objective over the draws).
 - **FR-6** The tolerance table MUST list, per ingredient, the largest symmetric dose change that keeps the scalar objective within 1 % (config `tol_loss`) of the optimum, from the Hessian and then verified by direct evaluation (H8).
@@ -170,6 +170,19 @@ Plans 1–3 constraints apply. `core/opt/` imports no Node/Bun/DOM modules. No m
 - **D12** Profiles: `cooling_first` weights (r_solar 0.4, t_max 0.4, corrosion 0.1, wetting 0.1), `balanced` (0.25 each), `durability_first` (r_solar 0.1, t_max 0.1, corrosion 0.4, wetting 0.4); the cost objective is replaced by the budget constraint in the table.
 - **D13** The knee is the smallest tabulated budget whose profile scalar achieves 95 % of the improvement from `c_min` to `c_max`; reported as "recommended budget" with the marginal-return curve.
 - **D9** Output ordering: weight id ascending, then start id ascending; every CSV is written with `toCsv` and validated like plan 3.
+
+### Amendments from execution (2026-11-21)
+
+- **D4/H4:** the multiplier shift between penalty rounds changes the penalised merit, so the merit is monotone non-increasing within each round, not across rounds.
+- **H8:** a variable counts as confirmed when one edge is bisected and verified by direct evaluation; 8 of 9 variables are confirmed (the rest are clipped at a bound or never reach 1 % in the box), the plan's threshold of 7 of 9 holds.
+- **Corners (FR-5 weights):** 5 corner vectors are configured, but `corner_delam_proxy` is dropped from the run, so 4 corners and 40 solves.
+- **D12:** the plan's fourth objective "wetting" is mapped to `delam_proxy` (plan 3's fourth objective); refine `balanced` (0.2 each incl. cost) differs from the table profile `balanced` (0.25 on four objectives, cost 0), so their S values are not comparable.
+- **FR-9:** the budget table adds a downward sweep from the unconstrained optimum plus tightening passes; continuation upward alone lands in the wrong basin (S 0.1413 against 0.1126 at `c_max`).
+- **F5:** at CLI level a NaN refractive index exits 2 (the schema rejects NaN first); exit 4 holds at `runRefine` level.
+- **Budget table I/O:** the `budget-table` output directory must lie inside the `--in` directory and `report` must have run first, because `run_manifest.json` lists the table hash (D11).
+- **Frozen thresholds:** `T_grad_rel` 1e-5, `T_kkt` 1e-7; Armijo constant 1e-4 with backtracking factor 0.5 and at most 60 iterations over all rounds (D3, as built); the saddle flag comes from `secondOrderCheck` (Hessian eigenvalue check).
+- **H12/H18:** the report pieces are implemented in plan 00, not here.
+- **H6:** the DFT constraint `p2 + m3 + t2 <= 332` equals the sum of the box maxima and is vacuous inside the box; the delamination cap is the only nonlinear constraint that can bind (tested with a tightened materials copy).
 
 ## File Structure
 | Source | Test |

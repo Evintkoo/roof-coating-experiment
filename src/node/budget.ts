@@ -46,12 +46,14 @@ export const PROFILES = [
   "durability_first",
 ] as const
 export const BUDGET_FILE = "budget_table.json"
-/** The stream of the Sobol starts of c_min / c_max (300 refine starts, 301 robust, 302 fresh, 303 intervals). */
+/**
+ * Seed streams of plan 05 (plan 01 D13 registry): 300 refine Sobol starts, 301 robust draws, 302 fresh evaluation draws,
+ * 303 budget-table interval draws, 304 the Sobol starts of c_min / c_max in the budget table. The recomputed-cost check
+ * below is strict (no round-trip allowance): on the proof-run tables the recomputed cost equals the budget exactly.
+ */
 const STREAM_STARTS = 304
 const STREAM_INTERVALS = 303
 const VIOLATION_TOL = 1e-9
-/** Rounding allowance of the cost re-check after the recipe went through physical units and back. */
-const COST_ROUNDTRIP = 1e-12
 
 const phaseErr = (
   code: 3 | 4 | 5 | 6,
@@ -433,7 +435,7 @@ async function runBudgetTableInner(
           t.profile,
           "an entry costs more than its budget",
         )
-      if (!(model.cost(u) <= e.budget + COST_ROUNDTRIP))
+      if (!(model.cost(u) <= e.budget))
         throw phaseErr(
           4,
           "budget.validate",

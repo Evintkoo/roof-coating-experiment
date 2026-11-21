@@ -85,6 +85,9 @@ scalarisation:
 # Plan D12 names "wetting" as the fourth objective, but plan 3's fourth objective is delam_proxy (wetting is not one of the
 # five), so delam_proxy takes that weight here. The cost objective has weight 0 in the profiles: the budget table replaces it
 # by a hard constraint.
+# NAMING TRAP: this `balanced` (0.2 on each of five objectives, cost included) is the refine weight vector. The budget table's
+# `profiles.balanced` below is a different vector (0.25 on the four non-cost objectives, cost 0 because cost is the constraint).
+# Their scalar values S are not comparable.
 weights:
   balanced:
     r_solar_pred: 0.2
@@ -122,6 +125,7 @@ weights:
     corrosion_proxy: 0.075
     delam_proxy: 0.075
     cost_proxy: 0.7
+# NOTE: `profiles.balanced` differs from `weights.balanced` above (see the naming-trap note there); S values are not comparable.
 profiles:
   cooling_first:
     r_solar_pred: 0.4

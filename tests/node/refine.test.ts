@@ -12,7 +12,7 @@ import { parseCsv } from "../../src/core/csv"
 import { weatherL9 } from "../../src/core/design"
 import { SpandekError } from "../../src/core/errors"
 import { delaminationProxy } from "../../src/core/models/delamination"
-import { makeModel } from "../../src/core/opt/objective"
+import { makeModel, solveScalar } from "../../src/core/opt/objective"
 import {
   normaliseObjectives,
   OBJECTIVE_NAMES,
@@ -63,6 +63,16 @@ const rows = (dir: string, name: string) =>
 const num = (r: Record<string, string>, k: string) => Number(r[k])
 
 const OPTS = { starts: 4 }
+/** Critical topcoat thickness (um) of the delam-active case: small enough that the 0.5 delamination cap binds. */
+const DELAM_PROBE_H_C0 = 7
+/** |delam_proxy - cap| below which the cap counts as active at the optimum. */
+const DELAM_ACTIVE_TOL = 1e-6
+/** Corrosion-heavy weights of the delam-active case (the other objectives weigh 0). */
+const DELAM_PROBE_WEIGHTS: Record<string, number> = {
+  r_solar_pred: 0.1,
+  t_max_pred: 0.1,
+  corrosion_proxy: 0.8,
+}
 
 beforeAll(async () => {
   plan3 = tmp("spandek-p3-")
@@ -314,6 +324,39 @@ test(
     expect(num(balanced, "m1")).toBeGreaterThan(0.2 - 1e-6)
     expect(num(balanced, "m1")).toBeLessThanOrEqual(0.2 + 1e-9)
     expect(num(balanced, "S")).toBeLessThan(0.12)
+  },
+  LONG,
+)
+
+test(
+  "delaminationCapActiveIsSolvedNotJustRespected",
+  () => {
+    // H6 on the third constraint. With the shipped materials delam_proxy <= 0.5 is slack at every optimum, because the
+    // delamination objective itself pushes the topcoat to the box floor. A private materials copy with a small critical
+    // topcoat thickness (h_c0_top = 7 um) and a corrosion-heavy weight vector (corrosion wants the thick, high-MTES
+    // topcoat) makes the cap bind. Measured once on this data: delam_proxy 0.5000, constraint value -4.6e-8.
+    // The model is the real one (stackProps, delaminationProxy); only the materials copy differs.
+    const tight = structuredClone(ctx)
+    tight.mat.barrier.h_c0_top_um.value = DELAM_PROBE_H_C0
+    const results = parseResultsCsv(
+      readFileSync(join(plan3, "results.csv"), "utf8"),
+    )
+    const model = makeModel(
+      tight,
+      weatherL9(tight.weather),
+      normaliseObjectives(results),
+      tight.ranges.cpvc.value,
+      tight.ranges.max_total_dft_um.value,
+      tight.mat,
+    )
+    const w = OBJECTIVE_NAMES.map((n) => DELAM_PROBE_WEIGHTS[n] ?? 0)
+    const o = solveScalar(model, w, new Float64Array(VARS.length).fill(0.5))
+    const d = model.delam(o.u)
+    const c = model.constraint(o.u, 2)
+    console.log(`delam-active case: delam_proxy ${d}, constraint ${c}`)
+    expect(model.maxViolation(o.u)).toBeLessThanOrEqual(1e-9)
+    expect(c).toBeLessThanOrEqual(1e-9)
+    expect(c).toBeGreaterThan(-DELAM_ACTIVE_TOL)
   },
   LONG,
 )

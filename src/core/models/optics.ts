@@ -104,7 +104,9 @@ export function smoothClampS(s: number, scale: number): number {
  * Per-length KM coefficients (1/um) of independent-scattering pigment layers (plan 02 D2, spike Q1, ruling R1).
  * sigma_s = 1.5*phi*Q_sca/d, sigma_a = 1.5*phi*Q_abs/d (phi = volume fraction of total solids), summed over
  * pigments; K = 2*sigma_a; Eddington S = 3/4*(1-g)*sigma_s - sigma_a/4 (hemispheric: S = (1-g)*sigma_s),
- * summed per pigment (equal to using the sigma_s-weighted mean g). S is clamped at 0 (a pure absorber).
+ * summed per pigment (equal to using the sigma_s-weighted mean g). S >= 0 is kept by the C1 smooth clamp
+ * smoothClampS (a pure absorber gives 0): in the band 0 < S < S_CLAMP_SMOOTH_REL x the scattering part the cubic
+ * eps*t^2*(2-t), t = S/eps, replaces S (shift at most 0.15 eps).
  * Known limits: independent scattering ignores dependent scattering at PVC up to 0.35; two-flux needs
  * an optically thick film; no size distribution.
  */

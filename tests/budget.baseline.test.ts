@@ -32,6 +32,12 @@ const T_NRT_TABLE_S = 900
 const cfgDir = join(repoRoot, "configs")
 const dataDir = join(repoRoot, "data", "literature")
 const SEED = "20261121"
+/** Seed of the 4096 brute-force Sobol points of H13 (a test stream, not one of the plan 01 D13 pipeline streams). */
+const H13_SOBOL_SEED = 4242
+/** Stream index of the 1000 random budgets per profile of the H14 lookup test (test-only, outside 0-6 and 100-304). */
+const H14_BUDGET_STREAM = 9014
+/** Stream index of the random budgets of the H17 polish test (test-only). */
+const H17_BUDGET_STREAM = 9017
 
 let plan3: string
 let tablePath: string
@@ -201,7 +207,9 @@ test(
       )
     }
     expect(screened.length).toBe(96)
-    const sobol = sobolPoints(4096, 9, 4242).map((p) => Float64Array.from(p))
+    const sobol = sobolPoints(4096, 9, H13_SOBOL_SEED).map((p) =>
+      Float64Array.from(p),
+    )
     // objectives are shared by the three profiles: evaluate every point once
     const pts = [...screened, ...sobol]
       .filter((u) => model.maxViolation(u) <= 0)
@@ -216,6 +224,8 @@ test(
     expect(pts.length).toBeGreaterThan(1000)
     const levels = [0, 11, 22, 33, 44, 55, 66, 77, 88, 99]
     const margins: string[] = []
+    let compared = 0
+    let strictlyBetter = 0
     for (const p of PROFILES) {
       const w = file.weights[p] as number[]
       const sc = pts.map((q) => ({ cost: q.cost, s: chebyshev(q.g, w) }))
@@ -226,20 +236,30 @@ test(
           cand.length === 0
             ? Number.POSITIVE_INFINITY
             : Math.min(...cand.map((q) => q.s))
+        if (Number.isFinite(best)) {
+          compared++
+          if (e.scalar < best - 1e-9) strictlyBetter++
+        }
         expect(e.scalar).toBeLessThanOrEqual(best + 1e-9)
         margins.push(
           `${p}[${k}] ${e.scalar.toFixed(4)} vs ${Number.isFinite(best) ? best.toFixed(4) : "none"} (${cand.length})`,
         )
       }
     }
-    console.log(`H13 table vs best brute force:\n${margins.join("\n")}`)
+    // non-vacuous: at least 27 of the 30 budgets have a brute-force point to beat (level 0 = c_min has none)
+    expect(compared).toBeGreaterThanOrEqual(27)
+    // the proof log says "better" at every compared budget: strictly, by more than the 1e-9 equality allowance
+    expect(strictlyBetter).toBe(compared)
+    console.log(
+      `H13 table vs best brute force: ${strictlyBetter} of ${compared} compared budgets strictly better\n${margins.join("\n")}`,
+    )
   },
   LONG,
 )
 
 test("lookupOnTheRealTableIsExactAndSafe", () => {
   // H14 on real data: 1000 random budgets against a brute-force scan
-  const rng = new Xoshiro128(deriveSeed(Number(SEED), 9014))
+  const rng = new Xoshiro128(deriveSeed(Number(SEED), H14_BUDGET_STREAM))
   for (const p of PROFILES) {
     const t = table(p)
     for (let i = 0; i < 1000; i++) {
@@ -262,7 +282,7 @@ test(
   "polishNeverLoses",
   () => {
     // H17: 20 random budgets (profiles in rotation): the polished scalar is no worse than the table entry's, cost <= budget
-    const rng = new Xoshiro128(deriveSeed(Number(SEED), 9017))
+    const rng = new Xoshiro128(deriveSeed(Number(SEED), H17_BUDGET_STREAM))
     let improved = 0
     for (let i = 0; i < 20; i++) {
       const p = PROFILES[i % 3] as string
