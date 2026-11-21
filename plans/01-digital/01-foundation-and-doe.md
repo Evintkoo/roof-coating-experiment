@@ -112,7 +112,7 @@ Thresholds: `T_n_candidates = 96`, `T_min_feasible_frac = 0.80`, `T_runtime_ms =
 | F1 | delete `source` of `primer_dft_um` | config | 2 |
 | F2 | set `midcoat_pvc.min` > `.max` | config | 2 |
 | F3 | unknown key `midcoat_pcv` | config | 2 |
-| F4 | `cpvc` = 0.12 (below most PVC samples: about 8 of 96 stay feasible, fewer than the required 77) | design | 3 |
+| F4 | `cpvc` = 0.12 (below most PVC samples: 7 of 96 stay feasible for seed 20261121, fewer than the required 77) | design | 3 |
 | F5 | `--n 95` flag with config requiring 96 | config | 2 |
 | F6 | missing `weather_scenarios.yaml` | data | 5 |
 | F7 | `roof.r_total_m2k_w` = 0 in `weather_scenarios.yaml` | config | 2 |
