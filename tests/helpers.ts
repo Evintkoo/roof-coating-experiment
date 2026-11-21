@@ -22,3 +22,26 @@ export function listFiles(dir: string): string[] {
   walk(dir)
   return out.sort()
 }
+
+export const mirrorOf = (src: string) => src.replace(/\.ts$/, ".test.ts")
+
+/** Source files lacking a mirror test (tests/<path>.test.ts). */
+export function missingMirrors(
+  srcFiles: string[],
+  testFiles: string[],
+  noMirrorNeeded: Set<string>,
+): string[] {
+  return srcFiles
+    .filter((f) => !noMirrorNeeded.has(f))
+    .filter((f) => !testFiles.includes(mirrorOf(f)))
+}
+
+/** Test files that neither mirror a source file nor are whitelisted. */
+export function orphanTests(
+  srcFiles: string[],
+  testFiles: string[],
+  nonMirror: Set<string>,
+): string[] {
+  const srcSet = new Set(srcFiles.map(mirrorOf))
+  return testFiles.filter((t) => !nonMirror.has(t) && !srcSet.has(t))
+}

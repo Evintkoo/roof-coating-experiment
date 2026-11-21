@@ -30,7 +30,7 @@ test("apiSurfaces", async () => {
   expect(reply).toEqual({ echo: { ping: 42 } })
 
   // Bun.build deterministic
-  const { mkdtempSync, writeFileSync } = await import("node:fs")
+  const { mkdtempSync, rmSync, writeFileSync } = await import("node:fs")
   const { tmpdir } = await import("node:os")
   const { join } = await import("node:path")
   const dir = mkdtempSync(join(tmpdir(), "smoke-"))
@@ -43,9 +43,13 @@ test("apiSurfaces", async () => {
     if (!out) throw new Error("no output")
     return await out.text()
   }
-  const a = await build()
-  const b = await build()
-  expect(a).toBe(b)
+  try {
+    const a = await build()
+    const b = await build()
+    expect(a).toBe(b)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 
   // priority
   os.setPriority(process.pid, 10)
@@ -53,7 +57,6 @@ test("apiSurfaces", async () => {
 
   // sha256
   const h = new Bun.CryptoHasher("sha256").update("abc").digest("hex")
-  expect(h.startsWith("ba7816bf")).toBe(true)
   expect(h).toBe(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   )
