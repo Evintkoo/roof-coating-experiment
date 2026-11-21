@@ -107,12 +107,12 @@ export function checkConstraints(
     if (r.topcoat_dft_um > r.midcoat_dft_um) v.push("C-2")
     if (r.primer_dft_um + r.midcoat_dft_um + r.topcoat_dft_um > cap)
       v.push("C-3")
-    const violations = v.join(";")
-    if (v.length > 0)
+    for (const rule of v)
       emitEvent("constraint.violated", "info", {
         candidate_id: r.candidate_id,
-        violations,
+        rule,
       })
+    const violations = v.join(";")
     return { ...r, feasible: v.length === 0, violations }
   })
 }
@@ -127,7 +127,6 @@ export function requireMinFeasible(
   if (feasible < required) {
     emitEvent("constraint.infeasible_run", "error", {
       feasible,
-      total: rows.length,
       required,
     })
     throw new InfeasibleError(

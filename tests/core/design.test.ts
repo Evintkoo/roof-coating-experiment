@@ -254,7 +254,11 @@ test("independentRecheck", () => {
 
 test("requireMinFeasibleThrowsCode3", () => {
   const events: string[] = []
-  setEventSink((e) => events.push(e))
+  const fields: Record<string, string | number | boolean>[] = []
+  setEventSink((e, _l, f) => {
+    events.push(e)
+    if (e === "constraint.infeasible_run") fields.push(f)
+  })
   try {
     const low = { ...ranges, cpvc: { ...ranges.cpvc, value: 0.12 } }
     const flagged = checkConstraints(base(), low)
@@ -269,6 +273,9 @@ test("requireMinFeasibleThrowsCode3", () => {
     expect((err as InfeasibleError).code).toBe(3)
     expect(events).toContain("constraint.violated")
     expect(events).toContain("constraint.infeasible_run")
+    expect(fields).toEqual([
+      { feasible: flagged.filter((r) => r.feasible).length, required: 77 },
+    ])
   } finally {
     setEventSink(null)
   }
@@ -283,4 +290,40 @@ test("infeasibleRowsKept", () => {
     expect(f.candidate_id).toBe((rows[i] as DesignRow).candidate_id)
   })
   expect(flagged.some((r) => !r.feasible)).toBe(true)
+})
+
+test("constraintViolatedEmitsOneEventPerRule", () => {
+  const evs: Record<string, string | number | boolean>[] = []
+  setEventSink((e, _l, f) => {
+    if (e === "constraint.violated") evs.push(f)
+  })
+  try {
+    const r = {
+      ...(base()[0] as DesignRow),
+      midcoat_pvc: 0.4,
+      midcoat_dft_um: 10,
+      topcoat_dft_um: 20,
+    }
+    const low = { ...ranges, cpvc: { ...ranges.cpvc, value: 0.2 } }
+    checkConstraints([r], low)
+    expect(evs).toEqual([
+      { candidate_id: r.candidate_id, rule: "C-1" },
+      { candidate_id: r.candidate_id, rule: "C-2" },
+    ])
+  } finally {
+    setEventSink(null)
+  }
+})
+
+test("requireMinFeasibleBoundary", () => {
+  const rows = checkConstraints(base(), ranges)
+  const withFeasible = (k: number) =>
+    rows.map((r, i) => ({ ...r, feasible: i < k }))
+  expect(() => requireMinFeasible(withFeasible(77))).not.toThrow()
+  expect(() => requireMinFeasible(withFeasible(76))).toThrow(InfeasibleError)
+  try {
+    requireMinFeasible(withFeasible(76))
+  } catch (e) {
+    expect((e as InfeasibleError).code).toBe(3)
+  }
 })
