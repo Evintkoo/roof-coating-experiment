@@ -23,6 +23,7 @@ const REF = [4.25, 3.0, 0.5] as const
 const H = 3600
 
 type SolCase = {
+  kind: string
   ph: number
   waterRatio: number
   x: number
@@ -71,14 +72,60 @@ test("closedFormMatchesOdeFixture", () => {
     const eh = relErr(hydrolysis(c.tS, c.kH, c.waterRatio), c.h)
     const ec = relErr(condensation(c.tS, c.kH, c.kC, c.waterRatio), c.c)
     const g = simulateSol(c.ph, c.waterRatio, c.x, c.kHCoeff, c.kC, c.tEndS)
-    expect(c.gel_time_s).not.toBeNull()
-    const eg = relErr(g.gel_time_s, c.gel_time_s as number)
+    const eg =
+      c.gel_time_s === null
+        ? g.gel_time_s === Number.POSITIVE_INFINITY
+          ? 0
+          : 1
+        : relErr(g.gel_time_s, c.gel_time_s)
     worst = Math.max(worst, eh, ec, eg)
     expect(eh).toBeLessThan(1e-6)
     expect(ec).toBeLessThan(1e-6)
     expect(eg).toBeLessThan(1e-6)
   }
   expect(worst).toBeLessThan(1e-6)
+})
+
+test("oracleCoverage", () => {
+  const capAfter = oracle.cases.filter(
+    (c) => c.waterRatio < 1 && c.gel_time_s !== null,
+  )
+  expect(
+    capAfter.filter((c) => c.kind === "cap_after").length,
+  ).toBeGreaterThanOrEqual(5)
+  expect(
+    oracle.cases.filter((c) => c.gel_time_s === null).length,
+  ).toBeGreaterThanOrEqual(2)
+  for (const c of capAfter.filter((c) => c.kind === "cap_after")) {
+    const tStar = -Math.log1p(-c.waterRatio) / c.kH
+    expect(c.gel_time_s as number).toBeGreaterThan(tStar)
+  }
+})
+
+// independent values: python3 -I mpmath, 50 digits (kC = 1, t = 1, k_h = u)
+test("taylorSwitchStraddle", () => {
+  const ref: [number, number][] = [
+    [0.49, 0.18896301424599027],
+    [0.5, 0.19189341693404008],
+    [0.51, 0.19479469569098004],
+  ]
+  for (const [u, c] of ref)
+    expect(relErr(condensation(1, u, 1, 3), c)).toBeLessThan(1e-13)
+})
+
+test("referenceThatNeverGelsRejected", () => {
+  // t_end 50 h: pH 3.5 gels, pH 5 does not
+  const m = {
+    ...mat,
+    sol_gel: {
+      ...mat.sol_gel,
+      t_end_s: { ...mat.sol_gel.t_end_s, value: 50 * H },
+    },
+  }
+  expect(gelTimeRel(5, 3, 0.5, m, [3.5, 3, 0.5])).toBe(Number.POSITIVE_INFINITY)
+  expect(codeOf(() => gelTimeRel(3.5, 3, 0.5, m, [5, 3, 0.5]))).toBe(4)
+  expect(codeOf(() => gelTimeRel(4.25, 3, 0.5, mat, [4.25, 3, 0.1]))).toBe(4)
+  expect(codeOf(() => gelTimeRel(4.25, 3, 0.5, mat, [4.25, 3, 0.9]))).toBe(4)
 })
 
 test("spikeQ3GelTimesPinned", () => {
@@ -124,19 +171,6 @@ test("neverGelsReturnsInfinityAndLogsDegenerate", () => {
   expect(d[0]?.l).toBe("warn")
   expect(d[0]?.f.model).toBe("solGel")
   expect(d[0]?.f.reason).toBe("gel_not_reached")
-  // relative output: Infinity for a non-gelling candidate
-  expect(
-    gelTimeRel(
-      5,
-      3,
-      0.5,
-      {
-        ...mat,
-        sol_gel: { ...mat.sol_gel, k_c: { ...mat.sol_gel.k_c, value: 1e-12 } },
-      },
-      REF,
-    ),
-  ).toBe(Number.POSITIVE_INFINITY)
 })
 
 test("waterRatioAboveOneHasNoEffectOnGelTime", () => {

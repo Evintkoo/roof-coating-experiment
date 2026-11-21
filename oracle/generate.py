@@ -312,26 +312,38 @@ def sol_ode(k_h: float, k_c: float, cap: float, p_c: float, t_end: float, t_eval
         return cap, float(y2[0])
 
     h, c = at(t_eval)
-    return h, c, gel
+    return h, c, gel, (t_cap if capped else None)
 
 
 def solgel_fixture() -> dict:
     rng = SplitMix64(SOLGEL_SEED)
     p_c_of = lambda x: 1.0 / ((16 * (1 - x) + 9 * x) / (4 * (1 - x) + 3 * x) - 1.0)
     cases = []
-    for _ in range(SOLGEL_CASES):
-        ph = 3.5 + 1.5 * rng.uniform()
-        water = 0.3 + 4.7 * rng.uniform()
-        x = 0.2 + 0.6 * rng.uniform()
-        k_h_coeff = 10 ** (math.log10(0.03) + (math.log10(6.0) - math.log10(0.03)) * rng.uniform())
-        k_c = 10 ** (-6.0 + 2.5 * rng.uniform())
-        t_s = SOLGEL_T_END * rng.uniform()
-        k_h = k_h_coeff * 10.0 ** (-ph)
-        cap = min(1.0, water)
-        h, c, gel = sol_ode(k_h, k_c, cap, p_c_of(x), SOLGEL_T_END, t_s)
+    # kinds: free (9), cap < 1 with gel strictly after t* (8), never gels (3); rejection sampling
+    kinds = ["free"] * 9 + ["cap_after"] * 8 + ["never"] * 3
+    for kind in kinds:
+        while True:
+            ph = 3.5 + 1.5 * rng.uniform()
+            water = 0.3 + 4.7 * rng.uniform()
+            x = 0.2 + 0.6 * rng.uniform()
+            k_h_coeff = 10 ** (math.log10(0.03) + (math.log10(6.0) - math.log10(0.03)) * rng.uniform())
+            k_c = 10 ** (-6.0 + 2.5 * rng.uniform())
+            t_s = SOLGEL_T_END * rng.uniform()
+            if kind == "cap_after":
+                water = 0.3 + 0.65 * rng.uniform()
+            if kind == "never":
+                k_c = 10 ** (-9.0 + rng.uniform())
+            k_h = k_h_coeff * 10.0 ** (-ph)
+            cap = min(1.0, water)
+            h, c, gel, t_cap = sol_ode(k_h, k_c, cap, p_c_of(x), SOLGEL_T_END, t_s)
+            if kind == "cap_after" and not (gel is not None and t_cap is not None and gel > t_cap):
+                continue
+            if kind == "never" and gel is not None:
+                continue
+            break
         cases.append(
             {
-                "ph": ph, "waterRatio": water, "x": x, "kHCoeff": k_h_coeff, "kC": k_c,
+                "kind": kind, "ph": ph, "waterRatio": water, "x": x, "kHCoeff": k_h_coeff, "kC": k_c,
                 "tEndS": SOLGEL_T_END, "tS": t_s, "kH": k_h, "h": h, "c": c,
                 "gel_time_s": gel,  # null = no gel inside the window
             }

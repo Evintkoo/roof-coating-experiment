@@ -1,4 +1,5 @@
 import type { Materials } from "../config"
+import { PhysicsRangeError } from "../errors"
 import { emitEvent } from "../events"
 import { requireIn } from "./ranges"
 
@@ -131,7 +132,8 @@ export function simulateSol(
 /**
  * Gel time relative to the reference condition ref = [pH, water ratio, organo fraction]:
  * t_gel(ph, w, x) / t_gel(ref). PROXY (D4): no dependence on the water ratio for r_w >= 1.
- * A candidate that never gels gives Infinity; a reference that never gels with a gelling candidate gives 0.
+ * A candidate that never gels gives Infinity; a reference that never gels throws PhysicsRangeError (code 4).
+ * waterRatio < 1 is accepted deliberately (cap tests); only > 0 is required.
  */
 export function gelTimeRel(
   ph: number,
@@ -141,15 +143,8 @@ export function gelTimeRel(
   ref: readonly [number, number, number],
 ): number {
   requireIn("gelTimeRel", "xOrgano", xOrgano, X_LO, X_HI)
+  requireIn("gelTimeRel", "ref.xOrgano", ref[2], X_LO, X_HI)
   const { k_h, k_c, t_end_s } = mat.sol_gel
-  const t = simulateSol(
-    ph,
-    waterRatio,
-    xOrgano,
-    k_h.value,
-    k_c.value,
-    t_end_s.value,
-  )
   const r = simulateSol(
     ref[0],
     ref[1],
@@ -158,7 +153,19 @@ export function gelTimeRel(
     k_c.value,
     t_end_s.value,
   )
-  if (t.gel_time_s === Number.POSITIVE_INFINITY) return Number.POSITIVE_INFINITY
-  if (r.gel_time_s === Number.POSITIVE_INFINITY) return 0
+  if (r.gel_time_s === Number.POSITIVE_INFINITY) {
+    throw new PhysicsRangeError(
+      "ref",
+      "gelTimeRel: reference condition does not gel within t_end_s",
+    )
+  }
+  const t = simulateSol(
+    ph,
+    waterRatio,
+    xOrgano,
+    k_h.value,
+    k_c.value,
+    t_end_s.value,
+  )
   return t.gel_time_s / r.gel_time_s
 }
