@@ -4,7 +4,7 @@ Part 1 is the plan; Part 2 is the test specification. Depends on plans 1, 2 and 
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** 📋 PLANNED (written 2026-11-21 after the user asked for an Indonesia-specific simulation and fixed the substrate to aluminium)
+**Status:** ✅ DONE (executed 2026-11-21 and 2026-11-22; see "Amendments from execution" after the Decisions). Landed: `src/core/models/thermalSeries.ts`, `src/core/indonesia/{series,days}.ts`, `src/node/{power,epw,indonesia,indonesiaWorker,siteConfig}.ts`, `src/node/report/indonesia.ts`, `configs/{sites,indonesia}.yaml`, `data/indonesia/SHA256SUMS`, `docs/spikes/plan-04.md`, `docs/proofs/plan-04.md`, the Indonesia tests and `tests/indonesia.e2e{,.proof}.test.ts`. (Written 2026-11-21 after the user asked for an Indonesia-specific simulation and fixed the substrate to aluminium.)
 
 **Goal:** For five Indonesian sites, simulate the shortlisted coating systems and controls on a bare-aluminium spandek under real hourly weather (representative wet-season and dry-season days), initial and aged, and report surface temperature and heat flux benefit with intervals.
 
@@ -34,7 +34,7 @@ Events (production = info only; every failure diagnosable from info):
 Redaction: no URLs with keys (none are used), no raw HTTP bodies, no file contents; paths relative to `reports/`. Alert rules: none (batch); exit codes are the alert. Runbook: **5** data (fill value −999, missing hour, bad hash) → delete the named site-year cache file and re-run `fetch-data`; **6** network refused → retry later; **2** bad `sites.yaml` / `indonesia.yaml` key in `error.raised.key`. A test per event (plan 1 `events` guard). Log schema and size cap as plan 1 (one JSON object per line, ≤ 2 KiB per line).
 
 ## Scope
-In: five sites; wet and dry season; three day types; initial and aged reflectance; heat-flux benefit; cross-check against IWEC2 for two sites. Out: building energy simulation, rain/chloride deposition modelling (BLOCKED-10), field soiling (BLOCKED-9), a two-node thermal model (BLOCKED-2), any steel substrate. Standalone: no change to plan-2 models; plan 3's `stackProps` is consumed as is.
+In: five sites; wet and dry season; three day types; initial and aged reflectance; heat-flux benefit; cross-check against TMYx typical-year files for five sites. Out: building energy simulation, rain/chloride deposition modelling (BLOCKED-10), field soiling (BLOCKED-9), a two-node thermal model (BLOCKED-2), any steel substrate. Standalone: no change to plan-2 models; plan 3's `stackProps` is consumed as is.
 
 ## Stack and versions
 
@@ -42,17 +42,17 @@ In: five sites; wet and dry season; three day types; initial and aged reflectanc
 |---|---|---|
 | Runtime and language | Bun, TypeScript | 1.3.14, 7.0.2 |
 | Weather source | NASA POWER hourly point API | parameters `ALLSKY_SFC_SW_DWN`, `ALLSKY_SFC_LW_DWN`, `T2M`, `RH2M`, `WS2M`, `PRECTOTCORR`; units and time standard confirmed by spike Q1 |
-| Cross-check | IWEC2 EPW | Jakarta, Surabaya; licence confirmed by spike Q2 |
+| Cross-check | TMYx typical-year EPW (climate.onebuilding.org, 2011-2025; solar from ERA5) | all five sites; free download, not committed; spike Q2 (IWEC2 is paid and ASHRAE-copyrighted) |
 | Independent solver | scipy `solve_ivp` DOP853 | 1.18.1, segmented at hourly kinks |
 
-**Sites** (`configs/sites.yaml`, status `literature` for coordinates: public city coordinates; offsets fixed): Jakarta (−6.20, 106.85, WIB +7, coastal lowland), Surabaya (−7.25, 112.75, WIB +7, coastal), Medan (3.59, 98.67, WIB +7), Makassar (−5.15, 119.43, WITA +8, coastal), Bandung (−6.91, 107.61, 768 m, WIB +7, highland). Spike Q1 re-checks each coordinate against the API's returned grid point and records the elevation it returns.
+**Sites** (`configs/sites.yaml`, status `literature` for coordinates: public city coordinates; offsets fixed): Jakarta (−6.20, 106.85, WIB +7, coastal lowland), Surabaya (−7.25, 112.75, WIB +7, coastal), Medan (3.59, 98.67, WIB +7), Makassar (−5.15, 119.43, WITA +8, coastal), Bandung (−6.91, 107.61, 921.68 m, the elevation of the API grid cell, WIB +7, highland). Spike Q1 re-checks each coordinate against the API's returned grid point and records the elevation it returns.
 
 **Gaps this plan closes:** blueprint E1–E3 are generic (600–1000 W/m², 28–36 °C, three wind levels) and ignore humidity, cloud, season and ageing; this plan uses satellite/reanalysis-derived hourly weather and CRRC-style initial/aged reflectance.
 
 ## Alternatives considered
 | Alternative | Why not |
 |---|---|
-| Typical meteorological year (EPW) as the only source | Only two Indonesian IWEC2 sites confirmed; kept as cross-check |
+| Typical meteorological year (EPW) as the only source | Only two Indonesian IWEC2 sites exist and they are paid; TMYx for five sites is the cross-check |
 | Full 8760 h run per candidate | 96 × 5 sites × 8760 h is hours of compute for no extra decision value; representative days answer the question |
 | Clear-sky model (Haurwitz, Ineichen) instead of data | Tropical cloud dominates; all-sky data (modelled from satellite and reanalysis) is closer to what the roof sees |
 | Modelling rain-wash recovery of reflectance | No Indonesian data (BLOCKED-9); the NTU Singapore study (soot −15.6 %, rain recovers 5.5 %) is a different mechanism and only motivates the scenario range |
@@ -63,14 +63,14 @@ In: five sites; wet and dry season; three day types; initial and aged reflectanc
 | NASA hourly time stamps in an unconfirmed time standard (UTC vs local solar time) so the local-day cut is off by up to 7 h; Q1 gates the `time-standard` request parameter, the request always names it explicitly, and local solar time is converted with the site longitude if only that exists | `localDayCutUsesSiteOffset` (H1) |
 | Fill value −999 read as an irradiance | `fillValueRejected` (F1) |
 | Hourly kinks straddled by an RK4 step | `stepNeverStraddlesHourKink` (H4) |
-| Satellite irradiance biased against ground data | `crossCheckAgainstIwec2` (H2) |
+| Satellite irradiance biased against ground data | `crossCheckAgainstTmyx` (H2) |
 | Aged result better than initial | `agedNeverCoolerThanInitial` (H7) |
 | Aluminium treated with steel constants | `noSteelConstantsInContext` (H8) |
 
 ## Requirements
 - **FR-1** The system MUST select, per site and season, three representative days (bins by daily GHI: above the 80th percentile = `hot`, 20th–80th = `typical`, below the 20th = `overcast`) from 2015–2024 hourly data (30 scenarios in total).
 - **FR-2** `thermalSeries` MUST integrate the plan-2 balance with RK4 dt = 60 s driven by hourly series, linearly interpolated, 48 h (the selected day repeated twice, day 2 reported).
-- **FR-3** Sky temperature MUST come from the dataset's downward longwave (a modelled field): `T_sky = (LW_down / σ)^¼`; the Swinbank value is reported for comparison only.
+- **FR-3** Sky temperature MUST come from the dataset's downward longwave (a modelled field): `T_sky = (LW_down / σ)^¼`. The Swinbank value is not computed or reported for the Indonesian runs (decision at execution: it was `reported for comparison only`, and no consumer needs it; `design.ts` keeps Swinbank for the generic L9 scenarios).
 - **FR-4** Aged scenarios MUST apply `r_aged = r_initial · (1 − loss)` to the effective reflectance of coated stacks only (candidates and cards; C1 uses its datasheet weathered values; C0 bare aluminium is unchanged), `loss ∈ [0.14, 0.26]` (D3), sampled uniformly in the draws; the initial case uses loss 0.
 - **FR-5** Weighted benefit per site: `Δq = Σ w_bin · (q_in_mean(C0) − q_in_mean(x))` with weights 0.2, 0.6, 0.2 (bin shares), then season shares from the data (days per season / total).
 - **FR-6** Results MUST carry the same intervals as plan 3 for the shortlist and controls; all 96 candidates are nominal-only and labelled so.
@@ -79,18 +79,18 @@ In: five sites; wet and dry season; three day types; initial and aged reflectanc
 - **NFR-2** The raw cache MUST be verified against `SHA256SUMS` before use.
 
 ## Acceptance: hypotheses and proofs
-Thresholds table: `T_rk4_k = 1e-4` (plan 2), `T_ghi_hard = 0.35` (monthly mean daily GHI, NASA vs IWEC2, relative; the working value `T_ghi` is frozen once from the first real run and never edited), `T_nrt = 600 s`.
+Thresholds table: `T_rk4_k = 1e-4` (plan 2), `T_ghi_hard = 0.35` (monthly mean daily GHI, NASA vs TMYx, relative; the working value `T_ghi` was frozen once from the first real run at 0.25 and is never edited), `T_nrt = 600 s`.
 
 | ID | Hypothesis | Experiment | Falsified when |
 |---|---|---|---|
 | H1 | Local-day cut and data integrity are correct | one real site-year; check 24 points per local day, no −999, RH ∈ [0, 100], on clear days (daily GHI above the site's 80th percentile) the GHI peak is within ±3 h of solar noon | any day ≠ 24 points, any fill value, or a clear day whose GHI peak is more than 3 h from solar noon on ≥ 5 % of clear days |
-| H2 | NASA hourly data agrees with an independent typical-year dataset (IWEC2, derived from station observations) | Jakarta and Surabaya: monthly mean daily GHI vs IWEC2 | any month's relative difference > `T_ghi_hard` |
+| H2 | NASA hourly data is consistent with a second modelled typical-year dataset (TMYx: ISD station weather, ERA5 solar; a consistency check of two modelled products, not a validation against ground observations) | all five sites: monthly mean daily GHI vs TMYx | any month's relative difference > `T_ghi_hard` |
 | H3 | Representative-day selection matches a brute-force definition | property test: random year of daily sums; chosen day's rank equals the bin's median rank ±1 | rank off by more than 1 |
 | H4 | Series integrator equals an independent solver | 20 real days vs scipy DOP853 segmented at every hour: `t_max_c`, `q_in_mean_w_m2`, full day-2 series | difference > `T_rk4_k`, `T_q_w_m2`, `T_rk4_series_k` (plan 2) |
 | H5 | Equal inputs give plan-2 results | constant series (G, T, wind) equals plan-2 `simulateDay` with constant `gProfile` | relative difference > `T_thm_rtol` |
 | H6 | Monotone physics | for all 30 scenarios, lowering `r_solar` raises `t_max` | any violation |
 | H7 | Ageing never helps | for every row except C1, `t_max(aged) ≥ t_max(initial)` and `q(aged) ≥ q(initial)` (C1 uses its own datasheet values, checked by `c1AgedUsesDatasheetValues`) | any violation |
-| H8 | Aluminium, not steel | context substrate `c_j_m2k` equals ρ·c_p·t of plan 1 D5; any config whose `c_j_m2k` differs from ρ·c_p·t by more than 1e-6 relative is rejected (the steel value 1540 is one case among all wrong values) | accepted |
+| H8 | Aluminium, not steel | context substrate `c_j_m2k` equals ρ·c_p·t of plan 1 D5; any config whose `c_j_m2k` differs from ρ·c_p·t by more than 1e-4 relative is rejected (the steel value 1540 is one case among all wrong values) | accepted |
 | H9 | Report equals data | numbers in the Indonesia section equal `indonesia_summary.csv` (plan 0 honesty guard style, reading cells by `data-` attributes) | any mismatch |
 | H10 | Deterministic | CSV hashes identical across 1 and 2 workers and Bun and Node for the selection step | any hash differs |
 | H11 | Runtime | `indonesia` after `run` completes within `T_nrt` | exceeds |
@@ -135,6 +135,19 @@ Plans 1–3 constraints apply. Core files import no Node/Bun/DOM modules; `node/
 - **D8** Uncertainty draws: plan 3 D4 plus `loss` for aged rows; stream `deriveSeed(seed, 400)` (plan 1 D13 registry); uncertainty only for the five uncertain subjects of D9.
 - **D9** Output ordering: site (Jakarta, Surabaya, Medan, Makassar, Bandung), season (wet, dry), bin (hot, typical, overcast), subject (the five uncertain subjects C0, C1, card_high, card_balanced, card_low, where each card is its C4 system per plan 3 FR-1; then the 96 nominal candidates), state (initial, aged).
 
+### Amendments from execution (2026-11-22)
+
+- **H2 / cross-check source:** IWEC2 is sold by ASHRAE and not free (spike Q2), so H2 compares NASA POWER with the free TMYx typical year of climate.onebuilding.org for all five sites. TMYx solar comes from ERA5, so H2 checks that two modelled products agree (units, time standard, conversion), not that either matches ground observations; the page and the cards say so. `T_ghi` was frozen once at 0.25 (largest monthly difference 0.201, Makassar); `T_ghi_hard` stays 0.35. The test is `crossCheckAgainstTmyx`.
+- **H4:** the series integrator is held to `T_RK4_HOURLY_K = 5e-3 K` for `t_max` under hourly forcing, not `T_rk4_k = 1e-4`: the daily peak sits on an hour kink of the forcing. Fourth-order convergence was verified against scipy DOP853 (error 2.19e-3 K at dt = 60 s, 9.4e-5 K at 30 s), `T_q_w_m2` and `T_rk4_series_k` of plan 2 hold unchanged.
+- **Series boundary:** the archive is cut at UTC midnight, so the first and last local day of the ten years are partial; they are dropped (3652 complete local days per site, 3653 days of data), an interior hole is still a `DataError` (F2). Requests use `time-standard=utc` and one request per site-year (no padding).
+- **Sites:** `sites.yaml` holds the elevation the API returns for its grid cell (Bandung 921.68 m, not 768 m; Medan 173.9 m; Makassar 101 m): it is the elevation of the data. Temperatures may therefore read 1 to 2 K cool at Bandung and cool at Medan and Makassar; no lapse correction is built, and the report says so.
+- **Wet and dry:** a month is wet when its ten-year mean precipitation exceeds 150 mm (a design threshold, not a climate classification). Medan has no clear dry season (its "dry" months are only relative) and Bandung's June (151 mm) sits on the threshold; both are stated in the report.
+- **H8:** `validateSubstrate` compares relative to rho·c_p·t with tolerance 1e-4 (the five-figure value printed in plan 1 is admitted, 1540 and every other wrong value are not); `noSteelConstantsInContext` uses the same tolerance.
+- **Phases and exit codes:** series validation failures are `DataError` (exit 5), phases `indonesia.load` (series and configuration), `indonesia.verify` (SHA256SUMS mismatch of the cache) and `indonesia.fetch` (network, exit 6). The spike file is `docs/spikes/plan-04.md`.
+- **FR-3:** Swinbank is not reported (see FR-3).
+- **Report and CLI:** `indonesia` registers its four files in the manifest `extra[]` when `--out` lies inside `--in`; the report refuses a changed, unlisted or missing file (exit 5) and `indonesia` does not rebuild `report.html` (it prints the `report.stale` hint). The benefit bracket is an outer bound (the subject's interval subtracted from the interval of bare aluminium without pairing the draws), not a p5 to p95 of the benefit; the temperature column is the weighted mean of the day peaks; aged C1 uses its datasheet loss (about 14 %) and the cards the scenario midpoint (about 20 %), so the order of aged C1 against the cards follows the assumed loss and their intervals overlap (no result is claimed). `indonesia_days.json` carries `loss_lo`, `loss_hi` and `loss_nominal`; the results CSV does not.
+- **Tiers:** `check` runs the fast files (one site, two years, 4 draws); `proof` the five sites, ten years and 256 draws (`docs/testing.md`).
+
 ## File Structure
 | Source | Test |
 |---|---|
@@ -151,7 +164,7 @@ Whitelisted extra tests (plan 1 layout guard): `tests/indonesia.e2e.test.ts`, `t
 ## Tasks
 
 ### Task 1: Spike — data sources
-**Tests:** none (written answers). **Creates:** `docs/spike-indonesia.md`. **Interfaces:** none.
+**Tests:** none (written answers). **Creates:** `docs/spikes/plan-04.md`. **Interfaces:** none.
 - [ ] Q1: from the OpenAPI and one real request for Jakarta 2023 (`parameters=ALLSKY_SFC_SW_DWN,ALLSKY_SFC_LW_DWN,T2M,RH2M,WS2M,PRECTOTCORR`, `community=RE`, `format=JSON`): units of irradiance (W/m² or Wh/m²), time standard (UTC or LST) and how to select it, fill value, maximum request span (chunk by year if needed), returned grid point and elevation per site. Q2: confirm the two IWEC2 files exist on climate.onebuilding.org and read their licence. Q3: confirm that hourly series with RH, wind and LW are present for 2015–2024 at all five sites. Q4: confirm the CRRC pair values of D3 against the manufacturers' pages (the Sikalastic page figures were an unverified summary).
 - [ ] If a Q fails (an API parameter is missing), stop and report; no fallback is built on a guess.
 - [ ] Commit: `docs: spike answers for Indonesian weather data`
@@ -191,7 +204,7 @@ export function simulateSeriesDay(p: Omit<ThermalInputs, "g_peak_w_m2" | "t_air_
 **Tests:** `tests/core/indonesia/days.test.ts`, `tests/node/power.test.ts`, `tests/node/epw.test.ts`. **Creates:** `src/core/indonesia/days.ts`, `src/node/power.ts`, `src/node/epw.ts`.
 **Interfaces:**
 ```ts
-export function localDays(utcHours: readonly HourRecord[], utcOffsetH: number): { date: string; series: HourlySeries; precip_mm: number }[]   // complete local days only; an incomplete day is a DataError
+export function localDays(utcHours: readonly HourRecord[], utcOffsetH: number): { date: string; series: HourlySeries; precip_mm: number }[]   // complete local days only; an incomplete interior day is a DataError, the partial first and last day of the series are dropped
 export function pickDays(dailyGhi: readonly number[], months: readonly number[], monthlyPrecipMm: readonly number[]): { season: "wet"|"dry"; bin: "hot"|"typical"|"overcast"; index: number }[]   // FR-1, D2; a season with no month for a site is dropped (a site with no dry month yields fewer than 30 scenarios in total)
 export function timeOfWetnessHours(rh: Float64Array, tC: Float64Array): number                   // RH > 80 and T > 0
 export async function fetchSiteYear(site: SiteConfig, year: number, dir: string, baseUrl?: string): Promise<{ rows: number; sha256: string }>
