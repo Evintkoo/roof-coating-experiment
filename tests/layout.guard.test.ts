@@ -87,3 +87,31 @@ test("guardAcceptsPlan5Files", () => {
     "plan5.stray.test.ts",
   ])
 })
+
+test("guardAcceptsPlan4Files", () => {
+  // plan 4 adds mirrored source files plus two cross-cutting tests (whitelisted above)
+  const planSrc = [
+    "core/models/thermalSeries.ts",
+    "core/indonesia/days.ts",
+    "core/indonesia/series.ts",
+    "node/power.ts",
+    "node/epw.ts",
+    "node/indonesia.ts",
+    "node/siteConfig.ts",
+  ]
+  const planTests = planSrc.map((f) => `${f.replace(/\.ts$/, "")}.test.ts`)
+  expect(missingMirrors(planSrc, planTests, NO_MIRROR_NEEDED)).toEqual([])
+  expect(missingMirrors(planSrc, [], NO_MIRROR_NEEDED)).toEqual(planSrc)
+  const cross = ["indonesia.e2e.test.ts", "indonesia.crosscheck.test.ts"]
+  expect(
+    orphanTests(
+      [...srcFiles, ...planSrc],
+      [...planTests, ...cross],
+      NON_MIRROR,
+    ),
+  ).toEqual([])
+  // an unlisted cross-cutting test is still an orphan
+  expect(orphanTests(planSrc, ["indonesia.stray.test.ts"], NON_MIRROR)).toEqual(
+    ["indonesia.stray.test.ts"],
+  )
+})

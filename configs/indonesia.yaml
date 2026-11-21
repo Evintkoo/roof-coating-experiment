@@ -1,0 +1,40 @@
+# Plan 04 scenario constants. Every value carries unit, source and status like plan 01.
+scenario:
+  wet_month_mm:
+    value: 150
+    unit: mm
+    status: scenario
+    source: "plan 04 D2: a calendar month is wet when its ten-year mean PRECTOTCORR total exceeds this value; a design threshold, not a climate classification (Medan has no clear dry season, spike Q3)"
+years:
+  first:
+    value: 2015
+    unit: year
+    status: scenario
+    source: "plan 04 FR-1: ten years of hourly NASA POWER data, 2015-2024 (spike Q3: complete at all five sites, 87672 rows, no fill values)"
+  last:
+    value: 2024
+    unit: year
+    status: scenario
+    source: "plan 04 FR-1: ten years of hourly NASA POWER data, 2015-2024 (spike Q3)"
+ageing:
+  loss_lo:
+    value: 0.14
+    unit: "1"
+    status: literature
+    source: "plan 04 D3: APOC 252 Sunwhite 0.90 to 0.77 (-14.4 %), CRRC table of the manufacturer brochure; US 3-year sites, not an Indonesian measurement (BLOCKED-9); read in spike Q4"
+  loss_hi:
+    value: 0.26
+    unit: "1"
+    status: literature
+    source: "plan 04 D3: APOC 248 Arizona-White 0.88 to 0.65 (-26.1 %), same brochure; Sikalastic-515 AC 0.83 to 0.69 (-16.9 %) in between; US 3-year sites, not an Indonesian measurement (BLOCKED-9); read in spike Q4"
+time_of_wetness:
+  rh_above_pct:
+    value: 80
+    unit: "%"
+    status: scenario
+    source: "plan 04 D7: time of wetness counts hours with RH above this value and air temperature above t_above_c (ISO 9223 style definition); reported beside the unchanged relative corrosion proxy"
+  t_above_c:
+    value: 0
+    unit: C
+    status: scenario
+    source: "plan 04 D7, same definition"

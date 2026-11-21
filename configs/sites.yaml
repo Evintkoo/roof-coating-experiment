@@ -1,0 +1,110 @@
+# Plan 04 sites (D1). Coordinates are public city coordinates (status literature); the request uses them as given and
+# NASA POWER returns the same lat/lon (spike Q1, docs/spikes/plan-04.md). elevation_m is the elevation the API returned for
+# the data point (what the weather belongs to), not the city elevation; Bandung city is about 768 m, the API grid says 921.68 m.
+# utc_offset_h is the fixed civil offset (Indonesia has no daylight saving); spike Q1 measured NASA LST = UTC + this value at all five sites.
+sites:
+  jakarta:
+    lat:
+      value: -6.2
+      unit: deg
+      status: literature
+      source: "public city coordinates for Jakarta (coastal lowland)"
+    lon:
+      value: 106.85
+      unit: deg
+      status: literature
+      source: "public city coordinates for Jakarta (coastal lowland)"
+    utc_offset_h:
+      value: 7
+      unit: h
+      status: literature
+      source: "WIB UTC+7, no daylight saving (plan 04 D1); equals NASA POWER LST - UTC measured in spike Q1"
+    elevation_m:
+      value: 12.32
+      unit: m
+      status: literature
+      source: "elevation returned by the NASA POWER hourly API for the data point, measured 2026-11-21 (spike Q1, docs/spikes/plan-04.md)"
+  surabaya:
+    lat:
+      value: -7.25
+      unit: deg
+      status: literature
+      source: "public city coordinates for Surabaya (coastal)"
+    lon:
+      value: 112.75
+      unit: deg
+      status: literature
+      source: "public city coordinates for Surabaya (coastal)"
+    utc_offset_h:
+      value: 7
+      unit: h
+      status: literature
+      source: "WIB UTC+7, no daylight saving (plan 04 D1); equals NASA POWER LST - UTC measured in spike Q1"
+    elevation_m:
+      value: 18.05
+      unit: m
+      status: literature
+      source: "elevation returned by the NASA POWER hourly API for the data point, measured 2026-11-21 (spike Q1, docs/spikes/plan-04.md)"
+  medan:
+    lat:
+      value: 3.59
+      unit: deg
+      status: literature
+      source: "public city coordinates for Medan"
+    lon:
+      value: 98.67
+      unit: deg
+      status: literature
+      source: "public city coordinates for Medan"
+    utc_offset_h:
+      value: 7
+      unit: h
+      status: literature
+      source: "WIB UTC+7, no daylight saving (plan 04 D1); equals NASA POWER LST - UTC measured in spike Q1"
+    elevation_m:
+      value: 173.9
+      unit: m
+      status: literature
+      source: "elevation returned by the NASA POWER hourly API for the data point, measured 2026-11-21 (spike Q1, docs/spikes/plan-04.md)"
+  makassar:
+    lat:
+      value: -5.15
+      unit: deg
+      status: literature
+      source: "public city coordinates for Makassar (coastal)"
+    lon:
+      value: 119.43
+      unit: deg
+      status: literature
+      source: "public city coordinates for Makassar (coastal)"
+    utc_offset_h:
+      value: 8
+      unit: h
+      status: literature
+      source: "WITA UTC+8, no daylight saving (plan 04 D1); equals NASA POWER LST - UTC measured in spike Q1"
+    elevation_m:
+      value: 100.99
+      unit: m
+      status: literature
+      source: "elevation returned by the NASA POWER hourly API for the data point, measured 2026-11-21 (spike Q1, docs/spikes/plan-04.md)"
+  bandung:
+    lat:
+      value: -6.91
+      unit: deg
+      status: literature
+      source: "public city coordinates for Bandung (highland)"
+    lon:
+      value: 107.61
+      unit: deg
+      status: literature
+      source: "public city coordinates for Bandung (highland)"
+    utc_offset_h:
+      value: 7
+      unit: h
+      status: literature
+      source: "WIB UTC+7, no daylight saving (plan 04 D1); equals NASA POWER LST - UTC measured in spike Q1"
+    elevation_m:
+      value: 921.68
+      unit: m
+      status: literature
+      source: "elevation returned by the NASA POWER hourly API for the data point, measured 2026-11-21 (spike Q1, docs/spikes/plan-04.md)"

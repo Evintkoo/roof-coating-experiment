@@ -24,7 +24,7 @@ async function readText(path: string): Promise<string> {
   }
 }
 
-async function loadYaml<T>(
+export async function loadYaml<T>(
   path: string,
   kind: string,
   parseFn: (raw: unknown) => T,

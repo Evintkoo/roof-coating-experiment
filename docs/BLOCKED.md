@@ -1,6 +1,6 @@
 # BLOCKED register
 
-Items that cannot be completed digitally. Owner of every entry: Evint. Plan 4 Task 2 appends BLOCKED-9 and BLOCKED-10; plan 5 Task 6 appends BLOCKED-11.
+Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11.
 
 ## BLOCKED-1: Lab calibration
 
@@ -49,6 +49,18 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Plan 4 Ta
 - Reason: no citable value found for solar reflectance and emittance of bare mill-finish aluminium sheet.
 - Owner: Evint
 - Unblock condition: a blank-coupon measurement of solar reflectance (reflectometer) and emittance (emissometer) of the actual bare mill-finish sheet is made, or a citable CRRC/ASTM value for mill-finish aluminium roofing is found. Until then `substrate.r_solar` 0.65 (bounds 0.55-0.75) and `substrate.emissivity` 0.09 in `configs/materials.yaml` stay `scenario`; searches in plan 2 (CRRC, LBNL, ORNL, ATAS guide) found none.
+
+## BLOCKED-9: Field soiling and biological growth on Indonesian roofs
+
+- Reason: no field exposure data for coated aluminium roofs in Indonesia; soiling, mould and algae loss of solar reflectance in a humid tropical climate is not measured, and rain-wash recovery is not modelled. Plan 4 replaces it with a labelled scenario range `loss` 0.14-0.26 (`configs/indonesia.yaml`, status `literature`, from three US three-year CRRC pairs), reported as "scenario, not an Indonesian measurement"; the humid tropics may be worse.
+- Owner: Evint
+- Unblock condition: field exposure data (initial and aged solar reflectance, at least 12 months, at one or more of the five sites) for a coated aluminium sheet is supplied; then `ageing.loss_lo` and `ageing.loss_hi` are replaced by the measured range and the status becomes `measured`.
+
+## BLOCKED-10: Wind-driven rain and chloride deposition
+
+- Reason: no data on wind-driven rain, chloride deposition or coastal salt load at the five sites; the corrosion exposure is reported only as time-of-wetness hours (RH above 80 % and air temperature above 0 C) beside the unchanged relative corrosion proxy, and no site multiplier is applied to the proxy.
+- Owner: Evint
+- Unblock condition: field exposure data (chloride deposition rate and wetting records, at least 12 months) at the coastal sites (Jakarta, Surabaya, Makassar) is supplied; then a site multiplier for the corrosion proxy can be calibrated.
 
 ## BLOCKED-11: Mass-based recipes and currency prices
 
