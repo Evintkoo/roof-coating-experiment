@@ -6,7 +6,7 @@ const STATUS = z.enum(["literature", "vendor", "scenario"])
 export const Sourced = z.strictObject({
   value: z.number(),
   unit: z.string(),
-  source: z.string().min(1),
+  source: z.string().trim().min(1),
   status: STATUS,
 })
 
@@ -15,7 +15,7 @@ export const RangeSchema = z
     min: z.number(),
     max: z.number(),
     unit: z.string(),
-    source: z.string().min(1),
+    source: z.string().trim().min(1),
     status: STATUS,
   })
   .refine((r) => r.min < r.max, {
@@ -41,7 +41,7 @@ export const LevelsSchema = z
   .strictObject({
     values: z.tuple([z.number(), z.number(), z.number()]),
     unit: z.string(),
-    source: z.string().min(1),
+    source: z.string().trim().min(1),
     status: STATUS,
   })
   .refine((l) => l.values[0] < l.values[1] && l.values[1] < l.values[2], {

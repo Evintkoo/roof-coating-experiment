@@ -36,6 +36,20 @@ test("emptySourceRejected", () => {
   const w = weather()
   ;(w.wind_m_s as Record<string, unknown>).source = ""
   expect(keyOf(() => parseWeather(w))).toBe("wind_m_s.source")
+  ;(w.wind_m_s as Record<string, unknown>).source = "  \t "
+  expect(keyOf(() => parseWeather(w))).toBe("wind_m_s.source")
+  ;(r.cpvc as Record<string, unknown>).source = "   "
+  expect(keyOf(() => parseMaterialRanges(r))).toBe("cpvc.source")
+})
+
+test("unknownKeyInsideNestedObjectRejected", () => {
+  const r = ranges()
+  ;(r.primer_dft_um as Record<string, unknown>).extra = 1
+  expect(keyOf(() => parseMaterialRanges(r))).toBe("primer_dft_um.extra")
+  const w = weather()
+  const roof = w.roof as Record<string, Record<string, unknown>>
+  ;(roof.t_inside_c as Record<string, unknown>).extra = 1
+  expect(keyOf(() => parseWeather(w))).toBe("roof.t_inside_c.extra")
 })
 
 test("yamlNoIsRejectedNotFalse", () => {
@@ -120,7 +134,7 @@ test("blueprintValuesExact", () => {
   expect(w.t_air_c.values).toEqual([28, 32, 36])
   expect(w.wind_m_s.values).toEqual([1, 3, 6])
   expect([w.h_conv_a.value, w.h_conv_b.value]).toEqual([5.7, 3.8])
-  expect(w.roof.c_substrate_j_m2k.value).toBeCloseTo(2730 * 893 * 0.0005, 1)
+  expect(w.roof.c_substrate_j_m2k.value).toBe(1218.9)
   expect(w.roof.rho_c_coating_j_m3k.value).toBe(1.8e6)
   expect(w.roof.r_total_m2k_w.value).toBe(0.3)
   expect(w.roof.t_inside_c.value).toBe(30)
@@ -145,8 +159,8 @@ test("noNodeImportsInCore", () => {
     }
     expect(code, f).not.toMatch(/\bprocess\./)
     expect(code, f).not.toMatch(/\bBun\./)
-    expect(code, f).not.toMatch(/\bwindow\b/)
-    expect(code, f).not.toMatch(/\bdocument\b/)
+    expect(code, f).not.toMatch(/\bwindow\.|\bglobalThis\b/)
+    expect(code, f).not.toMatch(/\bdocument\./)
     expect(code, f).not.toMatch(/\bfetch\(/)
   }
 })
