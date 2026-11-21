@@ -325,8 +325,11 @@ test("topcoatNeverIncreasesR", () => {
     const t = applyTopcoat(r, d, mat.topcoat.mu_per_um.value)
     for (let i = 0; i < r.length; i++)
       expect(t[i] as number).toBeLessThanOrEqual(r[i] as number)
-    expect(t[0] as number).toBeCloseTo(
-      (r[0] as number) * Math.exp(-2 * 0.002 * d),
+    // r[0] is ~0 in the UV, so pin the factor at the most reflective wavelength
+    const iMax = r.indexOf(Math.max(...r))
+    expect(r[iMax] as number).toBeGreaterThan(0.5)
+    expect(t[iMax] as number).toBeCloseTo(
+      (r[iMax] as number) * Math.exp(-2 * 0.002 * d),
       14,
     )
   }
