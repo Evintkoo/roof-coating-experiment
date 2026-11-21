@@ -1,0 +1,70 @@
+# Material ranges for the 96-candidate Latin hypercube design (plan 01, D6-D8).
+# Every constant carries unit, source and status (literature | vendor | scenario).
+# Ranges are the initial sweep ranges of Blueprint_Riset_Spandek_3_Fungsi.md; they
+# are design scenarios, not measurements. The substrate is bare aluminium roofing sheet.
+primer_gptes_molfrac:
+  min: 0.20
+  max: 0.80
+  unit: mol fraction
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, P1 (0.20/0.50/0.80); design range, not measured"
+  status: scenario
+primer_dft_um:
+  min: 2
+  max: 12
+  unit: um
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, P2 (2/7/12); design range, not measured"
+  status: scenario
+midcoat_pvc:
+  min: 0.10
+  max: 0.35
+  unit: fraction of solids volume
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, M1 (10/22.5/35 % volume solids); design range, not measured"
+  status: scenario
+midcoat_tio2_fraction:
+  min: 0.20
+  max: 0.80
+  unit: fraction of total pigment volume
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, M2 (0.20/0.50/0.80); design range, not measured"
+  status: scenario
+midcoat_dft_um:
+  min: 100
+  max: 300
+  unit: um
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, M3 (100/200/300); design range, not measured"
+  status: scenario
+topcoat_mtes_molfrac:
+  min: 0.20
+  max: 0.80
+  unit: mol fraction
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, T1 (0.20/0.50/0.80); design range, not measured"
+  status: scenario
+topcoat_dft_um:
+  min: 3
+  max: 20
+  unit: um
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, T2 (3/10/20); design range, not measured"
+  status: scenario
+# Sol-gel conditions are not in the LHS (plan 01 D7): main runs use the midpoints.
+sol_gel_ph:
+  min: 3.5
+  max: 5.0
+  unit: pH
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md WP-A, hydrolysis pH 3.5-5.0 (stated there as a scenario)"
+  status: scenario
+sol_gel_water_ratio:
+  min: 1
+  max: 5
+  unit: mol water per mol alkoxide
+  source: "Plan 01 D7 design range 1-5; not a literature or vendor value"
+  status: scenario
+# Constraints (plan 01 D6, D8).
+cpvc:
+  value: 0.45
+  unit: fraction of solids volume
+  source: "Plan 01 D6: design assumption for TiO2/BaSO4 in an acrylic binder, not measured; override with a vendor value at preflight"
+  status: scenario
+max_total_dft_um:
+  value: 332
+  unit: um
+  source: "Plan 01 D8: sum of the range maxima 12+300+20 so the all-maximum corner stays feasible; design assumption"
+  status: scenario

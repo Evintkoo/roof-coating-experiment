@@ -1,0 +1,49 @@
+# Weather levels and roof assembly for the nine L9 scenarios (plan 01 D3, D5).
+# Substrate: bare aluminium roofing sheet only (no steel, no Galvalume).
+irradiance_w_m2:
+  values: [600, 800, 1000]
+  unit: W/m2 peak irradiance (half-sine 06:00-18:00)
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, E1 (600/800/1000); scenario levels, not measured"
+  status: scenario
+t_air_c:
+  values: [28, 32, 36]
+  unit: degC held constant
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, E2 (28/32/36); scenario levels, not measured"
+  status: scenario
+wind_m_s:
+  values: [1, 3, 6]
+  unit: m/s
+  source: "Blueprint_Riset_Spandek_3_Fungsi.md section 5.1, E3 (low/medium/high wind); the 1/3/6 m/s levels are plan 01 D3 scenario choices"
+  status: scenario
+# Convective coefficient h = a + b*V (plan 01 D3).
+h_conv_a:
+  value: 5.7
+  unit: W/m2K
+  source: "McAdams, h = 5.7 + 3.8 V correlation (plan 01 D3); usually quoted for V up to about 5 m/s, so the 6 m/s level is a slight extrapolation"
+  status: literature
+h_conv_b:
+  value: 3.8
+  unit: W/m2K per m/s
+  source: "McAdams, h = 5.7 + 3.8 V correlation (plan 01 D3); usually quoted for V up to about 5 m/s, so the 6 m/s level is a slight extrapolation"
+  status: literature
+roof:
+  c_substrate_j_m2k:
+    value: 1218.9
+    unit: J/m2K
+    source: "handbook density and specific heat of aluminium 3003; citation attached in plan 2 Q2. 2730 kg/m3 x 893 J/kg.K x 0.0005 m (0.5 mm AA3003-type sheet)"
+    status: scenario
+  rho_c_coating_j_m3k:
+    value: 1800000
+    unit: J/m3K
+    source: "Plan 01 D5: coating volumetric heat capacity 1.8 MJ/m3K, design assumption, not measured"
+    status: scenario
+  r_total_m2k_w:
+    value: 0.30
+    unit: m2K/W
+    source: "Plan 01 D5: total roof assembly resistance, design assumption (interior film 0.162 m2K/W is a component)"
+    status: scenario
+  t_inside_c:
+    value: 30
+    unit: degC
+    source: "Plan 01 D5: interior air temperature, design assumption"
+    status: scenario
