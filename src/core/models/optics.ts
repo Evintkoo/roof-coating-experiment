@@ -83,6 +83,23 @@ function mieOnGrid(
   return res
 }
 
+/** Width of the C1 transition of the S >= 0 clamp, relative to the scattering part 3/4 (1-g) sigma_s of S (plan 05 spike Q3). */
+export const S_CLAMP_SMOOTH_REL = 1e-3
+
+/**
+ * C1 replacement of max(0, s): 0 for s <= 0, s for s >= eps, and the cubic 2 s^2/eps - s^3/eps^2 between
+ * (value and slope match at both ends). The plain clamp has a slope jump where S crosses 0, which made the
+ * solar reflectance non-differentiable in the pigment grade sizes (plan 05 spike Q3). The change is confined to
+ * 0 < s < eps with eps = S_CLAMP_SMOOTH_REL x the scattering part of S.
+ */
+export function smoothClampS(s: number, scale: number): number {
+  const eps = S_CLAMP_SMOOTH_REL * scale
+  if (s <= 0) return 0
+  if (!(eps > 0) || s >= eps) return s
+  const t = s / eps
+  return eps * t * t * (2 - t)
+}
+
 /**
  * Per-length KM coefficients (1/um) of independent-scattering pigment layers (plan 02 D2, spike Q1, ruling R1).
  * sigma_s = 1.5*phi*Q_sca/d, sigma_a = 1.5*phi*Q_abs/d (phi = volume fraction of total solids), summed over
@@ -98,6 +115,7 @@ export function kmCoefficients(
   const len = layers[0]?.mie.q_sca.length ?? 0
   const s = new Float64Array(len)
   const k = new Float64Array(len)
+  const sScale = new Float64Array(len)
   for (const l of layers) {
     requireIn("optics", "dUm", l.dUm, Number.MIN_VALUE, 1e4)
     requireIn("optics", "phi", l.phi, 0, 1)
@@ -109,6 +127,7 @@ export function kmCoefficients(
       const sigA = c * (l.mie.q_abs[i] as number)
       const oneMinusG = 1 - (l.mie.g[i] as number)
       k[i] = (k[i] as number) + 2 * sigA
+      sScale[i] = (sScale[i] as number) + 0.75 * oneMinusG * sigS
       s[i] =
         (s[i] as number) +
         (closure === "eddington"
@@ -116,7 +135,8 @@ export function kmCoefficients(
           : oneMinusG * sigS)
     }
   }
-  for (let i = 0; i < len; i++) if ((s[i] as number) < 0) s[i] = 0
+  for (let i = 0; i < len; i++)
+    s[i] = smoothClampS(s[i] as number, sScale[i] as number)
   return { s, k }
 }
 

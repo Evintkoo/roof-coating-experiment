@@ -20,6 +20,7 @@ import {
   opticsGrid,
   resetMieCache,
   rSolarStack,
+  smoothClampS,
   solarWeighted,
 } from "../../../src/core/models/optics"
 import { loadMaterials } from "../../../src/node/config"
@@ -404,4 +405,18 @@ test("evalUnder5ms", () => {
   )
   expect(warm).toBeLessThan(T_EVAL_MS)
   expect(cold).toBeLessThan(T_EVAL_MS)
+})
+
+test("smoothClampSIsC1AndMatchesClampOutsideTheBand", () => {
+  const scale = 2
+  const eps = 1e-3 * scale
+  expect(smoothClampS(-1, scale)).toBe(0)
+  expect(smoothClampS(0, scale)).toBe(0)
+  expect(smoothClampS(eps, scale)).toBe(eps)
+  expect(smoothClampS(5, scale)).toBe(5)
+  const d = (a: number) =>
+    (smoothClampS(a + 1e-9, scale) - smoothClampS(a - 1e-9, scale)) / 2e-9
+  expect(Math.abs(d(1e-7))).toBeLessThan(1e-3) // slope 0 at the lower end
+  expect(Math.abs(d(eps - 1e-7) - 1)).toBeLessThan(1e-3) // slope 1 at the upper end
+  expect(smoothClampS(0.5 * eps, scale)).toBeCloseTo(0.375 * eps, 12)
 })
