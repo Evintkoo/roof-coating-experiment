@@ -148,9 +148,17 @@ export function drawMaterials(
   })
 }
 
+/** An empty or NaN-containing sample has no quantile: fail loudly rather than return NaN. */
+function requireDraws(d: Float64Array): void {
+  if (d.length === 0) throw new ConfigError("draws", "no draws to summarise")
+  for (let i = 0; i < d.length; i++)
+    if (Number.isNaN(d[i])) throw new ConfigError("draws", "draws contain NaN")
+}
+
 /** Type-7 quantile (R default): h = (n-1)p, linear interpolation between order statistics. `sorted` ascending. */
 export function quantile7(sorted: Float64Array, p: number): number {
   const n = sorted.length
+  requireDraws(sorted)
   const h = (n - 1) * p
   const i = Math.floor(h)
   const a = sorted[i] as number

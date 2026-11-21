@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "bun:test"
 import { join } from "node:path"
 import { type Materials, parseMaterials } from "../../../src/core/config"
-import { lhsDesign, scenarioFrom } from "../../../src/core/design"
+import { lhsDesign, lhsUnit, scenarioFrom } from "../../../src/core/design"
 import { ConfigError } from "../../../src/core/errors"
 import type { ModelContext } from "../../../src/core/pipeline/context"
 import { CONTROL_LAYERS, evaluate } from "../../../src/core/pipeline/stackProps"
@@ -60,8 +60,7 @@ test("drawsInsideBounds", () => {
       const v0 = get(mat, p)
       const h = abs ? unc(mat, k) : unc(mat, k) * v0
       const v = get(d, p)
-      const lo = abs ? v0 - h : v0 - h
-      expect(v).toBeGreaterThanOrEqual(Math.max(lo, 0) - 1e-12)
+      expect(v).toBeGreaterThanOrEqual(Math.max(v0 - h, 0) - 1e-12)
       expect(v).toBeLessThanOrEqual(v0 + h + 1e-12)
     }
     // plan 02 D9 domains
@@ -172,5 +171,64 @@ test("doubledUncertaintyWidensRealModelOutputs", () => {
     const w1 = width(mat, f)
     expect(w1).toBeGreaterThan(0)
     expect(width(doubled, f)).toBeGreaterThan(w1)
+  }
+})
+
+test("eachParameterStratifiedOneDrawPerStratum", () => {
+  const n = 20
+  const draws = drawMaterials(mat, n, 9)
+  const half = (p: string, k: string, abs: boolean): number =>
+    abs ? unc(mat, k) : unc(mat, k) * get(mat, p)
+  for (const [p, k, abs] of PARAMS) {
+    // invert v = v0 + (2u - 1) h; the default bands never reach a domain edge
+    const strata = draws
+      .map((d) => {
+        const u = ((get(d, p) - get(mat, p)) / half(p, k, abs) + 1) / 2
+        return Math.floor(u * n)
+      })
+      .sort((a, b) => a - b)
+    expect(strata).toEqual(Array.from({ length: n }, (_, i) => i))
+  }
+})
+
+test("overlappingEpsBandsAreSwappedSoLoStaysBelowHi", () => {
+  const m = structuredClone(mat)
+  m.barrier.eps_lo.value = 0.5
+  m.barrier.eps_hi.value = 0.5001
+  const n = 60
+  const seed = 4
+  const draws = drawMaterials(m, n, seed)
+  const u = lhsUnit(n, PARAMS.length, seed)
+  const iLo = PARAMS.findIndex(([p]) => p === "barrier.eps_lo")
+  const iHi = PARAMS.findIndex(([p]) => p === "barrier.eps_hi")
+  const hw = 0.5 * unc(m, "eps_rel")
+  let swapped = 0
+  draws.forEach((d, i) => {
+    const a = 0.5 + (2 * (u[i] as number[])[iLo]! - 1) * hw
+    const b = 0.5001 + (2 * (u[i] as number[])[iHi]! - 1) * hw * (0.5001 / 0.5)
+    if (a >= b) swapped++
+    expect(d.barrier.eps_lo.value).toBeLessThan(d.barrier.eps_hi.value)
+    expect(d.barrier.eps_lo.value).toBeCloseTo(Math.min(a, b), 6)
+    expect(d.barrier.eps_hi.value).toBeCloseTo(Math.max(a, b), 6)
+    expect(() => parseMaterials(d)).not.toThrow()
+  })
+  expect(swapped).toBeGreaterThan(10) // the swap branch really ran
+})
+
+test("emptyOrNaNDrawsRejectedCode2", () => {
+  const bad = [new Float64Array(0), Float64Array.from([1, Number.NaN, 3])]
+  for (const d of bad) {
+    for (const f of [
+      () => widenInterval(1, d),
+      () => quantile7(Float64Array.from(d).sort(), 0.5),
+    ]) {
+      try {
+        f()
+        throw new Error("expected throw")
+      } catch (e) {
+        expect(e).toBeInstanceOf(ConfigError)
+        expect((e as ConfigError).code).toBe(2)
+      }
+    }
   }
 })
