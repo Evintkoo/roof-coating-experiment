@@ -65,3 +65,6 @@ Runs (real CLI, `--max-load 1000`, logs in `<reports>/<run_id>/run.jsonl`; elaps
 - `SPANDEK_REPORTS_DIR` sets the log root (default `reports`); the run log is `<root>/<run_id>/run.jsonl`.
 - `--max-load FLOAT`: if the 1-minute load average is above the value, the command exits 6 (`ResourceError`); without the flag there is no guard.
 - `config.loaded` carries `kind`, `path` (basename only), `n_constants` (top-level keys) and `sha256` (of the text read).
+
+- When plan 3 lands, its `resources.ts` `checkLoad` (half-cores default) must replace the private `checkLoad` in `src/node/cli.ts`.
+- Review wave: invalid `SPANDEK_LOG_LEVEL` exits 2; `--max-load` accepts any finite number (negative always refuses); CSVs are written to `.tmp` names and renamed only after both writes succeed.

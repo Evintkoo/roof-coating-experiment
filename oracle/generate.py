@@ -64,6 +64,7 @@ def run_reference(exe: Path, words: list[int], n: int) -> list[int]:
         check=True,
         capture_output=True,
         text=True,
+        timeout=30,
     ).stdout.split()
     values = [int(x) for x in out]
     assert len(values) == n

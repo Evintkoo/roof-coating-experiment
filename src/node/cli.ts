@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import {
+  existsSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { loadavg } from "node:os"
 import { join } from "node:path"
 import { DESIGN_COLUMNS, DESIGN_FLAG_COLUMNS } from "../core/columns"
@@ -16,6 +22,7 @@ import { configSha256, loadMaterialRanges, loadWeather } from "./config"
 import { configureLogging, emit, newRunId } from "./logging"
 
 const N_CANDIDATES = 96
+const LEVELS: readonly string[] = ["debug", "info", "warn", "error"]
 
 /** Parsed command line: global flags are handled by main, the rest are per-command. */
 type Flags = Map<string, string | true>
@@ -90,8 +97,8 @@ function checkLoad(flags: Flags): void {
   const v = flags.get("--max-load")
   if (v === undefined) return
   const max = Number(v)
-  if (typeof v !== "string" || !Number.isFinite(max) || max < 0)
-    throw new ConfigError("max-load", "must be a non-negative number")
+  if (typeof v !== "string" || !Number.isFinite(max))
+    throw new ConfigError("max-load", "must be a number")
   if ((loadavg()[0] as number) > max)
     throw new ResourceError("machine load above --max-load")
 }
@@ -141,8 +148,18 @@ async function designCommand(ctx: Ctx): Promise<void> {
   const candidates = toCsv([...DESIGN_COLUMNS, ...DESIGN_FLAG_COLUMNS], flagged)
   const wx = toCsv(WEATHER_COLUMNS, weatherL9(weather))
   mkdirSync(out, { recursive: true })
-  writeFileSync(candidatesPath, candidates)
-  writeFileSync(join(out, "weather.csv"), wx)
+  // temp names first, rename only after both writes succeed: no partial output
+  const wxOut = join(out, "weather.csv")
+  const tmps = [`${candidatesPath}.tmp`, `${wxOut}.tmp`]
+  try {
+    writeFileSync(tmps[0] as string, candidates)
+    writeFileSync(tmps[1] as string, wx)
+  } catch (e) {
+    for (const t of tmps) rmSync(t, { force: true })
+    throw e
+  }
+  renameSync(tmps[0] as string, candidatesPath)
+  renameSync(tmps[1] as string, wxOut)
   const sha = await configSha256([rangesPath, weatherPath])
   console.log(`design: feasible ${feasible} of ${n}, config sha256 ${sha}`)
 }
@@ -167,8 +184,15 @@ export async function main(argv: readonly string[]): Promise<number> {
     const reports = process.env.SPANDEK_REPORTS_DIR ?? "reports"
     const runDir = join(reports, runId)
     mkdirSync(runDir, { recursive: true })
-    const level = (process.env.SPANDEK_LOG_LEVEL ?? "info") as Level
-    configureLogging({ runId, level, runDir, mirrorStderr: true })
+    const level = process.env.SPANDEK_LOG_LEVEL ?? "info"
+    if (!LEVELS.includes(level))
+      throw new ConfigError("SPANDEK_LOG_LEVEL", "invalid level")
+    configureLogging({
+      runId,
+      level: level as Level,
+      runDir,
+      mirrorStderr: true,
+    })
     logging = true
     const name = argv[0]
     const cmd = name === undefined ? undefined : COMMANDS[name]

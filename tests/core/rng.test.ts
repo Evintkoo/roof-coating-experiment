@@ -77,11 +77,13 @@ test("fmix32AndDeriveSeedAreUint32AndDistinctPerStream", () => {
   const ids = [
     0, 1, 2, 3, 4, 5, 6, 100, 200, 201, 202, 203, 300, 301, 302, 303, 400,
   ]
-  const seeds = ids.map((j) => deriveSeed(20261121, j))
-  for (const s of seeds) {
-    expect(Number.isInteger(s) && s >= 0 && s <= 2 ** 32 - 1).toBe(true)
+  for (const base of [20261121, 1, 4294967295]) {
+    const seeds = ids.map((j) => deriveSeed(base, j))
+    for (const s of seeds) {
+      expect(Number.isInteger(s) && s >= 0 && s <= 2 ** 32 - 1).toBe(true)
+    }
+    expect(new Set(seeds).size).toBe(ids.length)
   }
-  expect(new Set(seeds).size).toBe(ids.length)
   expect(deriveSeed(7, 3)).toBe(fmix32((7 + Math.imul(4, 0x9e3779b9)) >>> 0))
 })
 
