@@ -47,6 +47,11 @@ export function configureLogging(opts: {
   setEventSink(emit)
 }
 
+/** Whether an event at this level would be written (lets a worker skip forwarding debug events). */
+export function levelEnabled(level: Level): boolean {
+  return RANK[level] >= RANK[minLevel]
+}
+
 const json = (r: Record<string, unknown>) => JSON.stringify(r)
 const bytes = (s: string) => Buffer.byteLength(s)
 

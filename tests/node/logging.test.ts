@@ -3,7 +3,12 @@ import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { emitEvent } from "../../src/core/events"
-import { configureLogging, emit, newRunId } from "../../src/node/logging"
+import {
+  configureLogging,
+  emit,
+  levelEnabled,
+  newRunId,
+} from "../../src/node/logging"
 
 function setup(level: "debug" | "info" | "warn" | "error" = "debug") {
   const runDir = mkdtempSync(join(tmpdir(), "spandek-log-"))
@@ -119,4 +124,13 @@ test("levelFilterDropsDebugAtInfo", () => {
   emitEvent("d2", "debug", { a: 1 })
   emitEvent("w", "warn", { a: 1 })
   expect(read().map((l) => JSON.parse(l).event)).toEqual(["i", "w"])
+})
+
+test("levelEnabledFollowsConfiguredLevel", () => {
+  setup("info")
+  expect(levelEnabled("debug")).toBe(false)
+  expect(levelEnabled("info")).toBe(true)
+  expect(levelEnabled("error")).toBe(true)
+  setup("debug")
+  expect(levelEnabled("debug")).toBe(true)
 })

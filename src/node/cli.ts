@@ -21,7 +21,8 @@ import { configSha256, loadMaterialRanges, loadWeather } from "./config"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
-import { checkLoad } from "./resources"
+import { checkLoad, lowerPriority, runWithTimeout } from "./resources"
+import { effectiveWorkers, runSimulate } from "./simulate"
 
 const N_CANDIDATES = 96
 const LEVELS: readonly string[] = ["debug", "info", "warn", "error"]
@@ -165,6 +166,37 @@ async function designCommand(ctx: Ctx): Promise<void> {
   console.log(`design: feasible ${feasible} of ${n}, config sha256 ${sha}`)
 }
 
+async function simulateCommand(ctx: Ctx): Promise<void> {
+  const { flags } = ctx
+  const seed = intFlag(flags, "--seed", true) as number
+  const nMc = intFlag(flags, "--n-mc", false) ?? 256
+  if (nMc < 1) throw new ConfigError("n-mc", "must be at least 1")
+  const workers = effectiveWorkers(intFlag(flags, "--workers", false) ?? 2)
+  const t = strFlag(flags, "--timeout-s", "900")
+  const timeoutS = Number(t)
+  if (t.trim() === "" || !Number.isFinite(timeoutS) || timeoutS <= 0)
+    throw new ConfigError("timeout-s", "must be a number above 0")
+  const design = strFlag(flags, "--design")
+  const out = strFlag(flags, "--out")
+  lowerPriority()
+  await runWithTimeout(
+    (signal) =>
+      runSimulate({
+        design,
+        out,
+        seed,
+        nMc,
+        workers,
+        configDir: ctx.configDir,
+        dataDir: ctx.dataDir,
+        runId: ctx.runId,
+        signal,
+      }),
+    timeoutS,
+    "simulate",
+  )
+}
+
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
   await fetchData(ctx.dataDir)
   await verifyData(ctx.dataDir)
@@ -182,6 +214,18 @@ const COMMANDS: Record<string, Command> = {
     valueFlags: ["--seed", "--out", "--n"],
     switches: ["--force"],
     run: designCommand,
+  },
+  simulate: {
+    valueFlags: [
+      "--design",
+      "--out",
+      "--seed",
+      "--n-mc",
+      "--workers",
+      "--timeout-s",
+    ],
+    switches: [],
+    run: simulateCommand,
   },
   "fetch-data": { valueFlags: [], switches: [], run: fetchDataCommand },
   "verify-data": { valueFlags: [], switches: [], run: verifyDataCommand },

@@ -267,3 +267,29 @@ test("eventsEmitted", async () => {
   // info-level logs also reach stderr as JSON lines
   expect(r1.stderr).toContain('"event":"run.start"')
 })
+
+test("simulateRegisteredReadsDesignOutputAndRejectsUnknownFlag", async () => {
+  const dir = tmpOut()
+  expect((await run(design(dir))).exitCode).toBe(0)
+  const out = tmpOut()
+  const r = await run([
+    "simulate",
+    "--design",
+    dir,
+    "--out",
+    out,
+    "--seed",
+    "20261121",
+    "--n-mc",
+    "2",
+    "--max-load",
+    "1000",
+  ])
+  expect(r.exitCode).toBe(0)
+  expect(parseCsv(readFileSync(join(out, "results.csv"), "utf8")).length).toBe(
+    864,
+  )
+  expect(lastEvent(r, "sim.start")).toMatchObject({ n_mc: 2, workers: 2 })
+  const bad = await run(["simulate", "--bogus", "1", "--max-load", "1000"])
+  expect(bad.exitCode).toBe(2)
+})
