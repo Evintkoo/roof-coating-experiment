@@ -1,6 +1,7 @@
 // Shared test helpers; later tasks add to this file.
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -265,4 +266,25 @@ export function scriptBlocks(html: string): string[] {
   return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
     (m) => m[1] as string,
   )
+}
+
+/**
+ * Put real `refine` and `budget-table` outputs (tests/fixtures/report/refine, captured from the real CLI on the seed 20261121,
+ * 4-draw run with 2 starts and a 3-level, 2-draw table) into dir/refine and register the table in the manifest with the
+ * real registerInManifest, so readVerifiedTable accepts it. Regenerate with `refine --starts 2` and `budget-table` on a 3 x 2 config.
+ */
+export async function addRefineOutputs(dir: string): Promise<void> {
+  const { registerInManifest } = await import("../src/node/budget")
+  const { createHash } = await import("node:crypto")
+  const src = join(repoRoot, "tests", "fixtures", "report", "refine")
+  const dst = join(dir, "refine")
+  mkdirSync(dst, { recursive: true })
+  for (const f of readdirSync(src)) cpSync(join(src, f), join(dst, f))
+  const bytes = readFileSync(join(dst, "budget_table.json"))
+  registerInManifest(join(dir, "run_manifest.json"), {
+    path: "refine/budget_table.json",
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    bytes: bytes.length,
+    kind: "budget_table",
+  })
 }

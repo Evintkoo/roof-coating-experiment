@@ -13,7 +13,6 @@ import type { ModelContext } from "../../core/pipeline/context"
 import { contextToJson } from "../../core/pipeline/contextJson"
 import {
   type CurvesJson,
-  OBJECTIVE_COLUMNS,
   type ObjRow,
   PARETO_COLUMNS,
   parseParetoCsv,
@@ -30,6 +29,7 @@ import { fmtValue } from "../../web/fmt"
 import { loadContext } from "../context"
 import { emit } from "../logging"
 import { STATIC_LIMITS, scenarioConstants } from "./cards"
+import { optimisationSection } from "./optimisation"
 
 /** T_size_mb: the page must stay well under the 16 MB artifact limit. */
 export const T_SIZE_MB = 8
@@ -418,8 +418,11 @@ export const BUILTIN_SECTIONS: readonly ReportSection[] = [
   manifestSection,
 ]
 
-/** Optional sections registered by other modules (plan 4, plan 5); buildReport always reads this list. */
-export const OPTIONAL_SECTIONS: ReportSection[] = []
+/**
+ * Sections that later plans add (for example Indonesia, plan 4): push a ReportSection here before calling buildReport.
+ * The Optimisation section (plan 5) is always offered; it renders only when refine outputs are in the input directory.
+ */
+export const EXTRA_SECTIONS: ReportSection[] = []
 
 // ---- bundling ----
 
@@ -561,7 +564,7 @@ export async function buildReport(
     throw e
   }
 
-  const sections = [...BUILTIN_SECTIONS, ...OPTIONAL_SECTIONS]
+  const sections = [...BUILTIN_SECTIONS, optimisationSection, ...EXTRA_SECTIONS]
     .map((s) => ({ s, html: s.render(input) }))
     .filter((x): x is { s: ReportSection; html: string } => x.html !== null)
     .sort((a, b) => a.s.order - b.s.order || (a.s.id < b.s.id ? -1 : 1))

@@ -11,7 +11,8 @@
       "!oracle",
       "!data",
       "!docs/spikes/plan-04",
-      "!src/web/template.html"
+      "!src/web/template.html",
+      "!tests/fixtures/report"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2 },

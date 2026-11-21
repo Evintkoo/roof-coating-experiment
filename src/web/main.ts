@@ -21,6 +21,7 @@ import {
   type ThemeTokens,
   themeKeys,
 } from "./figures"
+import { fmtValue } from "./fmt"
 import {
   applyBrush,
   type BrushState,
@@ -28,6 +29,15 @@ import {
   readBrush,
   selectByRanges,
 } from "./linking"
+import {
+  budgetRange,
+  budgetView,
+  costUnitText,
+  figFrontier,
+  figRefineFront,
+  type OptData,
+  rowText,
+} from "./optimisation"
 
 export type PageData = {
   meta: Record<string, string | number>
@@ -194,11 +204,112 @@ function renderSensitivity(): void {
   }
 }
 
+function cellOf(tag: "td" | "th", text: string, cls?: string): HTMLElement {
+  const c = document.createElement(tag)
+  c.textContent = text
+  if (cls) c.className = cls
+  return c
+}
+
+function tableOf(head: string[], rows: string[][]): HTMLElement {
+  const wrap = document.createElement("div")
+  wrap.className = "scroll"
+  const t = document.createElement("table")
+  const h = t.createTHead().insertRow()
+  for (const x of head) h.append(cellOf("th", x))
+  const b = t.createTBody()
+  for (const r of rows)
+    b.insertRow().append(
+      ...r.map((x, i) => cellOf("td", x, i === 0 ? "txt" : undefined)),
+    )
+  wrap.append(t)
+  return wrap
+}
+
+/** Optimisation section: refined front, and the budget slider that reads the precomputed table with the exact lookup (no model runs). */
+function initOptimisation(raw: unknown, drawFig: Draw): void {
+  const d = raw as OptData | null
+  if (!d) return
+  if (d.front.length > 0)
+    drawFig(
+      "fig-refine-front",
+      figRefineFront(d.front, d.objectives, d.cost_unit),
+    )
+  if (d.tables.length === 0) return
+  const profile = $("opt-profile") as HTMLSelectElement
+  const budget = $("opt-budget") as HTMLInputElement
+  const range = $("opt-budget-range") as HTMLInputElement
+  const objective = $("opt-objective") as HTMLSelectElement
+  const out = $("opt-result")
+  const [lo, hi] = budgetRange(d.tables)
+  for (const el of [budget, range]) {
+    el.min = String(lo)
+    el.max = String(hi)
+  }
+  range.step = String((hi - lo) / 1000)
+  if ([...profile.options].some((o) => o.value === "balanced"))
+    profile.value = "balanced"
+  const start = d.tables.find((t) => t.profile === profile.value)
+  // rounded up to six places so the number box is readable and the lookup still lands on the knee entry
+  budget.value = String(Math.ceil((start?.knee_budget ?? lo) * 1e6) / 1e6)
+  range.value = budget.value
+  const unit = costUnitText(d.cost_unit)
+
+  const update = (): void => {
+    const b = Number(budget.value)
+    out.replaceChildren()
+    if (!Number.isFinite(b)) {
+      const p = document.createElement("p")
+      p.textContent = "Enter a budget as a number."
+      out.append(p)
+      return
+    }
+    const v = budgetView(d, profile.value, b)
+    if (v.status === "infeasible") {
+      const p = document.createElement("p")
+      p.textContent = `No recipe fits this budget: the minimum feasible cost for this profile is ${fmtValue(v.c_min, 4)} ${unit}.`
+      out.append(p)
+    } else {
+      const p = document.createElement("p")
+      p.textContent = `Recipe of the tabulated budget at or below ${fmtValue(b, 4)}: cost ${fmtValue(v.cost, 4)} ${unit}, unspent headroom ${fmtValue(v.headroom, 4)}; knee of the curve at ${fmtValue(v.knee, 4)}.${v.repaired ? " This entry repeats the previous recipe (a monotone repair)." : ""} Intervals are p5 to p95 over the table's uncertainty draws.`
+      out.append(
+        p,
+        tableOf(
+          ["Objective", "Value [p5, p95]"],
+          v.objectives.map((r) => [r.label, rowText(r)]),
+        ),
+        tableOf(
+          ["Ingredient", "Recipe value"],
+          v.recipe.map((r) => [r.label, fmtValue(r.value, 4)]),
+        ),
+      )
+    }
+    drawFig(
+      "fig-frontier",
+      figFrontier(d, Number(objective.value), {
+        profile: profile.value,
+        budget: b,
+      }),
+    )
+  }
+  budget.addEventListener("input", () => {
+    range.value = budget.value
+    update()
+  })
+  range.addEventListener("input", () => {
+    budget.value = range.value
+    update()
+  })
+  profile.addEventListener("change", update)
+  objective.addEventListener("change", update)
+  update()
+}
+
 /** Initialisers of optional sections (Indonesia, Optimisation): id of the section -> function of its embedded data. */
-const SECTION_INIT: Record<
-  string,
-  (data: unknown, draw: (id: string, spec: FigureSpec) => void) => void
-> = {}
+type Draw = (id: string, spec: FigureSpec) => void
+const SECTION_INIT: Record<string, (data: unknown, draw: Draw) => void> = {
+  optimisation: initOptimisation,
+}
 
 function initTheme(): void {
   const root = document.documentElement
