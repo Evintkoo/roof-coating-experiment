@@ -8,6 +8,7 @@ dependencies = [
     "miepython==3.3.1",
     "numpy==2.5.5",
     "salib==1.6.0",
+    "mpmath==1.4.1",
 ]
 
 [tool.uv]

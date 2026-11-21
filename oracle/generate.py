@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 
 import miepython
+import mpmath
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -90,6 +91,8 @@ def build_fixtures() -> dict[str, str]:
         "mie.json": json.dumps(mie_fixture(), separators=(",", ":")) + "\n",
         "solgel.json": json.dumps(solgel_fixture(), separators=(",", ":")) + "\n",
         "sobol.json": json.dumps(sobol_fixture(), separators=(",", ":")) + "\n",
+        "gradient.json": json.dumps(gradient_fixture(), separators=(",", ":")) + "\n",
+        "benchmarks.json": json.dumps(gradient_benchmarks(), separators=(",", ":")) + "\n",
     }
 
 
@@ -402,6 +405,174 @@ def sobol_fixture() -> dict:
         },
         "salib": {"S1": r(sa["S1"]), "ST": r(sa["ST"]), "S1_conf": r(sa["S1_conf"]), "ST_conf": r(sa["ST_conf"])},
     }
+
+
+# ---- gradient oracle (plan 05 Task 3, H1) -------------------------------------------------------
+# (a) REAL model values on a stencil (written by oracle/gradient_stencil.ts from the TypeScript model, read here as
+#     data) differenced at 60 digits with Richardson extrapolation in h^2. This checks the finite-difference
+#     arithmetic and the step choice, not the model. (b) analytic functions with exact gradients (independent).
+GRAD_INPUT = HERE / "gradient_stencil.input.json"
+GRAD_LEVELS = 4  # Richardson levels k = 1..4 (central differences at k*h)
+GRAD_DPS = 60
+
+
+def richardson_h2(d: list, hs: list):
+    """Neville extrapolation of central differences d(h_k) to h = 0 in powers of h^2 (exact at GRAD_DPS digits)."""
+    x = [h * h for h in hs]
+    t = list(d)
+    n = len(d)
+    for j in range(1, n):
+        for k in range(n - 1, j - 1, -1):
+            t[k] = (x[k - j] * t[k] - x[k] * t[k - 1]) / (x[k - j] - x[k])
+    return t[n - 1]
+
+
+def gradient_fixture() -> dict:
+    mpmath.mp.dps = GRAD_DPS
+    src = json.loads(GRAD_INPUT.read_text())
+    h = src["h"]
+    cases = []
+    for c in src["cases"]:
+        st = c["stencil"]
+        ref, ref_lo, rich = [], [], []
+        d_h, d_h2 = [], []
+        for i in range(9):
+            hi = mpmath.mpf(h[i])
+            ds = []
+            for k in range(1, GRAD_LEVELS + 1):
+                a = mpmath.mpf(st[f"{i}:{2 * k}"])
+                b = mpmath.mpf(st[f"{i}:{-2 * k}"])
+                ds.append((a - b) / (2 * k * hi))
+            hs = [k * hi for k in range(1, GRAD_LEVELS + 1)]
+            ref.append(float(richardson_h2(ds, hs)))
+            ref_lo.append(float(richardson_h2(ds[:3], hs[:3])))
+            # D(h) and D(h/2) at 60 digits, for the Richardson-check reference
+            d_h.append(ds[0])
+            half = (mpmath.mpf(st[f"{i}:1"]) - mpmath.mpf(st[f"{i}:-1"])) / hi
+            d_h2.append(half)
+        floor = mpmath.mpf("1e-3") * max(abs(v) for v in d_h2)
+        for i in range(9):
+            denom = max(abs(d_h2[i]), floor)
+            rich.append(float(abs(d_h[i] - d_h2[i]) / denom) if denom > 0 else 0.0)
+        cases.append(
+            {
+                "u": c["u"],
+                "center": c["center"],
+                "stencil": st,
+                "ref": ref,
+                "ref_3level": ref_lo,
+                "richardson_ref": rich,
+            }
+        )
+    return {
+        "description": "central differences of REAL model values (TypeScript model, oracle/gradient_stencil.ts) differenced "
+        "with mpmath at 60 digits and Richardson-extrapolated in h^2 (levels k=1..4 of step k*h); verifies the "
+        "finite-difference arithmetic and step choice, not the model",
+        "versions": {"mpmath": importlib.metadata.version("mpmath")},
+        "dps": GRAD_DPS,
+        "levels": GRAD_LEVELS,
+        "h": h,
+        "offsets_in_half_h": src["offsets_in_half_h"],
+        "weights": src["weights"],
+        "norm": src["norm"],
+        "cases": cases,
+    }
+
+
+def _lcg_points(n: int, dim: int, seed: int) -> list[list[float]]:
+    state = seed & M32
+    pts = []
+    for _ in range(n):
+        p = []
+        for _ in range(dim):
+            state = (1664525 * state + 1013904223) & M32
+            p.append(round(0.1 + 0.8 * state / 2**32, 6))
+        pts.append(p)
+    return pts
+
+
+def gradient_benchmarks() -> dict:
+    """Six analytic functions on [0,1]^n; exact gradients and values from the closed forms, evaluated in mpmath."""
+    mp = mpmath
+    mp.mp.dps = GRAD_DPS
+    A = [[4, 1, 0, 0], [1, 3, 0.5, 0], [0, 0.5, 2, 0.2], [0, 0, 0.2, 1]]
+    b = [1.0, -0.5, 0.25, 2.0]
+    lse_a = [[1.0, -2.0, 0.5], [0.3, 0.7, -1.1], [-0.8, 1.5, 2.0], [2.2, 0.1, -0.4]]
+    out = []
+
+    def add(name, params, dim, f, g, seed):
+        pts = _lcg_points(5, dim, seed)
+        out.append(
+            {
+                "name": name,
+                "params": params,
+                "points": pts,
+                "f": [float(f([mp.mpf(v) for v in p])) for p in pts],
+                "grad": [[float(v) for v in g([mp.mpf(v) for v in p])] for p in pts],
+            }
+        )
+
+    def quad_f(u):
+        return sum(u[i] * A[i][j] * u[j] for i in range(4) for j in range(4)) / 2 - sum(b[i] * u[i] for i in range(4))
+
+    def quad_g(u):
+        return [sum(mp.mpf(A[i][j]) * u[j] for j in range(4)) - b[i] for i in range(4)]
+
+    add("quadratic", {"A": A, "b": b}, 4, quad_f, quad_g, 11)
+
+    def rosen_f(u):
+        x = [2 * v for v in u]
+        return sum(100 * (x[i + 1] - x[i] ** 2) ** 2 + (1 - x[i]) ** 2 for i in range(3))
+
+    def rosen_g(u):
+        x = [2 * v for v in u]
+        gx = [mp.mpf(0)] * 4
+        for i in range(3):
+            gx[i] += -400 * x[i] * (x[i + 1] - x[i] ** 2) - 2 * (1 - x[i])
+            gx[i + 1] += 200 * (x[i + 1] - x[i] ** 2)
+        return [2 * v for v in gx]
+
+    add("rosenbrock4_x2u", {"scale": 2}, 4, rosen_f, rosen_g, 12)
+
+    def lse_f(u):
+        return mp.log(sum(mp.exp(sum(a[j] * u[j] for j in range(3))) for a in lse_a))
+
+    def lse_g(u):
+        e = [mp.exp(sum(a[j] * u[j] for j in range(3))) for a in lse_a]
+        z = sum(e)
+        return [sum(e[k] * lse_a[k][j] for k in range(4)) / z for j in range(3)]
+
+    add("logsumexp", {"a": lse_a}, 3, lse_f, lse_g, 13)
+
+    def trig_f(u):
+        return sum(mp.sin(3 * u[i]) * mp.cos(2 * u[(i + 1) % 3]) for i in range(3))
+
+    def trig_g(u):
+        return [
+            3 * mp.cos(3 * u[i]) * mp.cos(2 * u[(i + 1) % 3]) - 2 * mp.sin(3 * u[(i - 1) % 3]) * mp.sin(2 * u[i])
+            for i in range(3)
+        ]
+
+    add("trig_ring", {}, 3, trig_f, trig_g, 14)
+
+    def ras_f(u):
+        return sum(v * v - mp.mpf("0.1") * mp.cos(5 * mp.pi * v) for v in u)
+
+    def ras_g(u):
+        return [2 * v + mp.mpf("0.5") * mp.pi * mp.sin(5 * mp.pi * v) for v in u]
+
+    add("rastrigin5", {}, 5, ras_f, ras_g, 15)
+
+    def prod_f(u):
+        return mp.exp(u[0] * u[1]) + u[2] ** 4 + u[0] * u[2] / (1 + u[1] ** 2)
+
+    def prod_g(u):
+        e = mp.exp(u[0] * u[1])
+        d = 1 + u[1] ** 2
+        return [u[1] * e + u[2] / d, u[0] * e - 2 * u[0] * u[2] * u[1] / d**2, 4 * u[2] ** 3 + u[0] / d]
+
+    add("exp_product", {}, 3, prod_f, prod_g, 16)
+    return {"versions": {"mpmath": importlib.metadata.version("mpmath")}, "dps": GRAD_DPS, "functions": out}
 
 
 def sums_text(files: dict[str, str]) -> str:
