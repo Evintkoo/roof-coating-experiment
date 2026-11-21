@@ -35,6 +35,7 @@ const NO_MIRROR_NEEDED = new Set([
   "web/worker.ts",
   "web/budget.ts",
   "node/simWorker.ts",
+  "node/refineWorker.ts",
 ])
 
 test("everySourceFileHasOneMirror", () => {

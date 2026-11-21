@@ -143,6 +143,9 @@ profiles:
     cost_proxy: 0
 
 tol_loss: 0.01 # FR-6: tolerated relative loss of the scalar objective
+t_grad_rel: 1.0e-5 # D1: Richardson bound, frozen in plan 05 Task 3 (tests/fixtures/frozen_t_grad_rel.txt)
+t_kkt: 1.0e-7 # H7: projected-gradient stop; frozen once from the first real run (see tests/fixtures/frozen_t_kkt.txt)
+max_iter: 60 # D3: iterations per solve over all penalty rounds
 robust_draws: 32 # FR-5: K uncertainty draws for robust re-optimisation
 interval_draws: 64 # FR-12: K_b draws for table-entry intervals
 budget_levels: 100 # FR-9: budget levels per profile

@@ -43,12 +43,14 @@ import {
   configSha256,
   loadControls,
   loadMaterialRanges,
+  loadOptimize,
   loadWeather,
 } from "./config"
 import { loadContext } from "./context"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
+import { loadPlan3, runRefine, SCENARIO_SETS } from "./refine"
 import { writeCard } from "./report/cards"
 import { buildCurves, buildSpectra } from "./report/curves"
 import { writeManifest } from "./report/manifest"
@@ -493,6 +495,50 @@ async function runCommand(ctx: Ctx): Promise<void> {
   console.log(`run: complete, run id ${ctx.runId}, outputs in ${out}`)
 }
 
+const REFINE_HELP =
+  "refine --in DIR --out DIR [--scenarios generic9] [--starts N] [--workers N] [--time-limit-s S] [--seed N]: derivative-based refinement of the screened candidates (plan 05). Reads run_meta.json, results.csv, draws.csv and pareto.csv from the plan-3 DIR (all four required: exit 5) and writes into the output DIR refine_front.csv (non-dominated refined solutions), refine_recipes.csv (high_performing, balanced and low_cost recipes with levels, objectives, dosing tolerances, elasticities, saddle flag), refine_tolerance.csv, refine_robust.csv (distribution of optimal levels over the uncertainty draws, robust optimum) and refine_meta.json. Optimum of the models, not a measured optimum (PROXY). --scenarios indonesia needs plan 04 (exit 2). Exit 3 no feasible optimum, 4 model not smooth enough, 5 missing input, 6 time limit."
+
+async function refineCommand(ctx: Ctx): Promise<void> {
+  const { flags } = ctx
+  const dir = strFlag(flags, "--in")
+  const out = strFlag(flags, "--out")
+  const scenarios = strFlag(flags, "--scenarios", "generic9")
+  if (!(SCENARIO_SETS as readonly string[]).includes(scenarios))
+    throw new ConfigError("scenarios", "must be generic9 or indonesia")
+  if (scenarios === "indonesia")
+    throw new ConfigError(
+      "scenarios",
+      "the indonesia scenario set requires plan 04, which is not available yet",
+    )
+  const starts = intFlag(flags, "--starts", false)
+  if (starts !== undefined && starts < 1)
+    throw new ConfigError("starts", "must be at least 1")
+  const workers = effectiveWorkers(intFlag(flags, "--workers", false) ?? 2)
+  const t = strFlag(flags, "--time-limit-s", "600")
+  const limitS = Number(t)
+  if (t.trim() === "" || !Number.isFinite(limitS) || limitS <= 0)
+    throw new ConfigError("time-limit-s", "must be a number above 0")
+  const cfg = await loadOptimize(join(ctx.configDir, "optimize.yaml"))
+  const p3 = loadPlan3(dir)
+  const seed = intFlag(flags, "--seed", false) ?? p3.seed
+  lowerPriority()
+  await runWithTimeout(
+    async (signal) => {
+      const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+      await runRefine(mctx, shortlistFromPareto(p3.pareto), seed, dir, {
+        out,
+        cfg,
+        ...(starts !== undefined ? { starts } : {}),
+        workers,
+        signal,
+        runId: ctx.runId,
+      })
+    },
+    limitS,
+    "refine",
+  )
+}
+
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
   await fetchData(ctx.dataDir)
   await verifyData(ctx.dataDir)
@@ -548,6 +594,20 @@ const COMMANDS: Record<string, Command> = {
     ],
     switches: [],
     run: simulateCommand,
+  },
+  refine: {
+    help: REFINE_HELP,
+    valueFlags: [
+      "--in",
+      "--out",
+      "--scenarios",
+      "--starts",
+      "--workers",
+      "--time-limit-s",
+      "--seed",
+    ],
+    switches: [],
+    run: refineCommand,
   },
   "fetch-data": {
     help: "fetch-data: download and verify the literature data.",

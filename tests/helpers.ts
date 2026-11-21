@@ -150,3 +150,23 @@ export function lastEvent(
 export function relErr(a: number, b: number): number {
   return b === 0 ? Math.abs(a) : Math.abs(a - b) / Math.abs(b)
 }
+
+/**
+ * A real plan-3 output directory (design, simulate, optimize) for seed `seed` with `nMc` draws, built by the real CLI.
+ * Not the whole `run` pipeline: refine needs only run_meta.json, results.csv, draws.csv and pareto.csv.
+ */
+export async function buildPlan3(
+  out: string,
+  seed = "20261121",
+  nMc = "16",
+): Promise<void> {
+  const base = ["--max-load", "1000"]
+  for (const args of [
+    ["design", "--seed", seed, "--out", out],
+    ["simulate", "--design", out, "--out", out, "--seed", seed, "--n-mc", nMc],
+    ["optimize", "--in", out],
+  ]) {
+    const r = await run([...args, ...base])
+    if (r.exitCode !== 0) throw new Error(`${args[0]} failed: ${r.stderr}`)
+  }
+}
