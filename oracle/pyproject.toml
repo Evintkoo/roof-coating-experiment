@@ -3,7 +3,9 @@ name = "spandek-oracle"
 version = "0.0.0"
 description = "Test-only independent reference implementations (shares no code with src/)"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "scipy==1.18.1",
+]
 
 [tool.uv]
 package = false
