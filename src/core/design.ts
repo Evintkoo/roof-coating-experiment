@@ -1,7 +1,9 @@
 import { DESIGN_COLUMNS } from "./columns"
 import type { MaterialRanges, WeatherConfig } from "./config"
+import { InfeasibleError } from "./errors"
+import { emitEvent } from "./events"
 import { deriveSeed, shuffleInPlace, Xoshiro128 } from "./rng"
-import type { DesignRow } from "./schema"
+import type { DesignRow, FlaggedDesignRow } from "./schema"
 
 /** n x d Latin hypercube in (0,1) (D11): stream j = deriveSeed(seed, j). */
 export function lhsUnit(n: number, d: number, seed: number): number[][] {
@@ -90,4 +92,46 @@ export function weatherL9(w: WeatherConfig): Scenario[] {
       w,
     ),
   }))
+}
+
+/** D8: C-1 PVC <= CPVC, C-2 topcoat DFT <= midcoat DFT, C-3 total DFT <= cap. Rows are flagged, never dropped. */
+export function checkConstraints(
+  rows: readonly DesignRow[],
+  ranges: MaterialRanges,
+): FlaggedDesignRow[] {
+  const cpvc = ranges.cpvc.value
+  const cap = ranges.max_total_dft_um.value
+  return rows.map((r) => {
+    const v: string[] = []
+    if (r.midcoat_pvc > cpvc) v.push("C-1")
+    if (r.topcoat_dft_um > r.midcoat_dft_um) v.push("C-2")
+    if (r.primer_dft_um + r.midcoat_dft_um + r.topcoat_dft_um > cap)
+      v.push("C-3")
+    const violations = v.join(";")
+    if (v.length > 0)
+      emitEvent("constraint.violated", "info", {
+        candidate_id: r.candidate_id,
+        violations,
+      })
+    return { ...r, feasible: v.length === 0, violations }
+  })
+}
+
+/** FR-5: at least `frac` of the rows must be feasible, else exit 3. */
+export function requireMinFeasible(
+  rows: readonly FlaggedDesignRow[],
+  frac = 0.8,
+): void {
+  const feasible = rows.filter((r) => r.feasible).length
+  const required = Math.ceil(frac * rows.length - 1e-9)
+  if (feasible < required) {
+    emitEvent("constraint.infeasible_run", "error", {
+      feasible,
+      total: rows.length,
+      required,
+    })
+    throw new InfeasibleError(
+      `only ${feasible} of ${rows.length} candidates feasible, need ${required}`,
+    )
+  }
 }

@@ -7,13 +7,18 @@ import { DESIGN_COLUMNS } from "../../src/core/columns"
 import type { MaterialRanges } from "../../src/core/config"
 import { toCsv } from "../../src/core/csv"
 import {
+  checkConstraints,
   L9,
   lhsDesign,
   lhsUnit,
+  requireMinFeasible,
   scenarioFrom,
   weatherL9,
 } from "../../src/core/design"
+import { InfeasibleError } from "../../src/core/errors"
+import { setEventSink } from "../../src/core/events"
 import { deriveSeed, shuffleInPlace, Xoshiro128 } from "../../src/core/rng"
+import type { DesignRow } from "../../src/core/schema"
 import { loadMaterialRanges, loadWeather } from "../../src/node/config"
 import { repoRoot } from "../helpers"
 
@@ -174,4 +179,108 @@ test("candidatesCsvMatchesFrozenHash", () => {
     "utf8",
   ).trim()
   expect(got).toBe(frozen)
+})
+
+// ---- constraints (D8, FR-5, H3) ----
+
+const base = () => lhsDesign(96, ranges, SEED)
+const cpvc = ranges.cpvc.value
+const cap = ranges.max_total_dft_um.value
+
+test("defaultDesignHasAtLeast77Feasible", () => {
+  const flagged = checkConstraints(base(), ranges)
+  const n = flagged.filter((r) => r.feasible).length
+  console.log(`feasible count (seed ${SEED}): ${n} of 96`)
+  expect(n).toBeGreaterThanOrEqual(77)
+  expect(() => requireMinFeasible(flagged)).not.toThrow()
+})
+
+test("cpvcBinding", () => {
+  const rows = base()
+  const lowered = { ...ranges, cpvc: { ...ranges.cpvc, value: 0.2 } }
+  const flagged = checkConstraints(rows, lowered)
+  const expected = rows.filter((r) => r.midcoat_pvc > 0.2).length
+  expect(expected).toBeGreaterThan(0)
+  const c1 = flagged.filter((r) => r.violations.split(";").includes("C-1"))
+  expect(c1).toHaveLength(expected)
+  for (const r of c1) expect(r.midcoat_pvc).toBeGreaterThan(0.2)
+})
+
+test("topcoatThickerThanMidcoatFlaggedC2", () => {
+  const r = {
+    ...(base()[0] as DesignRow),
+    midcoat_dft_um: 50,
+    topcoat_dft_um: 51,
+  }
+  const [f] = checkConstraints([r], ranges)
+  expect(f?.violations).toBe("C-2")
+  expect(f?.feasible).toBe(false)
+  const [ok] = checkConstraints([{ ...r, topcoat_dft_um: 50 }], ranges)
+  expect(ok?.feasible).toBe(true)
+})
+
+test("totalDftFlaggedC3", () => {
+  const r = {
+    ...(base()[0] as DesignRow),
+    midcoat_pvc: 0.2,
+    primer_dft_um: 12,
+    midcoat_dft_um: 300,
+    topcoat_dft_um: 20,
+  }
+  expect(checkConstraints([r], ranges)[0]?.feasible).toBe(true) // exactly at the cap
+  const [f] = checkConstraints([{ ...r, primer_dft_um: 12.5 }], ranges)
+  expect(f?.violations).toBe("C-3")
+})
+
+test("independentRecheck", () => {
+  const rows = base()
+  const lowered = { ...ranges, cpvc: { ...ranges.cpvc, value: 0.2 } }
+  for (const rg of [ranges, lowered]) {
+    const flagged = checkConstraints(rows, rg)
+    flagged.forEach((f, i) => {
+      const r = rows[i] as DesignRow
+      const ids: string[] = []
+      if (r.midcoat_pvc > rg.cpvc.value) ids.push("C-1")
+      if (r.topcoat_dft_um > r.midcoat_dft_um) ids.push("C-2")
+      if (r.primer_dft_um + r.midcoat_dft_um + r.topcoat_dft_um > 332)
+        ids.push("C-3")
+      expect(f.violations).toBe(ids.join(";"))
+      expect(f.feasible).toBe(ids.length === 0)
+    })
+  }
+  expect(cap).toBe(332)
+  expect(cpvc).toBe(0.45)
+})
+
+test("requireMinFeasibleThrowsCode3", () => {
+  const events: string[] = []
+  setEventSink((e) => events.push(e))
+  try {
+    const low = { ...ranges, cpvc: { ...ranges.cpvc, value: 0.12 } }
+    const flagged = checkConstraints(base(), low)
+    expect(flagged.filter((r) => r.feasible).length).toBeLessThan(77)
+    let err: unknown
+    try {
+      requireMinFeasible(flagged)
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(InfeasibleError)
+    expect((err as InfeasibleError).code).toBe(3)
+    expect(events).toContain("constraint.violated")
+    expect(events).toContain("constraint.infeasible_run")
+  } finally {
+    setEventSink(null)
+  }
+})
+
+test("infeasibleRowsKept", () => {
+  const rows = base()
+  const low = { ...ranges, cpvc: { ...ranges.cpvc, value: 0.12 } }
+  const flagged = checkConstraints(rows, low)
+  expect(flagged).toHaveLength(rows.length)
+  flagged.forEach((f, i) => {
+    expect(f.candidate_id).toBe((rows[i] as DesignRow).candidate_id)
+  })
+  expect(flagged.some((r) => !r.feasible)).toBe(true)
 })
