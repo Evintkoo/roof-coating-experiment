@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { ConfigError, DataError } from "../core/errors"
 import {
   assembleTio2Nk,
@@ -12,7 +12,7 @@ import { listDataFiles, SUMS_FILE, sha256Hex } from "./data"
 import { emit } from "./logging"
 
 const RII =
-  "https://raw.githubusercontent.com/polyanskiy/refractiveindex.info-database/main/database/data/main/TiO2/nk"
+  "https://raw.githubusercontent.com/polyanskiy/refractiveindex.info-database/e6d15e364f70de1cad8a96a20f75689f2fba8b21/database/data/main/TiO2/nk"
 
 export type Sources = {
   g173: string
@@ -21,9 +21,9 @@ export type Sources = {
   siefke: string
 }
 
-/** Public read-only URLs (verified in spike Q4). G173 is the pvlib-python redistributed copy of NREL's ASTMG173.csv. */
+/** Public read-only URLs (verified in spike Q4), pinned to commit SHAs (2026-11-21); the bytes hash to the frozen SHA256SUMS. G173 is the pvlib-python redistributed copy of NREL's ASTMG173.csv. */
 export const SOURCES: Sources = {
-  g173: "https://raw.githubusercontent.com/pvlib/pvlib-python/main/pvlib/data/ASTMG173.csv",
+  g173: "https://raw.githubusercontent.com/pvlib/pvlib-python/c5a4feec2d8e0f8a366cf564cbffc97b723d6545/pvlib/data/ASTMG173.csv",
   bondO: `${RII}/Bond-o.yml`,
   bondE: `${RII}/Bond-e.yml`,
   siefke: `${RII}/Siefke.yml`,
@@ -86,7 +86,11 @@ export async function fetchTo(url: string, dest: string): Promise<string> {
   mkdirSync(dirname(dest), { recursive: true })
   writeFileSync(dest, bytes)
   const sha256 = sha256Hex(bytes)
-  emit("data.fetched", "info", { host, bytes: bytes.length, sha256 })
+  emit("data.fetched", "info", {
+    name: basename(dest),
+    bytes: bytes.length,
+    sha256,
+  })
   return sha256
 }
 

@@ -205,6 +205,7 @@ MIE_K = (0.0, 1e-3, 0.05, 0.5)
 MIE_D_UM = (0.05, 0.25, 0.8, 2.0, 10.0)
 MIE_WL_UM = (0.3, 0.55, 1.0, 1.6, 2.5)
 MIE_NMED = (1.0, 1.49)
+MIE_LOWX_ABSORBING = (2.7, 0.5, 0.02, 1.49)  # appended after the seeded cases: strongly absorbing, |m| x < 0.1 at 2.5 um
 MIE_FORCED = (  # (n, k, d, n_medium): guarantee x = 105 (n_medium 1) and x = 156 (1.49)
     (1.5, 0.0, 10.0, 1.0),
     (2.7, 0.05, 10.0, 1.0),
@@ -223,7 +224,7 @@ def mie_fixture() -> dict:
     for i in range(len(pool) - 1, 0, -1):  # Fisher-Yates with the own splitmix64
         j = int(rng.uniform() * (i + 1))
         pool[i], pool[j] = pool[j], pool[i]
-    chosen = list(MIE_FORCED) + pool[: MIE_CASES - len(MIE_FORCED)]
+    chosen = list(MIE_FORCED) + pool[: MIE_CASES - len(MIE_FORCED)] + [MIE_LOWX_ABSORBING]
     cases = []
     for n, k, d, nm in chosen:
         q_ext, q_sca, g = [], [], []

@@ -23,8 +23,18 @@ function walk(root: string, dir: string = root): string[] {
 export const listDataFiles = (dir: string): string[] =>
   walk(dir).filter((f) => f !== SUMS_FILE)
 
-function mismatch(file: string, reason: string): never {
-  emit("data.mismatch", "error", { file, reason })
+/** data.mismatch with the plan-02 fields; expected/actual are "-" when no hash applies (structure errors). */
+function mismatch(
+  file: string,
+  reason: string,
+  expected = "-",
+  actual = "-",
+): never {
+  emit("data.mismatch", "error", {
+    name: file,
+    expected_sha256: expected,
+    actual_sha256: actual,
+  })
   throw new DataError(file, reason)
 }
 
@@ -34,7 +44,11 @@ export async function verifyData(dir: string): Promise<void> {
   try {
     text = readFileSync(join(dir, SUMS_FILE), "utf8")
   } catch {
-    emit("data.mismatch", "error", { file: SUMS_FILE, reason: "missing" })
+    emit("data.mismatch", "error", {
+      name: SUMS_FILE,
+      expected_sha256: "-",
+      actual_sha256: "-",
+    })
     throw new DataError(SUMS_FILE, "SHA256SUMS missing or unreadable")
   }
   const listed = new Map<string, string>()
@@ -55,9 +69,10 @@ export async function verifyData(dir: string): Promise<void> {
     } catch {
       mismatch(path, "listed file missing")
     }
-    if (sha256Hex(bytes) !== hash) mismatch(path, "sha256 differs")
+    const actual = sha256Hex(bytes)
+    if (actual !== hash) mismatch(path, "sha256 differs", hash, actual)
+    emit("data.verified", "info", { name: path, sha256: actual })
   }
   for (const f of listDataFiles(dir))
     if (!listed.has(f)) mismatch(f, "file not listed in SHA256SUMS")
-  emit("data.verified", "info", { n_files: listed.size })
 }

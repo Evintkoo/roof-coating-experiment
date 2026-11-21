@@ -17,13 +17,17 @@ Observables are the measured numbers from the task reports (`.superpowers/sdd/02
 | H8 | `solGel.test.ts` closedFormMatchesOdeFixture, oracleCoverage, taylorSwitchStraddle | scipy fixture, 20 cases: h rel 1.6e-12, c rel 1.4e-10, gel time rel 2.7e-11 (limit 1e-6) |
 | H9 | `wetting.test.ts` limits | r = 1 and f = 1 give theta_Y, f = 0 gives exactly 180 deg, within 1e-9 |
 | H10 | `barrier.test.ts` allOutputsInUnitIntervalOverPlan1Ranges, permIncreasesWithGptes, crackIncreasesWithDft; `delamination.test.ts` delamBounds, delamIncreasesWithMtes; `wetting.test.ts` scoreBoundsAndDirection; `crossModel.test.ts` everyOutputFiniteInDomainForAll96Candidates | all proxy outputs in [0,1] over the 96-candidate LHS (seed 20261121), `proxy === true`, wetting theta in [0,180] with theta_lo <= theta_pred <= theta_hi, gel time finite or Infinity only for gel time, R in [0,1], t_max finite and < 150 degC |
-| H11 | `ranges.test.ts`, `shared.test.ts`, F-matrix tests below | code 4 / phase model, event fields model, quantity, value, lo, hi |
+| H11 | Function-level guards: `ranges.test.ts` (edgesInclusive, outsideThrowsCode4PhaseModel, eventEmittedWithFields, nanRejected), `shared.test.ts` (crackIndexGuardsInputs, crackIndexRhoBoundedAndTinyRatioPrecise); model guard tests `optics.test.ts` pvcOutOfRangeCode4, dftOutsideDomainCode4; `mie.test.ts` negativeKRejected, otherInputsGuarded, sizeParameterBoundedBelow; `solGel.test.ts` waterRatioZeroCode4, phEdgesInclusiveAndOutsideRejected; `thermal.test.ts` dtNotDividing600Rejected, zeroRTotalRejected; `barrier.test.ts`/`delamination.test.ts` domainGuardsCode4; F-matrix below | code 4 / phase model, event `model.out_of_range` with model, quantity, value, lo, hi |
 | H12 | `tests/node/data.test.ts` verifyOk, tamperedByteExit5, missingSumsExit5, deletedAndUnlistedFilesExit5 | tampered byte -> exit 5 |
 | H13 | `thermal.test.ts` matchesOracle200Cases | scipy DOP853 fixture, 200 cases: t_max <= 1.30e-5 K (limit 1e-4), q_in_mean <= 4.8e-6 W/m2 (limit 1e-3), 144-point series <= 8.3e-6 K (limit 3e-4) |
+
+Cache event: `mie.cache_stats` (debug, hits, misses) is pinned by `optics.test.ts` mieCacheStatsEventAtDebug. Data events `data.fetched {name, bytes, sha256}`, `data.verified {name, sha256}` (once per file) and `data.mismatch {name, expected_sha256, actual_sha256}` are pinned by `dataFetch.test.ts` dataFetchedEvent and `data.test.ts` verifyOk, tamperedByteExit5. Mie fixture now has 61 cases; the added strongly absorbing low-x case (n 2.7, k 0.5, d 0.02 um, n_medium 1.49; |m|x < 0.1 at 2.5 um) is pinned by stronglyAbsorbingLowXCaseIsCovered and passes the H4 rule.
 
 Other Task 9 proofs: NFR-2 `noModelImportsAnother` (every `import` of the nine model files; `./ranges`, `./shared`, and `./mie` only in `optics.ts`; no bare, node or web imports; the scanner is shown able to fail on a synthetic bad source); FR-8 `modelsBuildForBrowser` (`Bun.build` target browser succeeds for each model file); T-X-5 `suiteIsIdenticalUnderNode` (Bun.build target node bundle of the model functions, run under Node 22 and Bun, 20 numbers equal to 1e-9, plus the in-process model call equal to the bundle's t_max); `topcoatOpticalPenaltyRaisesTMaxOrEqual` (R_with = R_without * exp(-2 mu d) to 1e-12, t_max with topcoat >= without).
 
 ## Fault-injection matrix
+
+F5, F6, F8, F9 are asserted at function level (the named tests below call the model function directly). F1-F4 and F7 are CLI tests (`cli.test.ts` faultF1..F4, faultF7, running the real CLI) with their unit-level counterparts listed.
 
 | ID | Test | Observable |
 |---|---|---|

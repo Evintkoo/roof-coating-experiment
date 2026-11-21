@@ -56,6 +56,7 @@ test("dataFetchedEvent", async () => {
     expect(sha).toBe(want)
     expect(readFileSync(dest, "utf8")).toBe(body)
     const ev = events().find((e) => e.event === "data.fetched")
+    expect(ev?.name).toBe("a.csv")
     expect(ev?.sha256).toBe(want)
     expect(ev?.bytes).toBe(Buffer.byteLength(body))
   } finally {

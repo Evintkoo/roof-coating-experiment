@@ -39,9 +39,17 @@ function capture(): { events: [string, Record<string, unknown>][] } {
 test("verifyOk", async () => {
   const log = capture()
   await verifyData(real)
-  const ev = log.events.find(([e]) => e === "data.verified")
-  expect(ev).toBeDefined()
-  expect(ev?.[1].n_files as number).toBeGreaterThan(3)
+  const evs = log.events.filter(([e]) => e === "data.verified")
+  const sums = readFileSync(join(real, "SHA256SUMS"), "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => l.split("  ") as [string, string])
+  expect(evs.length).toBe(sums.length)
+  expect(sums.length).toBeGreaterThan(3)
+  for (const [hash, name] of sums) {
+    const e = evs.find(([, o]) => o.name === name)
+    expect(e?.[1].sha256).toBe(hash)
+  }
   configureLogging({ runId: "x", level: "error" })
 })
 
@@ -54,7 +62,11 @@ test("tamperedByteExit5", async () => {
     b[b.length - 3] = (b[b.length - 3] as number) ^ 1
     writeFileSync(p, b)
     await expect(verifyData(dir)).rejects.toMatchObject({ code: 5 })
-    expect(log.events.some(([e]) => e === "data.mismatch")).toBe(true)
+    const mm = log.events.find(([e]) => e === "data.mismatch")?.[1]
+    expect(mm?.name).toBe("g173_global_tilt.csv")
+    expect(mm?.expected_sha256).toMatch(/^[0-9a-f]{64}$/)
+    expect(mm?.actual_sha256).toMatch(/^[0-9a-f]{64}$/)
+    expect(mm?.actual_sha256).not.toBe(mm?.expected_sha256)
   } finally {
     rmSync(dir, { recursive: true, force: true })
     configureLogging({ runId: "x", level: "error" })

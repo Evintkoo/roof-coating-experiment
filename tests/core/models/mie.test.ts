@@ -76,6 +76,23 @@ test("matchesMiepythonFixture", () => {
   expect(bad).toEqual([])
 })
 
+test("stronglyAbsorbingLowXCaseIsCovered", () => {
+  // n = 2.7, k = 0.5, d = 0.02 um, n_medium 1.49: |m| x < 0.1 at 2.5 um (miepython series branch; 1.6 um is just above)
+  const c = oracle.cases.find(
+    (o) => o.n === 2.7 && o.k === 0.5 && o.d_um === 0.02,
+  )
+  expect(c).toBeDefined()
+  const cc = c as MieCase
+  const lowX = cc.wl_um.filter(
+    (w) =>
+      (Math.hypot(cc.n, cc.k) / cc.n_medium) *
+        ((Math.PI * cc.d_um * cc.n_medium) / w) <
+      0.1,
+  )
+  expect(lowX).toEqual([2.5])
+  expect(violations(cc)).toEqual([])
+})
+
 test("largeXMatchesFixture", () => {
   // T-MIE-4: the x ~ 105 (n_medium 1.0) and x ~ 156 (n_medium 1.49) cases pass the H4 rule
   const big = oracle.cases.filter((c) => c.d_um === 10)
