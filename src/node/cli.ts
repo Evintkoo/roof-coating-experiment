@@ -442,6 +442,9 @@ async function reportCommand(ctx: Ctx): Promise<void> {
     "curves.json",
     "spectra.json",
   ]
+  // the design step's files, when the output directory holds them (always after `run`)
+  for (const f of ["candidates.csv", "weather.csv"])
+    if (existsSync(join(dir, f))) files.push(f)
   for (const role of ROLES) {
     const id = shortlist[role] as string
     const freq = pareto.find((p) => p.candidate_id === id)
@@ -457,6 +460,45 @@ async function reportCommand(ctx: Ctx): Promise<void> {
   console.log(
     `report: 3 cards, ${controls.length} control rows, ${curves.series.length} curve series, manifest written`,
   )
+}
+
+const RUN_HELP =
+  "run --seed N --out DIR [--n-mc N] [--force]: the whole pipeline, design, simulate, optimize, sensitivity, report, in one directory with one run id and one manifest (run_meta.json is the completion marker of simulate; run_manifest.json lists every output). --force overwrites an existing candidates.csv."
+
+async function runCommand(ctx: Ctx): Promise<void> {
+  const { flags } = ctx
+  const seed = strFlag(flags, "--seed")
+  const out = strFlag(flags, "--out")
+  const step = (extra: [string, string | true][]): Ctx => ({
+    ...ctx,
+    flags: new Map<string, string | true>([
+      ...[...flags].filter(([k]) =>
+        ["--max-load", "--config-dir", "--data-dir"].includes(k),
+      ),
+      ...extra,
+    ]),
+  })
+  const design: [string, string | true][] = [
+    ["--seed", seed],
+    ["--out", out],
+  ]
+  if (flags.has("--force")) design.push(["--force", true])
+  await designCommand(step(design))
+  const sim: [string, string | true][] = [
+    ["--design", out],
+    ["--out", out],
+    ["--seed", seed],
+  ]
+  for (const k of ["--n-mc", "--workers", "--timeout-s"]) {
+    const v = flags.get(k)
+    if (v !== undefined) sim.push([k, v])
+  }
+  await simulateCommand(step(sim))
+  const inDir: [string, string | true][] = [["--in", out]]
+  await optimizeCommand(step(inDir))
+  await sensitivityCommand(step(inDir))
+  await reportCommand(step(inDir))
+  console.log(`run: complete, run id ${ctx.runId}, outputs in ${out}`)
 }
 
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
@@ -495,6 +537,12 @@ const COMMANDS: Record<string, Command> = {
     valueFlags: ["--in"],
     switches: [],
     run: reportCommand,
+  },
+  run: {
+    help: RUN_HELP,
+    valueFlags: ["--seed", "--out", "--n-mc", "--workers", "--timeout-s"],
+    switches: ["--force"],
+    run: runCommand,
   },
   simulate: {
     help: "simulate --design DIR --out DIR --seed N [--n-mc N]: run the candidates through the models with parameter uncertainty.",
