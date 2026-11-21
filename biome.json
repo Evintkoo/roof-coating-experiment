@@ -6,7 +6,9 @@
       "!**/*.docx",
       "!.superpowers",
       "!plans",
-      "!bun.lock"
+      "!bun.lock",
+      "!tests/fixtures/oracle",
+      "!oracle"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2 },
