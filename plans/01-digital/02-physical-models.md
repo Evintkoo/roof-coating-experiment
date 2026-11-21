@@ -123,7 +123,7 @@ Principle: H1, H5, H7, H9 use closed forms derived independently of the implemen
 
 ## Execution contract: one shot, nothing left open
 
-**Preflight gate** (print and stop if missing): (1) plan 1 is done and green; (2) Evint approves network access for `fetch-data` to the public sources recorded by spike Q4; (3) Evint confirms the substrate scenario is **bare AZ-coated (Zn–Al) spandek** or names another (blueprint §1.3 leaves this open); (4) `uv` available for oracle regeneration.
+**Preflight gate** (print and stop if missing): (1) plan 1 is done and green; (2) Evint approves network access for `fetch-data` to the public sources recorded by spike Q4; (3) the substrate scenario is **bare aluminium roofing sheet** (user decision 2026-11-21; no steel or Zn–Al); (4) `uv` available for oracle regeneration.
 
 No stub/TODO/skip/xfail. Spikes Q1–Q4 end in written answers in `docs/spikes/plan-02.md` that fix constants, with citations; a constant with no citable source gets `status: scenario` and a one-line reason, never a silent guess. Thresholds frozen once from the first real run: none (all thresholds above were set from the spike measurements). Done = H1–H13 proven with run ids in `docs/proofs/plan-02.md`, `bun run check` green. If a task fails: stop, leave tree clean, report the failing proof with its log. Out of scope: merge, push, plans 0 and 3.
 
