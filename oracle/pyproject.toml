@@ -5,6 +5,8 @@ description = "Test-only independent reference implementations (shares no code w
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "scipy==1.18.1",
+    "miepython==3.3.1",
+    "numpy==2.5.5",
 ]
 
 [tool.uv]

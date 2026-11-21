@@ -6,6 +6,7 @@ Usage: uv run --project oracle oracle/generate.py [--check]
 """
 
 import hashlib
+import importlib.metadata
 import json
 import math
 import subprocess
@@ -13,6 +14,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import miepython
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -85,6 +87,7 @@ def build_fixtures() -> dict[str, str]:
     return {
         "xoshiro.json": json.dumps(doc, separators=(",", ":")) + "\n",
         "thermal.json": json.dumps(thermal_fixture(), separators=(",", ":")) + "\n",
+        "mie.json": json.dumps(mie_fixture(), separators=(",", ":")) + "\n",
     }
 
 
@@ -189,6 +192,62 @@ def thermal_fixture() -> dict:
         "seed": THERMAL_SEED,
         "scipy": __import__("scipy").__version__,
         "method": "DOP853 rtol=atol=1e-11, segmented at 06:00/18:00/30:00/42:00",
+        "cases": cases,
+    }
+
+
+# ---- Mie oracle: miepython 3.3.1, plan 02 Task 4 (H4) ---------------------------------------------
+MIE_SEED = 20261121
+MIE_CASES = 60
+MIE_N = (1.3, 1.5, 1.64, 2.0, 2.7)
+MIE_K = (0.0, 1e-3, 0.05, 0.5)
+MIE_D_UM = (0.05, 0.25, 0.8, 2.0, 10.0)
+MIE_WL_UM = (0.3, 0.55, 1.0, 1.6, 2.5)
+MIE_NMED = (1.0, 1.49)
+MIE_FORCED = (  # (n, k, d, n_medium): guarantee x = 105 (n_medium 1) and x = 156 (1.49)
+    (1.5, 0.0, 10.0, 1.0),
+    (2.7, 0.05, 10.0, 1.0),
+    (1.64, 1e-3, 10.0, 1.49),
+    (2.0, 0.5, 10.0, 1.49),
+)
+
+
+def mie_fixture() -> dict:
+    """Each case: one (n, k, d, n_medium) and 5 wavelengths. miepython takes m = n - ik (its convention)."""
+    grid = [
+        (n, k, d, nm) for n in MIE_N for k in MIE_K for d in MIE_D_UM for nm in MIE_NMED
+    ]
+    rng = SplitMix64(MIE_SEED)
+    pool = [c for c in grid if c not in MIE_FORCED]
+    for i in range(len(pool) - 1, 0, -1):  # Fisher-Yates with the own splitmix64
+        j = int(rng.uniform() * (i + 1))
+        pool[i], pool[j] = pool[j], pool[i]
+    chosen = list(MIE_FORCED) + pool[: MIE_CASES - len(MIE_FORCED)]
+    cases = []
+    for n, k, d, nm in chosen:
+        q_ext, q_sca, g = [], [], []
+        for wl in MIE_WL_UM:
+            qe, qs, _qb, gg = miepython.efficiencies(complex(n, -k), d, wl, nm)
+            q_ext.append(float(qe))
+            q_sca.append(float(qs))
+            g.append(float(gg))
+        cases.append(
+            {
+                "n": n,
+                "k": k,
+                "d_um": d,
+                "n_medium": nm,
+                "wl_um": list(MIE_WL_UM),
+                "q_ext": q_ext,
+                "q_sca": q_sca,
+                "q_abs": [e - s for e, s in zip(q_ext, q_sca)],
+                "g": g,
+            }
+        )
+    return {
+        "seed": MIE_SEED,
+        "miepython": importlib.metadata.version("miepython"),
+        "convention": "miepython m = n - ik; d is the sphere diameter; x = pi*d*n_medium/wl",
         "cases": cases,
     }
 
