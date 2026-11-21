@@ -2,10 +2,12 @@ import { afterEach, expect, test } from "bun:test"
 import { mkdtempSync, readFileSync } from "node:fs"
 import os from "node:os"
 import { join } from "node:path"
-import { ResourceError } from "../../src/core/errors"
+import { ConfigError, ResourceError } from "../../src/core/errors"
+import { setEventSink } from "../../src/core/events"
 import { configureLogging, newRunId } from "../../src/node/logging"
 import {
   checkLoad,
+  defaultMaxLoad,
   lowerPriority,
   runWithTimeout,
 } from "../../src/node/resources"
@@ -40,25 +42,64 @@ test("highLimitAlwaysPasses", () => {
 })
 
 test("defaultLimitIsHalfCores", () => {
-  const limit = os.cpus().length / 2
-  const load1 = os.loadavg()[0] as number
-  let threw = false
-  try {
-    checkLoad()
-  } catch (e) {
-    threw = e instanceof ResourceError
-  }
-  // the default behaves exactly like the explicit half-cores limit
-  expect(threw).toBe(load1 > limit)
-  // pinned through the event field
+  expect(defaultMaxLoad()).toBe(os.cpus().length / 2)
+})
+
+test("defaultCheckLoadUsesDefaultLimit", () => {
   const runDir = mkdtempSync(join(os.tmpdir(), "spandek-res-"))
   configureLogging({ runId: newRunId(), level: "info", runDir })
-  if (load1 > limit) {
-    try {
-      checkLoad()
-    } catch {}
-    expect(events(runDir).at(-1)?.limit).toBe(limit)
+  // limit chosen from one read so the outcome is deterministic: below the load it must throw with the default limit
+  const load1 = os.loadavg()[0] as number
+  if (load1 > defaultMaxLoad()) {
+    expect(() => checkLoad()).toThrow(ResourceError)
+    expect(events(runDir).at(-1)?.limit).toBe(defaultMaxLoad())
+  } else {
+    expect(() => checkLoad()).not.toThrow()
   }
+})
+
+test("nanLimitFailsClosed", () => {
+  expect(() => checkLoad(Number.NaN)).toThrow(ResourceError)
+})
+
+test("badTimeoutLimitIsConfigError", async () => {
+  for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    let err: unknown
+    try {
+      await runWithTimeout(async () => 1, bad)
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(ConfigError)
+  }
+})
+
+test("timeoutStillFiresWhenLoggingThrows", async () => {
+  // a logging sink that throws must not stop the timeout from rejecting and aborting
+  setEventSink(() => {
+    throw new Error("sink broke")
+  })
+  configureLogging({ runId: "x", level: "debug" })
+  let aborted = false
+  let err: unknown
+  try {
+    await runWithTimeout(
+      (signal) =>
+        new Promise<never>((_, rej) => {
+          signal.addEventListener("abort", () => {
+            aborted = true
+            rej(new Error("aborted"))
+          })
+        }),
+      0.05,
+    )
+  } catch (e) {
+    err = e
+  } finally {
+    setEventSink(null)
+  }
+  expect(err).toBeInstanceOf(ResourceError)
+  expect(aborted).toBe(true)
 })
 
 test("priorityIsLowered", () => {

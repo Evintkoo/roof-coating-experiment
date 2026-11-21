@@ -19,7 +19,11 @@ async function readData(dir: string, name: string): Promise<string> {
   }
 }
 
-/** Verify the literature data, then load every config and table the models need. */
+/**
+ * Verify the literature data, then load every config and table the models need.
+ * Known edge: the TiO2 table spans 0.300149-2.4 um, so grid points at 2.4-2.5 um use clamped n,k
+ * and the 0.3 um grid point is clamped to the first row (0.15 nm off).
+ */
 export async function loadContext(
   configDir: string,
   dataDir: string,

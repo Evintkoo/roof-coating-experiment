@@ -38,3 +38,20 @@ test("tamperedDataIsDataError", async () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test("missingControlsIsDataErrorAtContextLevel", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "spandek-ctx-"))
+  try {
+    cpSync(cfg, dir, { recursive: true })
+    rmSync(join(dir, "controls.yaml"))
+    let code = 0
+    try {
+      await loadContext(dir, data)
+    } catch (e) {
+      code = (e as { code: number }).code
+    }
+    expect(code).toBe(5)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

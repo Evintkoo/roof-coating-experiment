@@ -1,11 +1,14 @@
 import os from "node:os"
-import { ResourceError } from "../core/errors"
+import { ConfigError, ResourceError } from "../core/errors"
 import { emit } from "./logging"
 
-/** Refuse to start when the 1-minute load average exceeds maxLoad (default: half the cores). */
-export function checkLoad(maxLoad: number = os.cpus().length / 2): void {
+/** Default load limit: half the cores. */
+export const defaultMaxLoad = (): number => os.cpus().length / 2
+
+/** Refuse to start unless the 1-minute load average is within maxLoad (fails closed: a NaN limit refuses). */
+export function checkLoad(maxLoad: number = defaultMaxLoad()): void {
   const load1 = os.loadavg()[0] as number
-  if (load1 > maxLoad) {
+  if (!(load1 <= maxLoad)) {
     emit("resource.load_high", "error", { load1, limit: maxLoad })
     throw new ResourceError("machine load above the limit")
   }
@@ -22,11 +25,17 @@ export async function runWithTimeout<T>(
   limitS: number,
   command = "run",
 ): Promise<T> {
+  if (!(Number.isFinite(limitS) && limitS > 0))
+    throw new ConfigError("limit_s", "must be a finite number above 0")
   const ac = new AbortController()
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      emit("resource.timeout", "error", { command, limit_s: limitS })
+      try {
+        emit("resource.timeout", "error", { command, limit_s: limitS })
+      } catch {
+        // logging must never stop the rejection and abort below
+      }
       reject(new ResourceError("time limit exceeded")) // before abort: a fn that rejects on abort must not win the race
       ac.abort()
     }, limitS * 1000)
