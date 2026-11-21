@@ -12,11 +12,11 @@ export function crackIndex(
   hC0Um: number,
   exponent: number,
 ): number {
-  requireIn("crackIndex", "rhoNet", rhoNet, 0, BIG)
+  requireIn("crackIndex", "rhoNet", rhoNet, 0, 1)
   requireIn("crackIndex", "dftUm", dftUm, 0, BIG)
   requireIn("crackIndex", "hC0Um", hC0Um, Number.MIN_VALUE, BIG)
   requireIn("crackIndex", "exponent", exponent, Number.MIN_VALUE, BIG)
   const hC = hC0Um * rhoNet ** -exponent
   const r = dftUm / hC
-  return 1 - Math.exp(-(r * r))
+  return -Math.expm1(-(r * r))
 }

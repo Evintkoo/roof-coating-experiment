@@ -10,7 +10,10 @@ test("crackIndexLimits", () => {
   expect(crackIndex(1, 10, 10, 2)).toBeCloseTo(1 - Math.exp(-1), 12)
   fc.assert(
     fc.property(
-      fc.double({ min: 0.01, max: 1, noNaN: true }),
+      fc.oneof(
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.constantFrom(0, 1),
+      ),
       fc.double({ min: 0, max: 1000, noNaN: true }),
       fc.double({ min: 0, max: 1000, noNaN: true }),
       fc.double({ min: 0.1, max: 100, noNaN: true }),
@@ -23,6 +26,16 @@ test("crackIndexLimits", () => {
       },
     ),
   )
+})
+
+test("crackIndexRhoBoundedAndTinyRatioPrecise", () => {
+  expect(() => crackIndex(1.0001, 1, 10, 1)).toThrow(PhysicsRangeError)
+  expect(crackIndex(1, 1, 10, 1)).toBeGreaterThan(0)
+  expect(crackIndex(0, 1, 10, 1)).toBe(0)
+  // L/h_c = 1e-9 -> crack ~ 1e-18 (1 - exp(-x) would give 0)
+  const c = crackIndex(1, 1e-9, 1, 1)
+  expect(c).toBeGreaterThan(9e-19)
+  expect(c).toBeLessThan(1.1e-18)
 })
 
 test("crackIndexZeroDensityMeansNoCrack", () => {
