@@ -62,14 +62,39 @@ test("errorRaisedAcceptsOnlyCodePhaseKey", () => {
   expect(rec.key).toBe("k")
   expect(rec.message).toBeUndefined()
   expect(rec.stack).toBeUndefined()
-  // non-conforming types are dropped too
+  // an oversized key is dropped and the line is flagged truncated
   emit("error.raised", "error", {
     code: 4,
     phase: "model",
-    key: "k".repeat(500),
+    key: "k".repeat(3000),
   })
   const rec2 = JSON.parse(read()[1] as string)
-  expect(Buffer.byteLength(JSON.stringify(rec2))).toBeLessThanOrEqual(2048)
+  expect(rec2.truncated).toBe(true)
+  expect(rec2.key).toBeUndefined()
+  expect(Buffer.byteLength(read()[1] as string)).toBeLessThanOrEqual(2048)
+})
+
+test("emitBoundsMultiByteFieldsAndHugeEventNames", () => {
+  const { read } = setup()
+  emit("m1", "info", { a: "é".repeat(3000) })
+  emit("m2", "info", { a: "日本".repeat(500) })
+  emit("e".repeat(5000), "info", { a: 1 })
+  emit("c".repeat(300).replaceAll("c", "\u0001"), "info", { a: 1 })
+  const lines = read()
+  expect(lines.length).toBe(4)
+  for (const l of lines) {
+    expect(Buffer.byteLength(l)).toBeLessThanOrEqual(2048)
+    expect(JSON.parse(l).truncated).toBe(true)
+  }
+})
+
+test("emitNeverThrowsWhenAppendFails", () => {
+  configureLogging({
+    runId: newRunId(),
+    level: "info",
+    runDir: "/nonexistent-dir-spandek/xyz",
+  })
+  expect(() => emit("a", "info", { a: 1 })).not.toThrow()
 })
 
 test("emitStringifiesNonFiniteNumbersAndNeverThrows", () => {
