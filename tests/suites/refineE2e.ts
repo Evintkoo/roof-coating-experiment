@@ -1,4 +1,5 @@
 import { beforeAll, expect, test } from "bun:test"
+import { createHash } from "node:crypto"
 import {
   copyFileSync,
   cpSync,
@@ -184,6 +185,47 @@ export function refineE2eSuite(S: RefineE2eScale): void {
       expect(top.exitCode).toBe(0)
       expect(JSON.parse(top.stdout).entry_budget).toBe(t.c_max)
     }
+  })
+
+  test("reportRebuiltAfterRefineAndBudgetTableIncludesThem", async () => {
+    // both commands tell the user (final stdout line and a warn event) that report.html does not include their output yet
+    for (const t of [chain.refine, chain.table]) {
+      expect(t.r.stdout.trim().split("\n").pop()).toMatch(
+        /report\.html does not include this yet; run `bun run spandek report --in /,
+      )
+      expect(events(t.r).some((e) => e.event === "report.stale")).toBe(true)
+    }
+    const before = JSON.parse(
+      readFileSync(join(dir, "run_manifest.json"), "utf8"),
+    )
+    // the page written by `run` shows the core hash from before the table was registered: it is stale
+    expect(readFileSync(join(dir, "report.html"), "utf8")).not.toContain(
+      before.core_sha256,
+    )
+    const r = await run(["report", "--in", dir, "--max-load", "1000"])
+    expect(r.exitCode).toBe(0)
+    const html = readFileSync(join(dir, "report.html"), "utf8")
+    const m = JSON.parse(readFileSync(join(dir, "run_manifest.json"), "utf8"))
+    // the table survived the rewrite of the manifest, the hashes are consistent, and the page shows the new core hash
+    expect(m.extra.map((e: { path: string }) => e.path)).toEqual([
+      "refine/budget_table.json",
+    ])
+    expect(m.core_sha256).toBe(manifestCoreHash(m))
+    expect(Object.keys(m).pop()).toBe("report_sha256")
+    expect(m.report_sha256).toBe(
+      createHash("sha256").update(html).digest("hex"),
+    )
+    expect(html).toContain(m.core_sha256)
+    expect(html).toContain('<section id="optimisation"')
+    expect(html).toContain('href="#optimisation"')
+    expect(readVerifiedTable(tablePath).tables.length).toBe(3)
+    // idempotent: a second `report` gives the same bytes
+    const again = await run(["report", "--in", dir, "--max-load", "1000"])
+    expect(again.exitCode).toBe(0)
+    expect(readFileSync(join(dir, "report.html"), "utf8")).toBe(html)
+    expect(readFileSync(join(dir, "run_manifest.json"), "utf8")).toBe(
+      `${JSON.stringify(m, null, 2)}\n`,
+    )
   })
 
   // ---- the fault matrix F1..F13, each one real edit through the real CLI ----

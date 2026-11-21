@@ -110,6 +110,7 @@ export function pipelineE2eSuite(S: PipelineE2eScale): void {
       "spectra.json",
       "run_meta.json",
       MANIFEST_FILE,
+      "report.html",
     ])
       expect(files).toContain(f)
     expect(files.filter((f) => f.startsWith("candidate_cards/")).length).toBe(3)
@@ -120,8 +121,13 @@ export function pipelineE2eSuite(S: PipelineE2eScale): void {
     expect(lastEvent(a.r, "run.complete").run_id).toBe(meta.run_id)
     expect(lastEvent(a.r, "run.complete").exit_code).toBe(0)
     // the manifest lists every produced file (all but itself) and every hash is true
+    // (report.html is recorded as report_sha256, the manifest's last field, not in files[]: the page shows the manifest)
     const listed = man.files.map((f: { path: string }) => f.path).sort()
-    expect(listed).toEqual(files.filter((f) => f !== MANIFEST_FILE).sort())
+    expect(listed).toEqual(
+      files.filter((f) => f !== MANIFEST_FILE && f !== "report.html").sort(),
+    )
+    expect(Object.keys(man).pop()).toBe("report_sha256")
+    expect(man.report_sha256).toBe(sha(join(a.out, "report.html")))
     for (const f of man.files as { path: string; sha256: string }[])
       expect(sha(join(a.out, f.path))).toBe(f.sha256)
     expect(
@@ -143,7 +149,8 @@ export function pipelineE2eSuite(S: PipelineE2eScale): void {
     const diff = Object.keys(ma).filter(
       (k) => k !== "files" && JSON.stringify(ma[k]) !== JSON.stringify(mb[k]),
     )
-    expect(diff.sort()).toEqual(["core_sha256", "run_id"])
+    // the page shows the run id, so report_sha256 differs as well
+    expect(diff.sort()).toEqual(["core_sha256", "report_sha256", "run_id"])
   })
 
   test("differentSeedDifferentHash", () => {

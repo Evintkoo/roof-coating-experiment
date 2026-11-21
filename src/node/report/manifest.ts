@@ -23,6 +23,14 @@ const CONFIG_FILES = [
 ] as const
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..")
 
+/** An entry of `extra[]`: an output of a later command (path relative to the run directory, its hash, size and kind). */
+export type ManifestExtraEntry = {
+  path: string
+  sha256: string
+  bytes: number
+  kind: string
+}
+
 export type ManifestSource = {
   runId: string
   configDir: string
@@ -61,9 +69,9 @@ function gitCommit(): string {
 
 /**
  * run_manifest.json (plan 03 FR-8): run id, seed, n_mc, git commit, Bun version and bun.lock hash, sha256 of every config
- * file and of the constants the models actually used (the parsed context), sha256 of every data file, sha256 and size of each
- * listed output file (paths relative to outDir), an empty `extra[]` for later plans' outputs, and `core_sha256`. Plan 0
- * appends `report_sha256` last; it is excluded from the core hash. Written atomically; returns its path.
+ * file and of the constants the models actually used (the parsed context), sha256 and size of each listed output file (paths
+ * relative to outDir), `extra[]` for the outputs of later commands (empty unless the caller passes the entries to keep), and
+ * `core_sha256`. `setReportHash` appends `report_sha256` last; it is excluded from the core hash. Written atomically; returns its path.
  */
 export async function writeManifest(
   outDir: string,
@@ -72,6 +80,7 @@ export async function writeManifest(
   nMc: number,
   files: readonly string[],
   src: ManifestSource,
+  extra: readonly ManifestExtraEntry[] = [],
 ): Promise<string> {
   const entries = [...new Set(files)]
     .filter((f) => f !== MANIFEST_FILE)
@@ -128,7 +137,9 @@ export async function writeManifest(
     ),
     data_sha256: dataFiles,
     files: entries,
-    extra: [],
+    extra: [...extra].sort((a, b) =>
+      a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+    ),
   }
   manifest.core_sha256 = manifestCoreHash(manifest)
   const path = join(outDir, MANIFEST_FILE)
@@ -145,4 +156,23 @@ export async function writeManifest(
     config_sha256: configHash,
   })
   return path
+}
+
+/**
+ * Plan 00 D12: record the sha256 of report.html as the manifest's last field. The core hash does not change (it excludes this
+ * field), which is why the page can show the core hash without depending on its own hash. Written atomically.
+ */
+export function setReportHash(outDir: string, sha256: string): void {
+  const path = join(outDir, MANIFEST_FILE)
+  const m = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>
+  delete m.report_sha256
+  m.report_sha256 = sha256
+  const tmp = `${path}.tmp`
+  try {
+    writeFileSync(tmp, `${JSON.stringify(m, null, 2)}\n`)
+  } catch (e) {
+    rmSync(tmp, { force: true })
+    throw e
+  }
+  renameSync(tmp, path)
 }

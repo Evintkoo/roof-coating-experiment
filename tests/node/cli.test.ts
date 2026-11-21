@@ -24,6 +24,7 @@ import {
   validateSens,
   validateSpectra,
 } from "../../src/core/pipeline/tables"
+import { manifestCoreHash } from "../../src/node/report/manifest"
 import { copyConfigWith, events, lastEvent, repoRoot, run } from "../helpers"
 
 const tmpOut = () => join(mkdtempSync(join(tmpdir(), "spandek-out-")), "out")
@@ -598,4 +599,137 @@ test("reportAppliesGlobalLoadGuardExit6", async () => {
   const r = await run(["report", "--in", dir, "--max-load", "-1"])
   expect(r.exitCode).toBe(6)
   expect(existsSync(join(dir, "run_manifest.json"))).toBe(false)
+})
+
+// ---- the live HTML report in `report` (plan 00 Task 6) ----
+const T_BUILD_S = 10
+
+test("reportHtmlWrittenAndInManifest", async () => {
+  const dir = await readyForReport()
+  const r = await report(dir)
+  expect(r.exitCode).toBe(0)
+  const html = readFileSync(join(dir, "report.html"), "utf8")
+  const man = JSON.parse(readFileSync(join(dir, "run_manifest.json"), "utf8"))
+  // G1: report_sha256 is the file's hash and the manifest's last field; the core hash excludes it and is the one on the page
+  expect(Object.keys(man).pop()).toBe("report_sha256")
+  expect(man.report_sha256).toBe(sha(join(dir, "report.html")))
+  expect(man.core_sha256).toBe(manifestCoreHash(man))
+  const { report_sha256: _r, ...without } = man
+  expect(manifestCoreHash(without)).toBe(man.core_sha256)
+  expect(html).toContain(man.core_sha256)
+  expect(html).not.toContain(man.report_sha256)
+  // report.html is not listed in files[] (its hash would change the page that shows the manifest)
+  expect(man.files.map((f: { path: string }) => f.path)).not.toContain(
+    "report.html",
+  )
+  expect(r.stdout).toContain(man.report_sha256)
+  expect(lastEvent(r, "report.html_written").sha256).toBe(man.report_sha256)
+  expect(listTmp(dir)).toEqual([])
+})
+
+test("sameRunIdSameBytes", async () => {
+  // FR-7: the same inputs and run id give the same bytes, in the same directory and in a copy
+  const a = await readyForReport()
+  expect((await report(a)).exitCode).toBe(0)
+  const first = sha(join(a, "report.html"))
+  expect((await report(a)).exitCode).toBe(0)
+  expect(sha(join(a, "report.html"))).toBe(first)
+  const copy = tmpOut()
+  cpSync(a, copy, { recursive: true })
+  expect((await report(copy)).exitCode).toBe(0)
+  expect(sha(join(copy, "report.html"))).toBe(first)
+  expect(readFileSync(join(copy, "run_manifest.json"), "utf8")).toBe(
+    readFileSync(join(a, "run_manifest.json"), "utf8"),
+  )
+})
+
+test("buildUnder10s", async () => {
+  const dir = await readyForReport()
+  const r = await report(dir)
+  expect(r.exitCode).toBe(0)
+  // T_build_s covers the whole `report` command here (cards, curves, manifest and the HTML build)
+  expect(Number(lastEvent(r, "run.complete").elapsed_ms) / 1000).toBeLessThan(
+    T_BUILD_S,
+  )
+  const wrote = lastEvent(r, "report.html_written")
+  expect(Number(wrote.bytes)).toBeGreaterThan(1_000_000)
+  expect(Number(wrote.bytes)).toBeLessThan(8 * 1024 * 1024)
+})
+
+test("f1ExitCode2NoFileWritten", async () => {
+  const dir = await readyForReport()
+  const p = join(dir, "results.csv")
+  const lines = readFileSync(p, "utf8").split("\n")
+  const header = (lines[0] as string).split(",")
+  const row = (lines[1] as string).split(",")
+  row[header.indexOf("t_max_lo")] = String(
+    Number(row[header.indexOf("t_max_pred")]) + 1,
+  )
+  lines[1] = row.join(",")
+  writeFileSync(p, lines.join("\n"))
+  const r = await report(dir)
+  expect(r.exitCode).toBe(2)
+  expect(existsSync(join(dir, "report.html"))).toBe(false)
+  expect(listTmp(dir)).toEqual([])
+  noTrace(r.stderr)
+})
+
+test("f2ExitCode5", async () => {
+  const dir = await readyForReport()
+  rmSync(join(dir, "sensitivity.csv"))
+  const r = await report(dir)
+  expect(r.exitCode).toBe(5)
+  expect(lastEvent(r, "error.raised")).toMatchObject({
+    code: 5,
+    key: "sensitivity.csv",
+  })
+  expect(existsSync(join(dir, "report.html"))).toBe(false)
+  noTrace(r.stderr)
+})
+
+test("reportRefusalLeavesNoStaleReport", async () => {
+  // a refused rebuild (the extra table is gone and the page is over nothing) never leaves an old report.html behind
+  const dir = await readyForReport()
+  expect((await report(dir)).exitCode).toBe(0)
+  expect(existsSync(join(dir, "report.html"))).toBe(true)
+  rmSync(join(dir, "candidate_cards"), { recursive: true })
+  rmSync(join(dir, "pareto.csv"))
+  const r = await report(dir)
+  expect(r.exitCode).toBe(5)
+  // validation fails before anything is touched: the earlier, consistent pair is still there
+  const man = JSON.parse(readFileSync(join(dir, "run_manifest.json"), "utf8"))
+  expect(man.report_sha256).toBe(sha(join(dir, "report.html")))
+})
+
+test("reportEventCataloguePresent", async () => {
+  const dir = await readyForReport()
+  const r = await run(["report", "--in", dir, "--max-load", "1000"], {
+    SPANDEK_LOG_LEVEL: "debug",
+  })
+  expect(r.exitCode).toBe(0)
+  const seen = new Map(events(r).map((e) => [e.event as string, e]))
+  const build = seen.get("report.build_start")
+  expect(build?.level).toBe("info")
+  expect(String(build?.inputs)).toContain("sensitivity.csv")
+  expect(seen.get("report.bundle_built")?.level).toBe("debug")
+  expect(seen.get("report.html_written")?.level).toBe("info")
+  expect(seen.get("manifest.written")?.level).toBe("info")
+  // the refusal event of F1 carries code and key
+  const bad = await readyForReport()
+  const p = join(bad, "results.csv")
+  const lines = readFileSync(p, "utf8").split("\n")
+  const header = (lines[0] as string).split(",")
+  const row = (lines[1] as string).split(",")
+  row[header.indexOf("t_max_hi")] = String(
+    Number(row[header.indexOf("t_max_pred")]) - 1,
+  )
+  lines[1] = row.join(",")
+  writeFileSync(p, lines.join("\n"))
+  const f = await report(bad)
+  expect(f.exitCode).toBe(2)
+  expect(lastEvent(f, "report.refused")).toMatchObject({
+    code: "interval_order",
+    key: "t_max_hi",
+  })
+  expect(events(f).filter((e) => e.event === "error.raised").length).toBe(1)
 })

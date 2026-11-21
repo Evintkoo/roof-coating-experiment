@@ -9,6 +9,7 @@
       "!bun.lock",
       "!tests/fixtures/oracle",
       "!oracle",
+      "!reports",
       "!data",
       "!docs/spikes/plan-04",
       "!src/web/template.html",

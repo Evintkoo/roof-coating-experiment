@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto"
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs"
 import { join } from "node:path"
@@ -66,7 +68,13 @@ import { configureLogging, emit, newRunId } from "./logging"
 import { loadPlan3, runRefine, SCENARIO_SETS } from "./refine"
 import { writeCard } from "./report/cards"
 import { buildCurves, buildSpectra } from "./report/curves"
-import { writeManifest } from "./report/manifest"
+import { buildReport } from "./report/html"
+import {
+  MANIFEST_FILE,
+  type ManifestExtraEntry,
+  setReportHash,
+  writeManifest,
+} from "./report/manifest"
 import { checkLoad, lowerPriority, runWithTimeout } from "./resources"
 import { effectiveWorkers, runSimulate } from "./simulate"
 
@@ -359,7 +367,7 @@ async function sensitivityCommand(ctx: Ctx): Promise<void> {
 }
 
 const REPORT_HELP =
-  "report --in DIR: candidate cards, controls, curve data and run manifest from a finished run. Requires run_meta.json, results.csv, draws.csv, pareto.csv and sensitivity.csv in DIR (missing: exit 5) and writes into DIR: candidate_cards/<role>_<id>.md (seven fields, decision by the plan 03 D6 rule), controls.csv (C0, C1 per scenario; C2, C3 per shortlisted candidate and scenario; nominal only), curves.json and spectra.json (nominal plus p5-p95 band for the shortlist), run_manifest.json (hashes of config, data and every output)."
+  "report --in DIR: candidate cards, controls, curve data, run manifest and the live HTML report from a finished run. Requires run_meta.json, results.csv, draws.csv, pareto.csv and sensitivity.csv in DIR (missing: exit 5) and writes into DIR: candidate_cards/<role>_<id>.md (seven fields, decision by the plan 03 D6 rule), controls.csv (C0, C1 per scenario; C2, C3 per shortlisted candidate and scenario; nominal only), curves.json and spectra.json (nominal plus p5-p95 band for the shortlist), run_manifest.json (hashes of config, data and every output; entries registered in extra[] by `budget-table` are kept) and report.html (one offline file: live simulator, explorer, cards, sensitivity, limits; the Optimisation section appears when refine and budget-table outputs are in DIR or DIR/refine; report_sha256 is the manifest's last field). Safe to run again: re-run it after `refine` or `budget-table` to include their results. A refused input (interval order: exit 2, size limit: exit 2) writes no report.html."
 
 function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.tmp`
@@ -393,10 +401,24 @@ async function reportCommand(ctx: Ctx): Promise<void> {
     throw new ConfigError("n_mc", "run_meta.json needs an integer n_mc >= 1")
   if (typeof runId !== "string" || runId === "")
     throw new ConfigError("run_id", "run_meta.json needs a run_id")
-  const results = parseResultsCsv(resultsText)
-  parseDrawsCsv(readInput(dir, "draws.csv"))
-  const pareto = parseParetoCsv(paretoText)
-  parseSensCsv(sensText)
+  let results: ReturnType<typeof parseResultsCsv>
+  let pareto: ReturnType<typeof parseParetoCsv>
+  try {
+    results = parseResultsCsv(resultsText)
+    parseDrawsCsv(readInput(dir, "draws.csv"))
+    pareto = parseParetoCsv(paretoText)
+    parseSensCsv(sensText)
+  } catch (e) {
+    // the page builder's refusal event, for the same input faults caught one step earlier (plan 00 F1)
+    if (e instanceof SpandekError && e.code === 2)
+      emit("report.refused", "error", {
+        code: /_(lo|hi)$/.test(e.key ?? "")
+          ? "interval_order"
+          : "invalid_input",
+        key: e.key ?? "",
+      })
+    throw e
+  }
 
   const shortlist = shortlistFromPareto(pareto)
 
@@ -451,6 +473,7 @@ async function reportCommand(ctx: Ctx): Promise<void> {
     "curves.json",
     "spectra.json",
   ]
+  const keep = keptExtra(dir)
   // the design step's files, when the output directory holds them (always after `run`)
   for (const f of ["candidates.csv", "weather.csv"])
     if (existsSync(join(dir, f))) files.push(f)
@@ -461,18 +484,67 @@ async function reportCommand(ctx: Ctx): Promise<void> {
     const path = await writeCard(id, role, results, controls, mctx, dir, freq)
     files.push(`candidate_cards/${path.split("/").pop()}`)
   }
-  await writeManifest(dir, mctx, seed, nMc, files, {
+  // a report.html from an earlier run must never sit next to a manifest that no longer records its hash
+  rmSync(join(dir, REPORT_FILE), { force: true })
+  await writeManifest(
+    dir,
+    mctx,
+    seed,
+    nMc,
+    files,
+    { runId, configDir: ctx.configDir, dataDir: ctx.dataDir },
+    keep,
+  )
+  const digest = await buildReport(dir, join(dir, REPORT_FILE), {
     runId,
     configDir: ctx.configDir,
     dataDir: ctx.dataDir,
   })
+  setReportHash(dir, digest)
   console.log(
-    `report: 3 cards, ${controls.length} control rows, ${curves.series.length} curve series, manifest written`,
+    `report: 3 cards, ${controls.length} control rows, ${curves.series.length} curve series, manifest written, ${REPORT_FILE} ${statSync(join(dir, REPORT_FILE)).size} bytes sha256 ${digest}`,
+  )
+}
+
+const REPORT_FILE = "report.html"
+
+/**
+ * Entries `budget-table` registered in the manifest's extra[], kept when `report` writes the manifest again: only entries whose
+ * file is still present with the recorded hash. A missing or changed file is dropped and reported (report.extra_dropped).
+ */
+function keptExtra(dir: string): ManifestExtraEntry[] {
+  const path = join(dir, MANIFEST_FILE)
+  if (!existsSync(path)) return []
+  let m: { extra?: unknown }
+  try {
+    m = JSON.parse(readFileSync(path, "utf8")) as { extra?: unknown }
+  } catch {
+    return []
+  }
+  const kept: ManifestExtraEntry[] = []
+  for (const e of Array.isArray(m.extra)
+    ? (m.extra as ManifestExtraEntry[])
+    : []) {
+    const file = join(dir, e.path)
+    const same =
+      existsSync(file) &&
+      createHash("sha256").update(readFileSync(file)).digest("hex") === e.sha256
+    if (same) kept.push(e)
+    else emit("report.extra_dropped", "warn", { path: e.path })
+  }
+  return kept
+}
+
+/** Tell the user that report.html does not yet contain a later command's output (it is rebuilt by `report`). */
+function reportHint(dir: string, what: string): void {
+  emit("report.stale", "warn", { reason: what })
+  console.log(
+    `${what}: report.html does not include this yet; run \`bun run spandek report --in ${dir}\` to rebuild it (outputs in ${dir} or ${dir}/refine are included)`,
   )
 }
 
 const RUN_HELP =
-  "run --seed N --out DIR [--n-mc N] [--force]: the whole pipeline, design, simulate, optimize, sensitivity, report, in one directory with one run id and one manifest (run_meta.json is the completion marker of simulate; run_manifest.json lists every output). --force overwrites an existing candidates.csv."
+  "run --seed N --out DIR [--n-mc N] [--force]: the whole pipeline, design, simulate, optimize, sensitivity, report (which ends with report.html, the live HTML report), in one directory with one run id and one manifest (run_meta.json is the completion marker of simulate; run_manifest.json lists every output). --force overwrites an existing candidates.csv."
 
 async function runCommand(ctx: Ctx): Promise<void> {
   const { flags } = ctx
@@ -559,6 +631,7 @@ async function refineCommand(ctx: Ctx): Promise<void> {
       throw new SpandekError(6, "refine.run", "time_limit", e.message)
     throw e
   }
+  reportHint(dir, "refine")
 }
 
 const BUDGET_TABLE_HELP =
@@ -596,6 +669,7 @@ async function budgetTableCommand(ctx: Ctx): Promise<void> {
       throw new SpandekError(6, "budget.build", "time_limit", e.message)
     throw e
   }
+  reportHint(dir, "budget-table")
 }
 
 const BUDGET_HELP =
