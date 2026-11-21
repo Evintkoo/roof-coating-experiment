@@ -148,6 +148,15 @@ export function loadIndonesia(input: ReportInput): Indonesia | null {
     tmyx: num(r, "tmyx_ghi_kwh_m2_day", g),
     rel: num(r, "ghi_rel_diff", g),
   }))
+  const finite = (v: unknown): boolean =>
+    typeof v === "number" && Number.isFinite(v)
+  if (!Number.isInteger(days.n_mc) || days.n_mc < 1)
+    refuse("indonesia_days.json", "n_mc is not a positive integer")
+  if (!finite(days.loss_lo) || !finite(days.loss_hi))
+    refuse("indonesia_days.json", "ageing-loss range is not finite")
+  for (const s of days.sites)
+    if (!finite(s.tow_hours_per_year))
+      refuse("indonesia_days.json", "tow_hours_per_year is not finite")
   const out: Indonesia = {
     data: {
       n_mc: days.n_mc,
@@ -299,7 +308,7 @@ export const indonesiaSection: ReportSection = {
     return `<section id="indonesia" aria-labelledby="h-indonesia">
 <h2 id="h-indonesia">Indonesia: five sites, aluminium, initial and aged</h2>
 <div class="banner" role="note">
-<p><strong>PROXY results on aluminium, with scenario ageing.</strong> The weather is modelled (NASA POWER hourly reanalysis and satellite data, 2015 to 2024), not station measurements. Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three shortlisted recipes, each as its full three-layer system. The aged values are a scenario: the effective reflectance of a coating loses ${lo} to ${hi} % (range from three US three-year exposure records), not an Indonesian measurement; bare aluminium is not aged and C1 uses its own weathered datasheet values. Intervals are parameter uncertainty only (p5 to p95 over ${o.data.n_mc} draws, plus the ageing-loss range for aged recipes).</p>
+<p><strong>PROXY results on aluminium, with scenario ageing.</strong> The weather is modelled (NASA POWER hourly reanalysis and satellite data, 2015 to 2024), not station measurements. Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three shortlisted recipes, each as its full three-layer system. The aged values are a scenario: the effective reflectance of a coating loses ${lo} to ${hi} % (range from three US three-year exposure records), not an Indonesian measurement; bare aluminium is not aged and C1 uses its own weathered datasheet values. Intervals are parameter uncertainty only (p5 to p95 over ${esc(String(o.data.n_mc))} draws, plus the ageing-loss range for aged recipes).</p>
 </div>
 <h3>Heat-flux benefit by site and day type</h3>
 <p class="hint">Benefit = mean heat flux into the building of bare aluminium minus that of the subject; positive means less heat enters. The last group of each site weights the day types 0.2 hot, 0.6 typical, 0.2 overcast and the seasons by their share of days in the ten years.</p>
