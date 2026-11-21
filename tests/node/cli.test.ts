@@ -7,11 +7,13 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DESIGN_COLUMNS } from "../../src/core/columns"
 import { parseCsv, toCsv } from "../../src/core/csv"
+import { PARETO_COLUMNS, validatePareto } from "../../src/core/pipeline/tables"
 import { copyConfigWith, events, lastEvent, repoRoot, run } from "../helpers"
 
 const tmpOut = () => join(mkdtempSync(join(tmpdir(), "spandek-out-")), "out")
@@ -292,4 +294,104 @@ test("simulateRegisteredReadsDesignOutputAndRejectsUnknownFlag", async () => {
   expect(lastEvent(r, "sim.start")).toMatchObject({ n_mc: 2, workers: 2 })
   const bad = await run(["simulate", "--bogus", "1", "--max-load", "1000"])
   expect(bad.exitCode).toBe(2)
+})
+
+// ---- optimize (plan 03 Task 5) ----
+
+let simmed: string | undefined
+/** One real design + simulate (n_mc 4) shared by the optimize tests; each test works on its own copy. */
+async function simulated(): Promise<string> {
+  if (simmed === undefined) {
+    const dir = tmpOut()
+    expect((await run(design(dir))).exitCode).toBe(0)
+    const out = tmpOut()
+    const r = await run([
+      "simulate",
+      "--design",
+      dir,
+      "--out",
+      out,
+      "--seed",
+      "20261121",
+      "--n-mc",
+      "4",
+      "--max-load",
+      "1000",
+    ])
+    expect(r.exitCode).toBe(0)
+    simmed = out
+  }
+  const copy = tmpOut()
+  cpSync(simmed, copy, { recursive: true })
+  return copy
+}
+const optimize = (dir: string) =>
+  run(["optimize", "--in", dir, "--max-load", "1000"])
+
+test("optimizeWritesParetoCsvWithThreeRoles", async () => {
+  const dir = await simulated()
+  const r = await optimize(dir)
+  expect(r.exitCode).toBe(0)
+  const text = readFileSync(join(dir, "pareto.csv"), "utf8")
+  expect(text.split("\n")[0]).toBe(PARETO_COLUMNS.join(","))
+  const rows = parseCsv(text)
+  const roles = rows.map((x) => x.role).filter((x) => x !== "")
+  expect([...roles].sort()).toEqual(["balanced", "high_performing", "low_cost"])
+  expect(rows.some((x) => x.on_front === "true")).toBe(true)
+  const typed = validatePareto(
+    rows.map((x) => ({
+      ...x,
+      ...Object.fromEntries(
+        Object.entries(x)
+          .filter(
+            ([k]) => k !== "candidate_id" && k !== "on_front" && k !== "role",
+          )
+          .map(([k, v]) => [k, Number(v)]),
+      ),
+      on_front: x.on_front === "true",
+    })),
+  )
+  expect(typed.length).toBe(rows.length)
+  expect(existsSync(`${join(dir, "pareto.csv")}.tmp`)).toBe(false)
+  expect(lastEvent(r, "pareto.computed").n_candidates).toBe(rows.length)
+  expect(events(r).filter((e) => e.event === "shortlist.chosen").length).toBe(3)
+  // the --help text states that this is a screen, not a search
+  const h = await run(["optimize", "--help"])
+  expect(h.exitCode).toBe(0)
+  expect(h.stdout).toMatch(/screen/i)
+  expect(h.stdout).toMatch(/refine/)
+})
+
+test("f3BadIntervalExit2", async () => {
+  const dir = await simulated()
+  const path = join(dir, "results.csv")
+  const lines = readFileSync(path, "utf8").split("\n")
+  const header = (lines[0] as string).split(",")
+  const cells = (lines[1] as string).split(",")
+  const pred = header.indexOf("t_max_pred")
+  const lo = header.indexOf("t_max_lo")
+  cells[lo] = String(Number(cells[pred]) + 1) // lo > pred
+  lines[1] = cells.join(",")
+  writeFileSync(path, lines.join("\n"))
+  const r = await optimize(dir)
+  expect(r.exitCode).toBe(2)
+  expect(lastEvent(r, "error.raised")).toMatchObject({
+    code: 2,
+    key: "t_max_lo",
+  })
+  expect(existsSync(join(dir, "pareto.csv"))).toBe(false)
+  noTrace(r.stderr)
+})
+
+test("optimizeRequiresAllThreeInputFilesExit5", async () => {
+  for (const f of ["run_meta.json", "results.csv", "draws.csv"]) {
+    const dir = await simulated()
+    rmSync(join(dir, f))
+    const r = await optimize(dir)
+    expect(r.exitCode).toBe(5)
+    expect(lastEvent(r, "error.raised")).toMatchObject({ code: 5, key: f })
+    expect(existsSync(join(dir, "pareto.csv"))).toBe(false)
+  }
+  const none = await run(["optimize", "--max-load", "1000"])
+  expect(none.exitCode).toBe(2)
 })

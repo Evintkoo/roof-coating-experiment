@@ -1,6 +1,7 @@
 import {
   existsSync,
   mkdirSync,
+  readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -14,10 +15,21 @@ import {
   requireMinFeasible,
   weatherL9,
 } from "../core/design"
-import { ConfigError, SpandekError } from "../core/errors"
+import { ConfigError, DataError, SpandekError } from "../core/errors"
 import type { Level } from "../core/events"
-import { validateDesign } from "../core/schema"
-import { configSha256, loadMaterialRanges, loadWeather } from "./config"
+import { buildPareto, candidateObjectives } from "../core/pipeline/optimize"
+import {
+  PARETO_COLUMNS,
+  parseDrawsCsv,
+  validatePareto,
+} from "../core/pipeline/tables"
+import { parseResultsCsv, validateDesign } from "../core/schema"
+import {
+  configSha256,
+  loadControls,
+  loadMaterialRanges,
+  loadWeather,
+} from "./config"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
@@ -38,6 +50,8 @@ type Ctx = {
 }
 
 type Command = {
+  /** One-paragraph help text printed by `<command> --help`. */
+  help: string
   /** Flags (beyond the global ones) this command takes a value for. */
   valueFlags: readonly string[]
   /** Flags (beyond the global ones) that are switches. */
@@ -197,6 +211,78 @@ async function simulateCommand(ctx: Ctx): Promise<void> {
   )
 }
 
+const OPTIMIZE_HELP =
+  "optimize --in DIR: Pareto SCREEN of the 96 existing candidates (not a search; plan 05 `refine` is the optimiser). Reads results.csv, draws.csv and run_meta.json from DIR (all three required) and writes DIR/pareto.csv: candidate_id, the 5 objectives (r_solar_pred max; t_max_pred, corrosion_proxy, delam_proxy, cost_proxy min), t_max_worst, on_front, pareto_freq (fraction of Monte-Carlo draws in which the candidate is non-dominated) and role (high_performing, balanced, low_cost)."
+
+function readInput(dir: string, name: string): string {
+  const path = join(dir, name)
+  if (!existsSync(path))
+    throw new DataError(name, `${name} not found in the input directory`)
+  return readFileSync(path, "utf8")
+}
+
+async function optimizeCommand(ctx: Ctx): Promise<void> {
+  const dir = strFlag(ctx.flags, "--in")
+  // run_meta.json is written last by simulate: it is the completion marker, so all three files are required
+  const metaText = readInput(dir, "run_meta.json")
+  const resultsText = readInput(dir, "results.csv")
+  const drawsText = readInput(dir, "draws.csv")
+  let meta: unknown
+  try {
+    meta = JSON.parse(metaText)
+  } catch {
+    throw new ConfigError("run_meta.json", "not valid JSON")
+  }
+  const nMc = (meta as { n_mc?: unknown } | null)?.n_mc
+  if (typeof nMc !== "number" || !Number.isInteger(nMc) || nMc < 1)
+    throw new ConfigError("n_mc", "run_meta.json needs an integer n_mc >= 1")
+  const results = parseResultsCsv(resultsText)
+  const draws = parseDrawsCsv(drawsText)
+  const c1 = (await loadControls(join(ctx.configDir, "controls.yaml")))
+    .c1_r_solar.value
+
+  const ids = candidateObjectives(results).map((o) => o.candidate_id)
+  const col = new Map(ids.map((id, i) => [id, i]))
+  if (draws.length !== nMc * ids.length)
+    throw new DataError(
+      "draws.csv",
+      `expected ${nMc * ids.length} draw rows (n_mc x feasible candidates), found ${draws.length}`,
+    )
+  const filled = new Uint8Array(nMc * ids.length)
+  const obj = new Float64Array(nMc * ids.length * 5)
+  for (const r of draws) {
+    const c = col.get(r.candidate_id)
+    if (c === undefined || r.draw >= nMc)
+      throw new DataError("draws.csv", "draw row does not match results.csv")
+    const cell = r.draw * ids.length + c
+    if (filled[cell]) throw new DataError("draws.csv", "duplicate draw row")
+    filled[cell] = 1
+    obj.set(
+      [
+        r.r_solar_pred,
+        r.t_max_pred,
+        r.corrosion_proxy,
+        r.delam_proxy,
+        r.cost_proxy,
+      ],
+      cell * 5,
+    )
+  }
+  const rows = validatePareto(buildPareto(results, obj, nMc, c1))
+  const path = join(dir, "pareto.csv")
+  const tmp = `${path}.tmp`
+  try {
+    writeFileSync(tmp, toCsv(PARETO_COLUMNS, rows))
+  } catch (e) {
+    rmSync(tmp, { force: true })
+    throw e
+  }
+  renameSync(tmp, path)
+  console.log(
+    `optimize: ${rows.length} candidates, ${rows.filter((r) => r.on_front).length} on the front`,
+  )
+}
+
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
   await fetchData(ctx.dataDir)
   await verifyData(ctx.dataDir)
@@ -211,11 +297,19 @@ async function verifyDataCommand(ctx: Ctx): Promise<void> {
 /** Subcommand registry: plans 3-5 add their commands here. */
 const COMMANDS: Record<string, Command> = {
   design: {
+    help: "design --seed N --out DIR: Latin-Hypercube design of 96 candidates plus the L9 weather table.",
     valueFlags: ["--seed", "--out", "--n"],
     switches: ["--force"],
     run: designCommand,
   },
+  optimize: {
+    help: OPTIMIZE_HELP,
+    valueFlags: ["--in"],
+    switches: [],
+    run: optimizeCommand,
+  },
   simulate: {
+    help: "simulate --design DIR --out DIR --seed N [--n-mc N]: run the candidates through the models with parameter uncertainty.",
     valueFlags: [
       "--design",
       "--out",
@@ -227,8 +321,18 @@ const COMMANDS: Record<string, Command> = {
     switches: [],
     run: simulateCommand,
   },
-  "fetch-data": { valueFlags: [], switches: [], run: fetchDataCommand },
-  "verify-data": { valueFlags: [], switches: [], run: verifyDataCommand },
+  "fetch-data": {
+    help: "fetch-data: download and verify the literature data.",
+    valueFlags: [],
+    switches: [],
+    run: fetchDataCommand,
+  },
+  "verify-data": {
+    help: "verify-data: check the literature data against SHA256SUMS.",
+    valueFlags: [],
+    switches: [],
+    run: verifyDataCommand,
+  },
 }
 
 export async function main(argv: readonly string[]): Promise<number> {
@@ -257,6 +361,10 @@ export async function main(argv: readonly string[]): Promise<number> {
     if (name === undefined || cmd === undefined)
       throw new ConfigError("command", "unknown or missing subcommand")
     command = name
+    if (argv.slice(1).includes("--help")) {
+      console.log(cmd.help)
+      return 0
+    }
     const flags = parseFlags(
       argv.slice(1),
       [...GLOBAL_VALUE_FLAGS, ...cmd.valueFlags],
