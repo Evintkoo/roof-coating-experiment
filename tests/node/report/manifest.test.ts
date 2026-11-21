@@ -13,7 +13,10 @@ import { parse, stringify } from "yaml"
 import type { ModelContext } from "../../../src/core/pipeline/context"
 import { loadContext } from "../../../src/node/context"
 import {
+  checkReport,
   manifestCoreHash,
+  registerInManifest,
+  setReportHash,
   writeManifest,
 } from "../../../src/node/report/manifest"
 import { repoRoot } from "../../helpers"
@@ -158,4 +161,55 @@ test("manifestRejectsMissingAndEscapingPaths", async () => {
   await expect(
     writeManifest(d, ctx, 1, 1, ["/etc/passwd"], src),
   ).rejects.toMatchObject({ code: 2 })
+})
+
+// ---- S2: an old page must not look consistent with a newer manifest ----
+
+const page = (core: string): string =>
+  `<!doctype html><html><head><meta name="spandek-core-sha256" content="${core}"></head><body>x</body></html>`
+
+async function builtDir(): Promise<string> {
+  const d = outDir()
+  const mp = await writeManifest(d, ctx, 1, 4, FILES, src)
+  const m = JSON.parse(readFileSync(mp, "utf8"))
+  const html = page(m.core_sha256)
+  writeFileSync(join(d, "report.html"), html)
+  setReportHash(d, sha(html))
+  return d
+}
+
+test("checkReportOkStaleTamperedMissing", async () => {
+  const d = await builtDir()
+  expect(checkReport(d).status).toBe("ok")
+  // a later command registers a file: the core hash changes, the page still carries the old one
+  writeFileSync(join(d, "later.csv"), "a\n1\n")
+  registerInManifest(join(d, "run_manifest.json"), {
+    path: "later.csv",
+    sha256: sha(readFileSync(join(d, "later.csv"))),
+    bytes: 4,
+    kind: "refine",
+  })
+  const stale = checkReport(d)
+  expect(stale.status).toBe("stale")
+  expect(stale.message).toContain("built against core hash")
+  expect(stale.message).toContain("rebuild it with")
+  // the manifest changed under the page: its own core hash no longer matches
+  const m = JSON.parse(readFileSync(join(d, "run_manifest.json"), "utf8"))
+  m.seed = 99
+  writeFileSync(join(d, "run_manifest.json"), JSON.stringify(m))
+  expect(checkReport(d).status).toBe("tampered")
+  // the page changed after report_sha256 was recorded
+  const e = await builtDir()
+  const h = readFileSync(join(e, "report.html"), "utf8")
+  writeFileSync(join(e, "report.html"), `${h} `)
+  expect(checkReport(e).status).toBe("tampered")
+  // a page without the embedded core hash cannot be shown to match
+  const f = await builtDir()
+  writeFileSync(join(f, "report.html"), "<html>x</html>")
+  expect(checkReport(f).status).toBe("stale")
+  // missing files
+  const g = outDir()
+  expect(checkReport(g).status).toBe("missing")
+  await writeManifest(g, ctx, 1, 4, FILES, src)
+  expect(checkReport(g).status).toBe("missing")
 })

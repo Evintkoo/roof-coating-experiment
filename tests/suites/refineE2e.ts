@@ -144,6 +144,10 @@ export function refineE2eSuite(S: RefineE2eScale): void {
     const m = JSON.parse(readFileSync(join(dir, "run_manifest.json"), "utf8"))
     expect(m.extra.map((e: { path: string }) => e.path)).toEqual([
       "refine/budget_table.json",
+      "refine/refine_front.csv",
+      "refine/refine_recipes.csv",
+      "refine/refine_robust.csv",
+      "refine/refine_tolerance.csv",
     ])
     expect(m.core_sha256).toBe(manifestCoreHash(m))
     // a budget equal to each refined recipe's cost finds an entry of every profile that is within it
@@ -202,13 +206,29 @@ export function refineE2eSuite(S: RefineE2eScale): void {
     expect(readFileSync(join(dir, "report.html"), "utf8")).not.toContain(
       before.core_sha256,
     )
+    const stale = await run([
+      "verify-report",
+      "--in",
+      dir,
+      "--max-load",
+      "1000",
+    ])
+    expect(stale.exitCode).toBe(5)
     const r = await run(["report", "--in", dir, "--max-load", "1000"])
     expect(r.exitCode).toBe(0)
+    expect(
+      (await run(["verify-report", "--in", dir, "--max-load", "1000"]))
+        .exitCode,
+    ).toBe(0)
     const html = readFileSync(join(dir, "report.html"), "utf8")
     const m = JSON.parse(readFileSync(join(dir, "run_manifest.json"), "utf8"))
     // the table survived the rewrite of the manifest, the hashes are consistent, and the page shows the new core hash
     expect(m.extra.map((e: { path: string }) => e.path)).toEqual([
       "refine/budget_table.json",
+      "refine/refine_front.csv",
+      "refine/refine_recipes.csv",
+      "refine/refine_robust.csv",
+      "refine/refine_tolerance.csv",
     ])
     expect(m.core_sha256).toBe(manifestCoreHash(m))
     expect(Object.keys(m).pop()).toBe("report_sha256")

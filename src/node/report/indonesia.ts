@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs"
-import { join, relative } from "node:path"
+import { join } from "node:path"
 import { parseCsv } from "../../core/csv"
 import { DataError } from "../../core/errors"
 import {
@@ -11,10 +11,9 @@ import {
   siteLabel,
 } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
-import { sha256Hex } from "../data"
 import { emit } from "../logging"
 import { esc, type ReportInput, type ReportSection } from "./html"
-import { manifestCoreHash } from "./manifest"
+import { readListed } from "./manifest"
 
 /** Where `indonesia` puts its files: the run directory itself or its indonesia/ subdirectory. */
 const LOCATIONS = ["", "indonesia"] as const
@@ -55,26 +54,14 @@ const refuse = (key: string, message: string): never => {
 }
 
 /** The file's text when its hash equals the manifest's extra[] entry (the manifest's own core hash is checked too). */
-function verified(input: ReportInput, path: string): string {
-  const rel = relative(input.dir, path).split("\\").join("/")
-  const m = input.manifest
-  if (manifestCoreHash(m) !== m.core_sha256)
-    refuse("run_manifest.json", "the manifest does not match its own core hash")
-  const entry = (
-    Array.isArray(m.extra)
-      ? (m.extra as { path: string; sha256: string }[])
-      : []
-  ).find((e) => e.path === rel)
-  if (!entry)
-    refuse(
-      rel,
-      `${rel} is not listed in run_manifest.json (run \`indonesia\` again)`,
-    )
-  const text = readFileSync(path, "utf8")
-  if (sha256Hex(text) !== entry?.sha256)
-    refuse(rel, `${rel} does not match the hash in run_manifest.json`)
-  return text
-}
+const verified = (input: ReportInput, path: string): string =>
+  readListed(
+    input.manifest,
+    input.dir,
+    path,
+    "indonesia_input",
+    "run `indonesia` again",
+  )
 
 const num = (r: Rec, k: string, file: string): number => {
   const v = Number(r[k])
@@ -226,8 +213,8 @@ function benefitTable(o: Indonesia): string {
   const head = [
     "Site",
     "Subject",
-    `Initial: benefit W/m² [p5, p95]`,
-    `Aged (scenario ageing): benefit W/m² [p5, p95]`,
+    `Initial: benefit W/m² [outer bound]`,
+    `Aged (scenario ageing): benefit W/m² [outer bound]`,
   ]
   const body = sites.flatMap((site) =>
     BENEFIT_SUBJECTS.map((subject) => {
@@ -262,7 +249,7 @@ function absoluteTable(o: Indonesia): string {
     "Site",
     "Subject",
     "State",
-    "Peak surface temperature °C [p5, p95]",
+    "Weighted mean of the day peaks: surface temperature °C [p5, p95]",
     "Mean heat flux into the building W/m² [p5, p95]",
   ])}<tbody>\n${body.join("\n")}\n</tbody></table></div>`
 }
@@ -309,14 +296,16 @@ export const indonesiaSection: ReportSection = {
 <h2 id="h-indonesia">Indonesia: five sites, aluminium, initial and aged</h2>
 <div class="banner" role="note">
 <p><strong>PROXY results on aluminium, with scenario ageing.</strong> The weather is modelled (NASA POWER hourly reanalysis and satellite data, 2015 to 2024), not station measurements. Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three shortlisted recipes, each as its full three-layer system. The aged values are a scenario: the effective reflectance of a coating loses ${lo} to ${hi} % (range from three US three-year exposure records), not an Indonesian measurement; bare aluminium is not aged and C1 uses its own weathered datasheet values. Intervals are parameter uncertainty only (p5 to p95 over ${esc(String(o.data.n_mc))} draws, plus the ageing-loss range for aged recipes).</p>
+<p><strong>Weather limits.</strong> The NASA POWER values belong to a grid cell, not to the city. The elevation of the cell is the elevation of the data: Bandung's cell is at 921.68 m (the TMYx airport file is at 740 m), so its temperatures may read 1 to 2 K cool against the city, and Medan and Makassar, whose cells also lie well above city level, may read cool as well. No correction is applied. Medan has no clear dry season: its "dry" months are dry only relative to its other months. A month is called wet when its ten-year mean precipitation exceeds 150 mm, a design threshold and not a climate classification; Bandung's June (151 mm) sits right on it.</p>
 </div>
 <h3>Heat-flux benefit by site and day type</h3>
-<p class="hint">Benefit = mean heat flux into the building of bare aluminium minus that of the subject; positive means less heat enters. The last group of each site weights the day types 0.2 hot, 0.6 typical, 0.2 overcast and the seasons by their share of days in the ten years.</p>
+<p class="hint">Benefit = mean heat flux into the building of bare aluminium minus that of the subject; positive means less heat enters. The last group of each site weights the day types 0.2 hot, 0.6 typical, 0.2 overcast and the seasons by their share of days in the ten years. The bracket of a benefit is an outer bound, not the p5 to p95 of the benefit: the interval of the subject is subtracted from the interval of bare aluminium without pairing the draws, so it is wider than a paired interval would be. Whiskers in the figure show the same outer bound.</p>
+<p class="hint">Read the aged rows with care: the aged datasheet control C1 uses its own weathered datasheet values (a loss of about 14 %), while the three cards use the midpoint of the scenario loss range (about ${fmtValue(50 * (o.data.loss_lo + o.data.loss_hi), 0)} %). The ordering of aged C1 against the cards is therefore driven by the assumed loss and their intervals overlap; it is not a finding about which product ages better.</p>
 <div class="controls"><label for="sel-indonesia-state">State</label><select id="sel-indonesia-state"><option value="initial">Initial</option><option value="aged">Aged (scenario ageing)</option></select></div>
-<div id="fig-indonesia-bars" class="fig tall" role="img" aria-label="Heat-flux benefit against bare aluminium per site and day type with p5 to p95 whiskers, aluminium, scenario ageing"></div>
+<div id="fig-indonesia-bars" class="fig tall" role="img" aria-label="Heat-flux benefit against bare aluminium per site and day type with outer-bound whiskers, aluminium, scenario ageing"></div>
 <h3>Weighted benefit table</h3>
 ${benefitTable(o)}
-<h3>Peak temperature and heat flux, weighted</h3>
+<h3>Weighted mean of the day peaks (temperature) and mean heat flux</h3>
 ${absoluteTable(o)}
 <h3>Cross-check of the weather data</h3>
 <p>NASA POWER and the TMYx typical-year files of climate.onebuilding.org are both modelled products (reanalysis and satellite based; TMYx irradiance comes from ERA5 at airport locations). This table checks that the two agree month by month in mean daily global irradiation; it does not compare either with ground measurements, so a small difference shows consistency between two models, not accuracy.</p>

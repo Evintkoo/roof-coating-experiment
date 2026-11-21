@@ -627,6 +627,36 @@ test("reportHtmlWrittenAndInManifest", async () => {
   expect(listTmp(dir)).toEqual([])
 })
 
+test("verifyReportFlagsAStalePageAndReportRebuildsIt", async () => {
+  // S2: report, then a later command changes the manifest (extra[]): verify-report says stale (exit 5); report rebuilds
+  const dir = await readyForReport()
+  expect((await report(dir)).exitCode).toBe(0)
+  const ok = await run(["verify-report", "--in", dir, "--max-load", "1000"])
+  expect(ok.exitCode).toBe(0)
+  const { registerInManifest } = await import("../../src/node/report/manifest")
+  writeFileSync(join(dir, "later.csv"), "a\n1\n")
+  registerInManifest(join(dir, "run_manifest.json"), {
+    path: "later.csv",
+    sha256: sha(join(dir, "later.csv")),
+    bytes: 4,
+    kind: "refine",
+  })
+  const stale = await run(["verify-report", "--in", dir, "--max-load", "1000"])
+  expect(stale.exitCode).toBe(5)
+  expect(stale.stderr).toContain("built against core hash")
+  expect(lastEvent(stale, "run.complete").exit_code).toBe(5)
+  const again = await report(dir)
+  expect(again.exitCode).toBe(0)
+  expect(again.stdout).toContain("replacing the previous report.html")
+  expect(
+    (await run(["verify-report", "--in", dir, "--max-load", "1000"])).exitCode,
+  ).toBe(0)
+  // the extra file survives the rebuild and is listed on the page
+  const man = JSON.parse(readFileSync(join(dir, "run_manifest.json"), "utf8"))
+  expect(man.extra.map((e: { path: string }) => e.path)).toContain("later.csv")
+  expect(readFileSync(join(dir, "report.html"), "utf8")).toContain("later.csv")
+})
+
 test("sameRunIdSameBytes", async () => {
   // FR-7: the same inputs and run id give the same bytes, in the same directory and in a copy
   const a = await readyForReport()

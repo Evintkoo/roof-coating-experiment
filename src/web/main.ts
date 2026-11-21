@@ -29,6 +29,7 @@ import {
   type IndonesiaData,
   type ThemeTokens,
   themeKeys,
+  themeSeries,
 } from "./figures"
 import { fmtValue } from "./fmt"
 import {
@@ -150,7 +151,7 @@ function themed(spec: FigureSpec, t: ThemeTokens): FigureSpec {
     const [axis, prop] = k.split(".") as [string, string]
     layout[axis] = { ...((layout[axis] as object) ?? {}), [prop]: v }
   }
-  return { ...spec, layout }
+  return themeSeries({ ...spec, layout }, t)
 }
 
 let brush: BrushState = emptyBrush()

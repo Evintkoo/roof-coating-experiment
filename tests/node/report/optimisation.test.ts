@@ -19,6 +19,7 @@ import {
   repoRoot,
   reportOpts,
   scriptBlocks,
+  unregisterExtra,
   visibleText,
 } from "../../helpers"
 
@@ -129,7 +130,13 @@ test("partialOutputsStillBuild", async () => {
     "budget_table.json",
   ])
     rmSync(join(dir, "refine", f))
-  // the manifest still lists the removed table, which is fine when the table itself is absent
+  // the three CSVs were never registered in this scenario (refine did not write them); the removed table stays listed, which is
+  // fine when the table itself is absent
+  await unregisterExtra(dir, [
+    "refine/refine_front.csv",
+    "refine/refine_tolerance.csv",
+    "refine/refine_robust.csv",
+  ])
   const out = outPath()
   await buildReport(dir, out, reportOpts())
   const h = readFileSync(out, "utf8")
@@ -147,6 +154,66 @@ test("tamperedBudgetTableIsRefusedNotShown", async () => {
   const out = outPath()
   expect(await codeOf(() => buildReport(dir, out, reportOpts()))).toBe(5)
   expect(existsSync(out)).toBe(false)
+})
+
+test("tamperedRefineCsvCellIsRefusedNotShown", async () => {
+  // S1: one cell of t_max_pred in refine_recipes.csv changed after `refine` registered the file
+  const dir = await copyRun()
+  await addRefineOutputs(dir)
+  const p = join(dir, "refine", "refine_recipes.csv")
+  const text = readFileSync(p, "utf8")
+  const lines = text.split("\n")
+  const cols = (lines[0] as string).split(",")
+  const k = cols.indexOf("t_max_pred")
+  expect(k).toBeGreaterThanOrEqual(0)
+  const row = (lines[1] as string).split(",")
+  row[k] = String(Number(row[k]) + 1)
+  lines[1] = row.join(",")
+  writeFileSync(p, lines.join("\n"))
+  const out = outPath()
+  expect(await codeOf(() => buildReport(dir, out, reportOpts()))).toBe(5)
+  expect(existsSync(out)).toBe(false)
+})
+
+test("unlistedOrMissingRefineCsvIsRefused", async () => {
+  // present but not in extra[]: refused
+  const unlisted = await copyRun()
+  await addRefineOutputs(unlisted)
+  await unregisterExtra(unlisted, ["refine/refine_tolerance.csv"])
+  expect(
+    await codeOf(() => buildReport(unlisted, outPath(), reportOpts())),
+  ).toBe(5)
+  // listed but gone (a partial set): refused
+  const partial = await copyRun()
+  await addRefineOutputs(partial)
+  rmSync(join(partial, "refine", "refine_robust.csv"))
+  expect(
+    await codeOf(() => buildReport(partial, outPath(), reportOpts())),
+  ).toBe(5)
+  // the untouched set builds
+  const ok = await copyRun()
+  await addRefineOutputs(ok)
+  expect(await codeOf(() => buildReport(ok, outPath(), reportOpts()))).toBe(0)
+})
+
+test("manifestTableListsTheEmbeddedExtraFilesWithHashes", () => {
+  const h = withOpt.html
+  const tbl =
+    /<table id="tbl-manifest-extra"[\s\S]*?<\/table>/.exec(h)?.[0] ?? ""
+  const m = JSON.parse(
+    readFileSync(join(withOpt.dir, "run_manifest.json"), "utf8"),
+  ) as { extra: { path: string; sha256: string }[]; core_sha256: string }
+  expect(m.extra.length).toBeGreaterThanOrEqual(5)
+  for (const e of m.extra) {
+    expect(tbl).toContain(e.path)
+    expect(tbl).toContain(e.sha256)
+  }
+  // the page records the core hash it was built against
+  expect(h).toContain(
+    `<meta name="spandek-core-sha256" content="${m.core_sha256}">`,
+  )
+  // a run without later outputs shows no such table
+  expect(plain.html).not.toContain("tbl-manifest-extra")
 })
 
 test("laterPlansAddSectionsThroughTheRegistry", async () => {

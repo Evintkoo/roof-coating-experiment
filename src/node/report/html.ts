@@ -30,6 +30,7 @@ import { loadContext } from "../context"
 import { emit } from "../logging"
 import { STATIC_LIMITS, scenarioConstants } from "./cards"
 import { indonesiaSection } from "./indonesia"
+import { extraEntries } from "./manifest"
 import { optimisationSection } from "./optimisation"
 
 /** T_size_mb: the page must stay well under the 16 MB artifact limit. */
@@ -238,12 +239,12 @@ const overview: ReportSection = {
     `<section id="overview" aria-labelledby="h-overview">
 <h1 id="h-overview">Spandek coating experiment: digital screening report</h1>
 <div class="banner" role="note">
-<p><strong>PROXY results.</strong> Every number here is a prediction from uncalibrated scenario models of the initial, as-applied state. Indices marked PROXY are relative rankings, not measurements. Intervals show parameter uncertainty only (p5 to p95 over ${i.meta.n_mc} uncertainty draws); they leave out model-form error and are not prediction intervals for a real roof.</p>
+<p><strong>PROXY results.</strong> Every number here is a prediction from uncalibrated scenario models. The main results (cards, explorer, live simulator, optimisation) describe the initial, as-applied state. Ageing appears only as a labelled scenario in the Indonesia section (aluminium, a scenario range of effective reflectance loss), never as a measurement. Indices marked PROXY are relative rankings, not measurements. Intervals show parameter uncertainty only (p5 to p95 over ${i.meta.n_mc} uncertainty draws); they leave out model-form error and are not prediction intervals for a real roof.</p>
 </div>
 <p class="meta">Run <code>${esc(i.runId)}</code> · seed ${i.meta.seed} · ${i.meta.n_mc} draws · manifest core hash <code>${esc(String(i.manifest.core_sha256 ?? "unavailable"))}</code></p>
 <div class="cols">
 <div class="card"><h3>What this is</h3><p>A screening of 96 candidate coating stacks (primer, midcoat, topcoat on aluminium) by physical models, a live simulator that re-runs the same models in your browser, and a results explorer. It ranks candidates for the next laboratory step.</p></div>
-<div class="card"><h3>What this is not</h3><p>It is not a laboratory result and it does not show that any coating works on a roof. A "go" decision means a candidate is worth a coupon test, nothing more. Weathering, ageing and adhesion are not modelled.</p></div>
+<div class="card"><h3>What this is not</h3><p>It is not a laboratory result and it does not show that any coating works on a roof. A "go" decision means a candidate is worth a coupon test, nothing more. Weathering and adhesion are not modelled; the only ageing in this report is the labelled scenario loss range in the Indonesia section, not a prediction of how a coating ages.</p></div>
 </div>
 </section>`,
 }
@@ -406,6 +407,7 @@ const manifestSection: ReportSection = {
       sha256: string
       bytes: number
     }[]
+    const extra = extraEntries(i.manifest)
     const v = (i.manifest.versions ?? {}) as Record<string, string>
     return sec(
       "manifest",
@@ -413,7 +415,16 @@ const manifestSection: ReportSection = {
       `<p class="meta">Run <code>${esc(i.runId)}</code> · core hash <code>${esc(String(i.manifest.core_sha256 ?? ""))}</code> · commit <code>${esc(String(i.manifest.git_commit ?? ""))}</code> · Bun ${esc(String(v.bun ?? ""))}</p>
 <div class="scroll"><table><thead><tr><th>File</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>
 ${files.map((f) => `<tr><td class="txt">${esc(f.path)}</td><td>${f.bytes}</td><td class="txt"><code>${esc(f.sha256)}</code></td></tr>`).join("\n")}
-</tbody></table></div>`,
+</tbody></table></div>
+${
+  extra.length === 0
+    ? ""
+    : `<h3>Later outputs embedded in this page</h3>
+<p class="hint">Files of \`refine\`, \`budget-table\` and \`indonesia\`, listed in the manifest's extra[] and checked against these hashes before the page was built. The page was built against core hash <code>${esc(String(i.manifest.core_sha256 ?? ""))}</code>; \`verify-report\` flags a page whose core hash no longer matches the manifest.</p>
+<div class="scroll"><table id="tbl-manifest-extra"><thead><tr><th>File</th><th>Kind</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>
+${extra.map((f) => `<tr><td class="txt">${esc(f.path)}</td><td class="txt">${esc(f.kind)}</td><td>${f.bytes}</td><td class="txt"><code>${esc(f.sha256)}</code></td></tr>`).join("\n")}
+</tbody></table></div>`
+}`,
     )
   },
 }
@@ -640,6 +651,7 @@ export async function buildReport(
   }
   const html = fill(tpl, {
     title: `Spandek screening report ${input.runId}`,
+    core: String(input.manifest.core_sha256 ?? "").replace(/[^0-9a-f]/g, ""),
     css,
     nav,
     sections: sections.map((x) => x.html).join("\n"),

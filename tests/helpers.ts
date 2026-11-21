@@ -282,6 +282,15 @@ export async function addRefineOutputs(dir: string): Promise<void> {
   mkdirSync(dst, { recursive: true })
   for (const f of readdirSync(src)) cpSync(join(src, f), join(dst, f))
   const bytes = readFileSync(join(dst, "budget_table.json"))
+  const { registerOutputs } = await import("../src/node/report/manifest")
+  registerOutputs(
+    dir,
+    dst,
+    readdirSync(dst)
+      .filter((f) => f.endsWith(".csv"))
+      .map((f) => [f, readFileSync(join(dst, f), "utf8")] as const),
+    "refine",
+  )
   registerInManifest(join(dir, "run_manifest.json"), {
     path: "refine/budget_table.json",
     sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -403,4 +412,19 @@ export function buildIndonesiaReport(): Promise<{
     return { dir, path, html: readFileSync(path, "utf8"), weatherDir }
   })()
   return indonesiaReport
+}
+
+/** Removes entries from the manifest's extra[] (and rewrites its core hash), as if those files had never been registered. */
+export async function unregisterExtra(
+  dir: string,
+  paths: readonly string[],
+): Promise<void> {
+  const { manifestCoreHash } = await import("../src/node/report/manifest")
+  const p = join(dir, "run_manifest.json")
+  const m = JSON.parse(readFileSync(p, "utf8")) as Record<string, unknown>
+  m.extra = (m.extra as { path: string }[]).filter(
+    (e) => !paths.includes(e.path),
+  )
+  m.core_sha256 = manifestCoreHash(m)
+  writeFileSync(p, `${JSON.stringify(m, null, 2)}\n`)
 }

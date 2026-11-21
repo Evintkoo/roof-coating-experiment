@@ -17,7 +17,7 @@ export const STATIC_LIMITS: readonly string[] = [
   "Sol-gel condensation is taken as pH-independent in the model.",
   "Contact angle and sliding angle are lab-verified quantities; the smooth-film model rarely reaches 110°.",
   "Adhesion is unknown, binder compatibility is unknown, and optical constants for several materials are missing (scenario values stand in).",
-  "All values are initial (as-applied); weathering and ageing are not modelled here.",
+  "All values are initial (as-applied); weathering and adhesion are not modelled and ageing is not measured (the Indonesia section, when present, shows it only as a labelled scenario).",
 ]
 
 type Leaf = { path: string; value: string; unit: string }

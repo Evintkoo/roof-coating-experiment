@@ -74,6 +74,7 @@ import { writeCard } from "./report/cards"
 import { buildCurves, buildSpectra } from "./report/curves"
 import { buildReport } from "./report/html"
 import {
+  checkReport,
   MANIFEST_FILE,
   type ManifestExtraEntry,
   setReportHash,
@@ -372,7 +373,7 @@ async function sensitivityCommand(ctx: Ctx): Promise<void> {
 }
 
 const REPORT_HELP =
-  "report --in DIR: candidate cards, controls, curve data, run manifest and the live HTML report from a finished run. Requires run_meta.json, results.csv, draws.csv, pareto.csv and sensitivity.csv in DIR (missing: exit 5) and writes into DIR: candidate_cards/<role>_<id>.md (seven fields, decision by the plan 03 D6 rule), controls.csv (C0, C1 per scenario; C2, C3 per shortlisted candidate and scenario; nominal only), curves.json and spectra.json (nominal plus p5-p95 band for the shortlist), run_manifest.json (hashes of config, data and every output; entries registered in extra[] by `budget-table` are kept) and report.html (one offline file: live simulator, explorer, cards, sensitivity, limits; the Optimisation section appears when refine and budget-table outputs are in DIR or DIR/refine; report_sha256 is the manifest's last field). Safe to run again: re-run it after `refine` or `budget-table` to include their results. A refused input (interval order: exit 2, size limit: exit 2) writes no report.html."
+  "report --in DIR: candidate cards, controls, curve data, run manifest and the live HTML report from a finished run. Requires run_meta.json, results.csv, draws.csv, pareto.csv and sensitivity.csv in DIR (missing: exit 5) and writes into DIR: candidate_cards/<role>_<id>.md (seven fields, decision by the plan 03 D6 rule), controls.csv (C0, C1 per scenario; C2, C3 per shortlisted candidate and scenario; nominal only), curves.json and spectra.json (nominal plus p5-p95 band for the shortlist), run_manifest.json (hashes of config, data and every output; entries registered in extra[] by `refine`, `budget-table` and `indonesia` are kept if the file still has its recorded hash, otherwise dropped and logged as report.extra_dropped; a previous report.html built against an older core hash is named as replaced) and report.html (one offline file: live simulator, explorer, cards, sensitivity, limits; the Optimisation section appears when refine and budget-table outputs are in DIR or DIR/refine; report_sha256 is the manifest's last field). The page lists those extra files with their hashes. Safe to run again: re-run it after `refine`, `budget-table` or `indonesia` to include their results (`verify-report` tells whether report.html is older than the manifest). A refused input (interval order: exit 2, size limit: exit 2) writes no report.html."
 
 function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.tmp`
@@ -489,6 +490,14 @@ async function reportCommand(ctx: Ctx): Promise<void> {
     const path = await writeCard(id, role, results, controls, mctx, dir, freq)
     files.push(`candidate_cards/${path.split("/").pop()}`)
   }
+  // S2: an older page that was built against another core hash is named before it is replaced
+  const before = checkReport(dir)
+  if (before.status === "stale" || before.status === "tampered") {
+    emit("report.replaced", "warn", { status: before.status })
+    console.log(
+      `report: replacing the previous report.html (${before.message})`,
+    )
+  }
   // a report.html from an earlier run must never sit next to a manifest that no longer records its hash
   rmSync(join(dir, REPORT_FILE), { force: true })
   await writeManifest(
@@ -512,6 +521,20 @@ async function reportCommand(ctx: Ctx): Promise<void> {
 }
 
 const REPORT_FILE = "report.html"
+
+const VERIFY_REPORT_HELP =
+  "verify-report --in DIR: checks that DIR/report.html belongs to DIR/run_manifest.json: the core hash the page was built against (embedded in the page) must equal the manifest's core_sha256, and the file must match report_sha256. A page that is older than a later `refine`, `budget-table` or `indonesia` run is reported as stale (exit 5, phase report.verify, code stale) with the command that rebuilds it; a changed page or manifest is code tampered; a missing file is code missing."
+
+async function verifyReportCommand(ctx: Ctx): Promise<void> {
+  const dir = strFlag(ctx.flags, "--in")
+  const r = checkReport(dir)
+  if (r.status !== "ok") {
+    // the error event carries code, phase and key only, so the reason is printed here
+    console.error(`verify-report: ${r.status}: ${r.message}`)
+    throw new SpandekError(5, "report.verify", r.status, r.message)
+  }
+  console.log(`verify-report: ${r.message}`)
+}
 
 /**
  * Entries `budget-table` registered in the manifest's extra[], kept when `report` writes the manifest again: only entries whose
@@ -588,7 +611,7 @@ async function runCommand(ctx: Ctx): Promise<void> {
 }
 
 const REFINE_HELP =
-  "refine --in DIR --out DIR [--scenarios generic9] [--starts N] [--workers N] [--time-limit-s S] [--seed N]: derivative-based refinement of the screened candidates (plan 05). Reads run_meta.json, results.csv, draws.csv and pareto.csv from the plan-3 DIR (all four required: exit 5) and writes into the output DIR refine_front.csv (non-dominated refined solutions), refine_recipes.csv (high_performing, balanced and low_cost recipes with levels, objectives, dosing tolerances, elasticities, saddle flag), refine_tolerance.csv, refine_robust.csv (distribution of optimal levels over the uncertainty draws, robust optimum) and refine_meta.json. Optimum of the models, not a measured optimum (PROXY). --scenarios indonesia needs plan 04 (exit 2). Exit 3 no feasible optimum, 4 model not smooth enough, 5 missing input, 6 time limit."
+  "refine --in DIR --out DIR [--scenarios generic9] [--starts N] [--workers N] [--time-limit-s S] [--seed N]: derivative-based refinement of the screened candidates (plan 05). Reads run_meta.json, results.csv, draws.csv and pareto.csv from the plan-3 DIR (all four required: exit 5) and writes into the output DIR refine_front.csv (non-dominated refined solutions), refine_recipes.csv (high_performing, balanced and low_cost recipes with levels, objectives, dosing tolerances, elasticities, saddle flag), refine_tolerance.csv, refine_robust.csv (distribution of optimal levels over the uncertainty draws, robust optimum) and refine_meta.json. Optimum of the models, not a measured optimum (PROXY). --scenarios indonesia is not provided (exit 2): the Indonesian days run through the hourly series model, not the optimiser's steady scenarios (BLOCKED, plan 05). Registers the four CSVs in DIR/run_manifest.json extra[] when the output DIR lies inside DIR, so `report` can refuse a changed file. Exit 3 no feasible optimum, 4 model not smooth enough, 5 missing input, 6 time limit."
 
 async function refineCommand(ctx: Ctx): Promise<void> {
   const { flags } = ctx
@@ -600,7 +623,7 @@ async function refineCommand(ctx: Ctx): Promise<void> {
   if (scenarios === "indonesia")
     throw new ConfigError(
       "scenarios",
-      "the indonesia scenario set requires plan 04, which is not available yet",
+      "the indonesia scenario set is not provided: refine optimises the nine steady scenarios of the optimiser's model, while the Indonesian days of plan 04 run through the hourly series model, so using them as refine scenarios would be a different objective (recorded as BLOCKED in the plan 05 report); use --scenarios generic9",
     )
   const starts = intFlag(flags, "--starts", false)
   if (starts !== undefined && starts < 1)
@@ -767,7 +790,7 @@ async function fetchDataCommand(ctx: Ctx): Promise<void> {
 }
 
 const INDONESIA_HELP =
-  "indonesia --in DIR --out DIR [--site ID] [--n-mc N] [--workers N] [--time-limit-s S] [--weather-dir DIR]: the five-site Indonesian climate batch (plan 04). Reads the plan-3 DIR (candidates.csv, pareto.csv, run_meta.json), the NASA POWER cache and the TMYx files of --weather-dir (default data/indonesia, verified against SHA256SUMS: exit 5), picks three representative days per site and season, and runs C0, C1, the three shortlisted cards (each its C4 system) with uncertainty draws and the 96 candidates nominal, initial and aged, on aluminium. Writes indonesia_days.json, indonesia_results.csv, indonesia_summary.csv and indonesia_crosscheck.csv into the output DIR (registered in DIR/run_manifest.json when --out lies inside --in). Weather is modelled (reanalysis and satellite), aged values are a scenario (loss range in configs/indonesia.yaml), not an Indonesian measurement (PROXY). Exit 2 config (unknown site), 5 data, 6 time limit (default 600 s)."
+  "indonesia --in DIR --out DIR [--site ID] [--n-mc N] [--workers N] [--time-limit-s S] [--weather-dir DIR]: the five-site Indonesian climate batch (plan 04). Reads the plan-3 DIR (candidates.csv, pareto.csv, run_meta.json), the NASA POWER cache and the TMYx files of --weather-dir (default data/indonesia, verified against SHA256SUMS: exit 5), picks three representative days per site and season, and runs C0, C1, the three shortlisted cards (each its C4 system) with uncertainty draws and the 96 candidates nominal, initial and aged, on aluminium. Writes indonesia_days.json, indonesia_results.csv, indonesia_summary.csv and indonesia_crosscheck.csv into the output DIR (registered in DIR/run_manifest.json when --out lies inside --in). Weather is modelled (reanalysis and satellite), aged values are a scenario (loss range in configs/indonesia.yaml), not an Indonesian measurement (PROXY). indonesia_days.json records the days, n_mc and the ageing scenario (loss_lo, loss_hi, loss_nominal; the results CSV does not carry the loss). A benefit interval (dq_lo, dq_hi) is an outer bound: the subject's interval subtracted from bare aluminium's without pairing the draws, wider than a p5-p95 of the benefit. Aged C1 uses its datasheet loss (about 14 %), the cards the scenario midpoint (about 20 %), so aged C1 against the cards depends on that assumption. Exit 2 config (unknown site), 5 data, 6 time limit (default 600 s)."
 
 async function indonesiaCommand(ctx: Ctx): Promise<void> {
   const { flags } = ctx
@@ -954,6 +977,12 @@ const COMMANDS: Record<string, Command> = {
     ],
     switches: [],
     run: indonesiaCommand,
+  },
+  "verify-report": {
+    help: VERIFY_REPORT_HELP,
+    valueFlags: ["--in"],
+    switches: [],
+    run: verifyReportCommand,
   },
   "verify-data": {
     help: "verify-data: check the literature data against SHA256SUMS.",

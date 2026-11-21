@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { coerceCell, parseCsv } from "../../core/csv"
-import { ConfigError } from "../../core/errors"
+import { ConfigError, DataError } from "../../core/errors"
 import { OBJECTIVE_COLUMNS } from "../../core/pipeline/tables"
 import { axisLabel } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
@@ -15,6 +15,7 @@ import {
 import { BUDGET_FILE, readVerifiedTable } from "../budget"
 import { emit } from "../logging"
 import { esc, type ReportInput, type ReportSection } from "./html"
+import { extraEntries, readListed } from "./manifest"
 
 type Rec = Record<string, string>
 const FILES = [
@@ -41,9 +42,36 @@ const num = (rec: Rec, k: string, file: string): number => {
   return v === "" ? Number.NaN : coerceCell(k, v)
 }
 
-function table(dir: string, name: string): Rec[] | null {
-  const p = locate(dir, name)
-  return p === null ? null : parseCsv(readFileSync(p, "utf8"))
+const CSV_FILES = FILES.filter((f) => f.endsWith(".csv"))
+
+/**
+ * S1: a refine CSV is read only when `refine` registered it in the manifest's extra[] with the same hash. A present file that is
+ * not listed or was changed is refused (exit 5), and so is a listed file that has gone missing (a partial set).
+ */
+function table(input: ReportInput, name: string): Rec[] | null {
+  const p = locate(input.dir, name)
+  const listed = extraEntries(input.manifest).some(
+    (e) => e.path === name || e.path === `refine/${name}`,
+  )
+  if (p === null) {
+    if (listed) {
+      emit("report.refused", "error", { code: "optimisation_input", key: name })
+      throw new DataError(
+        name,
+        `${name} is listed in run_manifest.json but missing`,
+      )
+    }
+    return null
+  }
+  return parseCsv(
+    readListed(
+      input.manifest,
+      input.dir,
+      p,
+      "optimisation_input",
+      "run `refine` again",
+    ),
+  )
 }
 
 export type Optimisation = {
@@ -59,10 +87,9 @@ const cache = new WeakMap<ReportInput, Optimisation | null>()
 /** Everything the section shows, or null when no refine output is present (an absent file is never an error; a present one is validated). */
 export function loadOptimisation(input: ReportInput): Optimisation | null {
   if (cache.has(input)) return cache.get(input) ?? null
-  const front = table(input.dir, "refine_front.csv")
-  const recipes = table(input.dir, "refine_recipes.csv")
-  const tolerance = table(input.dir, "refine_tolerance.csv")
-  const robust = table(input.dir, "refine_robust.csv")
+  const [front, recipes, tolerance, robust] = CSV_FILES.map((f) =>
+    table(input, f),
+  ) as [Rec[] | null, Rec[] | null, Rec[] | null, Rec[] | null]
   const tablePath = locate(input.dir, BUDGET_FILE)
   let data: OptData | null = null
   if (tablePath !== null) {

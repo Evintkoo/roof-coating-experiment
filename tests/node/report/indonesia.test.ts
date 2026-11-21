@@ -268,3 +268,114 @@ test("benefitBarsInChromeEqualTheCsvForBothStates", async () => {
     await ctx.close()
   }
 }, 60_000)
+
+test("sectionStatesTheSpikeCaveatsAndHonestIntervals", () => {
+  const text = visibleText(section(b.html))
+  // S6: grid-point elevation bias, Medan's missing dry season, the wet/dry definition
+  expect(text).toContain("921.68 m")
+  expect(text).toMatch(/1 to 2 K cool/)
+  expect(text).toMatch(/Medan and Makassar[^.]*may read cool/)
+  expect(text).toContain("Medan has no clear dry season")
+  expect(text).toContain("relative to its other months")
+  expect(text).toContain("exceeds 150 mm")
+  expect(text).toMatch(/Bandung's June \(151 mm\) sits right on it/)
+  // N1: the aged C1 against the cards is an assumption, not a result
+  expect(text).toContain("driven by the assumed loss")
+  expect(text).toContain("intervals overlap")
+  expect(text).toMatch(/loss of about 14 %/)
+  expect(text).toMatch(/midpoint of the scenario loss range \(about 20 %\)/)
+  // N2: the benefit bracket is an outer bound, not a p5-p95 of the benefit
+  expect(text).toContain("outer bound, not the p5 to p95 of the benefit")
+  expect(text).toContain("[outer bound]")
+  const tbl = /<table id="tbl-indonesia-benefit"[\s\S]*?<\/thead>/.exec(
+    b.html,
+  )?.[0] as string
+  expect(tbl).not.toContain("[p5, p95]")
+  // N7: the temperature column is the weighted mean of the day peaks
+  expect(text).toContain("Weighted mean of the day peaks")
+  expect(text).not.toMatch(/weighted peak/i)
+})
+
+test("indonesiaBarSeriesAreVisibleInBothThemesAndTheYTitleIsNotClipped", async () => {
+  // S4: computed colours of every bar series against the computed plot background, light and dark, and the toggle
+  const rgb = (c: string): [number, number, number] =>
+    c.startsWith("#")
+      ? ([1, 3, 5].map((i) => Number.parseInt(c.slice(i, i + 2), 16)) as [
+          number,
+          number,
+          number,
+        ])
+      : ((c.match(/\d+/g) as string[]).slice(0, 3).map(Number) as [
+          number,
+          number,
+          number,
+        ])
+  const lum = (c: string): number => {
+    const [r, g, bl] = rgb(c).map((x) => {
+      const v = x / 255
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    }) as [number, number, number]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  }
+  const ratio = (a: string, c: string): number => {
+    const [x, y] = [lum(a), lum(c)]
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+  }
+  for (const scheme of ["dark", "light"] as const) {
+    const ctx = await browser.newContext({
+      offline: true,
+      colorScheme: scheme,
+      viewport: { width: 1280, height: 900 },
+    })
+    try {
+      const page = await ctx.newPage()
+      await page.goto(`file://${b.path}`)
+      await page.waitForSelector("#fig-indonesia-bars .main-svg")
+      const read = () =>
+        page.evaluate(() => {
+          const gd = document.querySelector(
+            "#fig-indonesia-bars",
+          ) as unknown as {
+            data: { marker: { color: string } }[]
+            _fullLayout: { plot_bgcolor: string; paper_bgcolor: string }
+          }
+          const title = document.querySelector(
+            "#fig-indonesia-bars .ytitle",
+          ) as Element
+          const t = title.getBoundingClientRect()
+          const f = (
+            document.querySelector("#fig-indonesia-bars") as Element
+          ).getBoundingClientRect()
+          return {
+            colours: gd.data.map((t) => t.marker.color),
+            plot: gd._fullLayout.plot_bgcolor,
+            bg: getComputedStyle(document.documentElement)
+              .getPropertyValue("--bg")
+              .trim(),
+            titleLeft: t.left - f.left,
+            titleTop: t.top - f.top,
+            titleBottom: f.bottom - t.bottom,
+          }
+        })
+      const first = await read()
+      expect(first.plot).toBe(first.bg)
+      expect(first.colours.length).toBe(4)
+      for (const c of first.colours)
+        expect(ratio(c, first.bg)).toBeGreaterThanOrEqual(3)
+      // the y-axis title lies inside the figure
+      expect(first.titleLeft).toBeGreaterThanOrEqual(0)
+      expect(first.titleTop).toBeGreaterThanOrEqual(0)
+      expect(first.titleBottom).toBeGreaterThanOrEqual(0)
+      // the toggle flips the theme: the series follow and stay visible
+      await page.click("#theme-toggle")
+      await page.waitForTimeout(500)
+      const flipped = await read()
+      expect(flipped.bg).not.toBe(first.bg)
+      expect(flipped.colours).not.toEqual(first.colours)
+      for (const c of flipped.colours)
+        expect(ratio(c, flipped.bg)).toBeGreaterThanOrEqual(3)
+    } finally {
+      await ctx.close()
+    }
+  }
+}, 60000)

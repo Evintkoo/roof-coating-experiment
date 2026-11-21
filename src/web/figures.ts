@@ -565,6 +565,33 @@ export const INDONESIA_BIN_LABEL: Record<string, string> = {
   overcast: "overcast day",
   weighted: "weighted",
 }
+/**
+ * Series colours of the Indonesia bars (C1, high, balanced, low card) for the light (#ffffff) and the dark (#12161b) plot
+ * background; each is at least 3:1 against its background (tested), so the datasheet control is not black on a dark plot.
+ */
+export const INDONESIA_SERIES_COLORS = {
+  light: ["#000000", "#0072B2", "#007A58", "#C04F00"],
+  dark: ["#F2F2F2", "#56B4E9", "#009E73", "#E69F00"],
+} as const
+
+/** Applies the theme to traces that carry a `meta.palette` {light, dark}: the colour for the plot background of `tokens`. */
+export function themeSeries(spec: FigureSpec, tokens: ThemeTokens): FigureSpec {
+  const dark = luminance(tokens.plot) < 0.4
+  return {
+    ...spec,
+    data: spec.data.map((tr) => {
+      const t = tr as {
+        meta?: { palette?: { light: string; dark: string } }
+        marker?: object
+      }
+      const pal = t.meta?.palette
+      return pal
+        ? { ...t, marker: { ...t.marker, color: dark ? pal.dark : pal.light } }
+        : tr
+    }),
+  }
+}
+
 export const INDONESIA_STATE_LABEL: Record<string, string> = {
   initial: "initial",
   aged: "aged (scenario ageing)",
@@ -574,14 +601,13 @@ export const siteLabel = (id: string): string =>
 
 /**
  * Heat-flux benefit against bare aluminium (C0 minus the subject, mean flux into the building) per site and day type,
- * one bar per subject with p5-p95 whiskers, for one state. The weighted view is the last group of each site.
+ * one bar per subject with whiskers to the outer bound of the benefit interval (not a p5-p95 of the benefit), for one state. The weighted view is the last group of each site.
  */
 export function figIndonesiaBars(
   rows: readonly IndonesiaSummaryRow[],
   state: "initial" | "aged",
 ): FigureSpec {
   const subjects = ["C1", "card_high", "card_balanced", "card_low"]
-  const colors = [OKABE_ITO[7], OKABE_ITO[4], OKABE_ITO[2], OKABE_ITO[5]]
   const sites = [...new Set(rows.map((r) => r.site))]
   const bins = ["hot", "typical", "overcast", "weighted"]
   const cells = sites.flatMap((s) => bins.map((b) => [s, b] as const))
@@ -611,23 +637,32 @@ export function figIndonesiaBars(
         arrayminus: pick.map((r, k) => (r ? (y[k] as number) - r.dq_lo : 0)),
         thickness: 1.2,
       },
-      marker: { color: colors[i] },
-      meta: { kind: "predicted", id: subject },
+      marker: { color: INDONESIA_SERIES_COLORS.light[i] },
+      meta: {
+        kind: "predicted",
+        id: subject,
+        palette: {
+          light: INDONESIA_SERIES_COLORS.light[i],
+          dark: INDONESIA_SERIES_COLORS.dark[i],
+        },
+      },
     }
   })
   return {
     data,
     layout: baseLayout({
       barmode: "group",
-      margin: { l: 64, r: 16, t: 24, b: 96 },
+      margin: { l: 72, r: 16, t: 24, b: 96 },
       xaxis: {
         title: {
           text: `Site and day type; aluminium, scenario ageing: ${INDONESIA_STATE_LABEL[state]}`,
         },
       },
       yaxis: {
+        automargin: true,
         title: {
-          text: "Heat-flux benefit against bare aluminium (W/m², PROXY), p5-p95 whiskers",
+          text: "Benefit, W/m² (PROXY)<br>whiskers: outer bound",
+          standoff: 8,
         },
       },
       legend: { orientation: "h", y: -0.45 },

@@ -461,8 +461,9 @@ export function reportBrowserSuite(S: BrowserScale): void {
     ).toEqual(["function", "function"])
   })
 
-  // ---------------------------------------------------------------- full tier
-  reg("axisReorderKeepsBrush", false, async () => {
+  // ---------------------------------------------------------------- full tier (the five size-independent proofs of plan 00 D7 and
+  // T-BRW-4 run in the fast tier too, see above; what stays here is timing-bound or a long hold)
+  reg("axisReorderKeepsBrush", true, async () => {
     const page = await openPage()
     await dragBrush(page, 1, 0.2, 0.5)
     const before = await brushRanges(page)
@@ -537,7 +538,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
     ).toEqual(labelsAfter)
   })
 
-  reg("brushSurvivesPlotlyReact", false, async () => {
+  reg("brushSurvivesPlotlyReact", true, async () => {
     const page = await openPage()
     await dragBrush(page, 0, 0.3, 0.8)
     await dragBrush(page, 2, 0.1, 0.6)
@@ -565,7 +566,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
     expect(watch(page).errors).toEqual([])
   })
 
-  reg("noMatchShowsExplicitRow", false, async () => {
+  reg("noMatchShowsExplicitRow", true, async () => {
     const page = await openPage()
     await dragBrush(page, 0, 0.0, 0.1)
     await dragBrush(page, 1, 0.0, 0.1)
@@ -580,7 +581,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
     expect(await splomSelected(page)).toEqual([])
   })
 
-  reg("scenarioChangeKeepsSelection", false, async () => {
+  reg("scenarioChangeKeepsSelection", true, async () => {
     const page = await openPage()
     await dragBrush(page, 3, 0.2, 0.7)
     const rows = (await shownRows(page)).sort()
@@ -603,7 +604,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
     expect(Object.keys(await brushRanges(page))).toHaveLength(1)
   })
 
-  reg("liveMatchesCoreInBun", false, async () => {
+  reg("liveMatchesCoreInBun", true, async () => {
     const page = await openPage()
     for (const state of fiveStates()) {
       await setInputs(page, state)

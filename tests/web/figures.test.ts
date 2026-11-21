@@ -1,4 +1,5 @@
 import { beforeAll, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { safeJson } from "../../src/core/json"
 import type { ModelContext } from "../../src/core/pipeline/context"
@@ -24,10 +25,13 @@ import {
   figSpectrum,
   figSplom,
   figTofT,
+  INDONESIA_SERIES_COLORS,
   type IndonesiaSummaryRow,
   type ThemeTokens,
   themeKeys,
+  themeSeries,
 } from "../../src/web/figures"
+import { contrastRatio } from "../../src/web/fmt"
 import { defaultLiveState } from "../../src/web/liveState"
 import { repoRoot } from "../helpers"
 
@@ -431,7 +435,7 @@ test("figIndonesiaBarsCarryWhiskersLabelsAndTheChosenState", () => {
     "Medan",
   ])
   expect(t.x[1]?.[3]).toBe("weighted")
-  // aged values, with whiskers to the p5 and p95 of the row: y + array = hi, y - arrayminus = lo
+  // aged values, with whiskers to the outer bound of the row: y + array = hi, y - arrayminus = lo
   expect(t.y[0]).toBe(0 + 1 - 3)
   t.y.forEach((y, i) => {
     expect(y + (t.error_y.array[i] as number)).toBeCloseTo(y + 0.5, 12)
@@ -446,7 +450,7 @@ test("figIndonesiaBarsCarryWhiskersLabelsAndTheChosenState", () => {
     "aluminium, scenario ageing: aged (scenario ageing)",
   )
   expect(lay.yaxis.title.text).toContain("PROXY")
-  expect(lay.yaxis.title.text).toContain("p5-p95")
+  expect(lay.yaxis.title.text).toContain("outer bound")
   // the initial view says initial and shows the other numbers
   const ini = figIndonesiaBars(rows, "initial")
   expect((ini.layout as typeof lay).xaxis.title.text).toContain(": initial")
@@ -459,4 +463,79 @@ test("figIndonesiaBarsCarryWhiskersLabelsAndTheChosenState", () => {
   expect(
     Number.isNaN(((gap.data as typeof data)[0] as (typeof data)[number]).y[4]),
   ).toBe(true)
+})
+
+// ---- S4: series colours in both themes ----
+
+const THEME_BG = (() => {
+  const css = readFileSync(
+    join(import.meta.dir, "../../src/web/theme.css"),
+    "utf8",
+  )
+  const light = /:root\s*{[^}]*?--bg:\s*(#[0-9a-fA-F]{6})/.exec(
+    css,
+  )?.[1] as string
+  const dark =
+    /:root\[data-theme="dark"\]\s*{[^}]*?--bg:\s*(#[0-9a-fA-F]{6})/.exec(
+      css,
+    )?.[1] as string
+  return { light, dark }
+})()
+
+test("indonesiaSeriesColoursReach3To1InBothThemes", () => {
+  expect(THEME_BG.light.toLowerCase()).toBe("#ffffff")
+  expect(THEME_BG.dark.toLowerCase()).toBe("#12161b")
+  for (const theme of ["light", "dark"] as const)
+    for (const c of INDONESIA_SERIES_COLORS[theme])
+      expect(contrastRatio(c, THEME_BG[theme])).toBeGreaterThanOrEqual(3)
+  // the old colour is what the test must catch: black on the dark plot is far below 3:1
+  expect(contrastRatio("#000000", THEME_BG.dark)).toBeLessThan(1.5)
+  // the four series differ within a theme
+  for (const theme of ["light", "dark"] as const)
+    expect(new Set(INDONESIA_SERIES_COLORS[theme]).size).toBe(4)
+})
+
+test("themeSeriesPicksTheColourForThePlotBackground", () => {
+  const rows = [
+    ["jakarta", "hot"],
+    ["jakarta", "weighted"],
+  ].flatMap(([site, bin]) =>
+    ["C1", "card_high", "card_balanced", "card_low"].map((subject) => ({
+      site: site as string,
+      bin: bin as string,
+      subject,
+      state: "initial",
+      t_max_c: 40,
+      t_max_lo: 39,
+      t_max_hi: 41,
+      q_in_mean_w_m2: 10,
+      q_lo: 9,
+      q_hi: 11,
+      dq_w_m2: 1,
+      dq_lo: 0,
+      dq_hi: 2,
+    })),
+  )
+  const fig = figIndonesiaBars(rows, "initial")
+  const tok = (plot: string): ThemeTokens => ({
+    paper: plot,
+    plot,
+    font: "#000000",
+    grid: "#cccccc",
+    axisStroke: "#000000",
+    colorway: [],
+  })
+  const colours = (t: ThemeTokens) =>
+    themeSeries(fig, t).data.map(
+      (d) => (d as { marker: { color: string } }).marker.color,
+    )
+  expect(colours(tok(THEME_BG.light))).toEqual([
+    ...INDONESIA_SERIES_COLORS.light,
+  ])
+  expect(colours(tok(THEME_BG.dark))).toEqual([...INDONESIA_SERIES_COLORS.dark])
+  for (const c of colours(tok(THEME_BG.dark)))
+    expect(contrastRatio(c, THEME_BG.dark)).toBeGreaterThanOrEqual(3)
+  // traces without a palette are left alone
+  const plain = { data: [{ marker: { color: "#123456" } }], layout: {} }
+  expect(themeSeries(plain, tok(THEME_BG.dark)).data[0]).toEqual(plain.data[0])
 })

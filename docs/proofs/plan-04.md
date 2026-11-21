@@ -74,7 +74,7 @@ Benefit = C0 bare aluminium minus the subject, W/m², nominal [p5, p95]; the wei
 | Makassar | 17.22 [15.37, 19.08] | 18.66 [16.72, 20.61] | 12.55 [9.04, 16.04] | 17.88 [15.82, 19.94] | 11.93 [8.52, 15.35] | 11.76 [8.35, 15.20] |
 | Bandung | 15.13 [13.28, 16.99] | 16.55 [14.61, 18.49] | 10.52 [7.03, 13.98] | 15.78 [13.72, 17.83] | 9.91 [6.51, 13.30] | 9.74 [6.35, 13.15] |
 
-C1 aged (datasheet weathered values) is 11.0 to 14.0 W/m² and in every site at or above the aged cards: the models' recipes are ahead of C1 when new, but behind it after a 20 % loss of the effective reflectance, because C1's own weathering loss is smaller (0.90 to 0.77, 14 %).
+C1 aged (datasheet weathered values) is 11.0 to 14.0 W/m² and in every site at or above the aged cards. This is not a result about which product ages better: aged C1 uses its own datasheet loss (0.90 to 0.77, about 14 %) while the cards use the midpoint of the scenario loss range (about 20 %), so the order of aged C1 against the cards is driven by the assumed loss, and the intervals overlap. Only the initial ordering (cards ahead of C1 when new) does not depend on the ageing scenario.
 
 ## Gate
 
@@ -82,7 +82,9 @@ C1 aged (datasheet weathered values) is 11.0 to 14.0 W/m² and in every site at 
 
 ## Notes
 
-- Uncertainty intervals of a benefit subtract the interval of the subject from the interval of C0 without pairing the draws, so they are conservative (wider than a paired interval). Intervals of weighted values are weighted sums of the per-scenario p5 and p95.
+- Uncertainty intervals of a benefit subtract the interval of the subject from the interval of C0 without pairing the draws, so they are an outer bound (wider than a paired interval), not a [p5, p95] of the benefit; the report labels them "outer bound". Intervals of weighted values are weighted sums of the per-scenario bounds. The temperature column of the report is the weighted mean of the day peaks, not a peak of the weighted series.
+- The ageing scenario (loss range and nominal) is recorded in `indonesia_days.json` (`loss_lo`, `loss_hi`, `loss_nominal`); `indonesia_results.csv` does not carry it.
+- Weather caveats shown in the report: the NASA grid-cell elevation (Bandung 921.68 m, so temperatures may read 1 to 2 K cool; Medan and Makassar may read cool), Medan's missing dry season, and the 150 mm wet/dry threshold (Bandung's June, 151 mm, sits on it).
 - C1 has no uncertain input in the model (datasheet values), so its interval is the single run; only C0's substrate reflectance, the material draws of the recipes and the ageing loss are sampled.
 - `fetch-data --indonesia` keeps the committed `data/indonesia/SHA256SUMS` authoritative: downloaded bytes that differ from it are refused (exit 5, phase `indonesia.verify`) and the list is restored.
 - The seed stream of the ageing-loss draws is 400 (plan 04 D8).

@@ -2,8 +2,20 @@
 
 | Tier | Command | What runs | Wall time (this machine, 10 cores) | When |
 |---|---|---|---|---|
-| fast | `bun run check` | biome, `tsc --noEmit`, every `*.test.ts` except `*.proof.test.ts` (3 files in parallel) | about 2.2 min (was about 17 min) | every commit, every push |
-| proof | `bun run proof` | the four `*.proof.test.ts` files, one after the other | about 13 min | before a release or a merge that touches the optimiser, the budget table, the pipeline or the models; after changing a frozen threshold's inputs; on demand or nightly in CI |
+| fast | `bun run check` | biome, `tsc --noEmit`, every `*.test.ts` except `*.proof.test.ts` (3 files in parallel) | 155 s measured (679 tests in 78 files; was about 17 min before tiering) | every commit, every push |
+| proof | `bun run proof` | the six `*.proof.test.ts` files (`budget.baseline`, `refine.baseline`, `refine.e2e`, `pipeline.e2e`, `indonesia.e2e`, `report.browser`), one after the other | 865 s (14.4 min) measured, the sum of the six files run one at a time (table below) | before a release or a merge that touches the optimiser, the budget table, the pipeline or the models; after changing a frozen threshold's inputs; on demand or nightly in CI |
+
+Measured proof wall times (2026-11-22, one file at a time, `nice -n 10`, load average about 3 from another session):
+
+| Proof file | Wall time |
+|---|---|
+| `refine.e2e.proof.test.ts` | 357 s |
+| `budget.baseline.proof.test.ts` | 331 s |
+| `pipeline.e2e.proof.test.ts` | 56 s |
+| `refine.baseline.proof.test.ts` | 41 s |
+| `report.browser.proof.test.ts` | 40 s |
+| `indonesia.e2e.proof.test.ts` | 40 s |
+| total | 865 s |
 
 `bun run test` is the fast tier without biome and tsc. `bun run proof` runs the proof files serially on purpose: they assert wall-clock limits (plan 05 `T_nrt` 600 s, `T_nrt_table` 900 s, plan 03 frozen runtime), so they must not compete with each other for cores.
 
@@ -24,7 +36,8 @@ A slow test is never moved out of the gate. It is split: the same assertions run
 | `refine.e2e.test.ts` | real CLI chain `run` (4 draws) then `refine --starts 4` then `budget-table` (3 x 4 levels, 2 draws), then `report` again (the Optimisation section appears, `extra[]` survives, same bytes on a second run); fault matrix F1..F13 | `refine.e2e.proof.test.ts`: `run` 256 draws, `refine` 20 starts, `budget-table` 3 x 100 levels, 64 draws; the limits of H11; the same fault matrix |
 | `refine.baseline.test.ts` | plan 3 with 8 draws, `refine --starts 4` (20 solves); H5 against the same 96 screened candidates and 4096 Sobol points | `refine.baseline.proof.test.ts`: 256 draws, default 20 starts (40 solves), runtime limit |
 | `pipeline.e2e.test.ts` | three real `run`s with 4 draws (artifacts, same-seed hash, different-seed hash), debug events at 4 draws, fault matrix F1..F9 | `pipeline.e2e.proof.test.ts`: three real `run`s at 256 draws against the frozen runtime, debug events at 16 draws |
-| `report.browser.test.ts` | real Chrome (headless, own instance, `channel: "chrome"`): offline load with zero failed requests and console errors, two-axis brush equals a plain filter (table and scatter matrix), clear restores all 96, dark scheme (background, Plotly paper, parcoords stroke, toggle), 390 px width without horizontal overflow, `#test` hooks absent without the fragment; about 11 s including the real 4-draw `run` the page is built from | `report.browser.proof.test.ts`: the rest of plan 00 Task 5 (axis reorder, brush survives a redraw, no-match row, scenario change keeps the selection, live equals `liveSimulate` in Bun for five input states, 200-move latency with `T_live_ms` 100, newest wins under a 50-event burst, layers off, 300-event hold, clamping, keyboard to the Limits link, print palette, debug panel); about 40 s. The suite body is `tests/suites/reportBrowser.ts`; the proof file registers every test, the fast file the subset |
+| `report.browser.test.ts` | real Chrome (headless, own instance, `channel: "chrome"`), 11 tests, about 21 s including the real 4-draw `run` the page is built from: offline load with zero failed requests and console errors, two-axis brush equals a plain filter (table and scatter matrix), clear restores all 96, dark scheme (background, Plotly paper, parcoords stroke, toggle), 390 px width without horizontal overflow, `#test` hooks absent without the fragment, and the five size-independent proofs `axisReorderKeepsBrush`, `brushSurvivesPlotlyReact`, `scenarioChangeKeepsSelection`, `noMatchShowsExplicitRow`, `liveMatchesCoreInBun` (five input states; they do not depend on a sample size or a wall-clock limit, and cost about 10 s together) | `report.browser.proof.test.ts`: all 20 tests of plan 00 Task 5, the fast ones included, plus the ones that stay out of the gate because they assert a wall-clock limit or hold the page for a long time: 200-move latency with `T_live_ms` 100, newest wins under a 50-event burst, layers off, 300-event hold, clamping, keyboard to the Limits link, print palette, no console errors during live use, debug panel. The suite body is `tests/suites/reportBrowser.ts`; the proof file registers every test, the fast file the subset |
+| `node/report/indonesia.test.ts`, `node/report/optimisation.test.ts`, `honesty.test.ts` | one real Jakarta site, two years, 4 draws (Indonesia); the page checks of the report in real Chrome, including both themes for the Indonesia bar series (computed colours at least 3:1 against the plot background) and the refused edit of one refine CSV cell | none (the five-site proof is `indonesia.e2e.proof.test.ts`) |
 | `node/budget.test.ts` | 3 x 3 table, 2 draws (one and two workers, byte-identical) | none: it was already a small table; its size was cut from 3 x 12 / 8 draws |
 | `node/refine.test.ts` | one and two workers at 2 starts for the byte-equality and event tests; every mutation-killing case unchanged at 4 starts | none |
 

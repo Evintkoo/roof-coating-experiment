@@ -37,7 +37,12 @@ import type {
 } from "./budgetWorker"
 import { emit, levelEnabled } from "./logging"
 import { loadPlan3 } from "./refine"
-import { MANIFEST_FILE, manifestCoreHash } from "./report/manifest"
+import {
+  MANIFEST_FILE,
+  type ManifestExtraEntry,
+  manifestCoreHash,
+  registerInManifest,
+} from "./report/manifest"
 import { effectiveWorkers } from "./simulate"
 
 export const PROFILES = [
@@ -225,36 +230,9 @@ function relativeInside(dir: string, file: string): string | null {
     : posix(rel)
 }
 
-type ManifestExtra = {
-  path: string
-  sha256: string
-  bytes: number
-  kind: string
-}
+type ManifestExtra = ManifestExtraEntry
 
-/** D11/FR-12: appends (or replaces) the table's hash in extra[] of the manifest and rewrites the core hash. */
-export function registerInManifest(
-  manifestPath: string,
-  extra: ManifestExtra,
-): void {
-  const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<
-    string,
-    unknown
-  >
-  const list = (Array.isArray(m.extra) ? m.extra : []) as ManifestExtra[]
-  m.extra = [...list.filter((e) => e.path !== extra.path), extra].sort(
-    (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
-  )
-  m.core_sha256 = manifestCoreHash(m)
-  const tmp = `${manifestPath}.tmp`
-  try {
-    writeFileSync(tmp, `${JSON.stringify(m, null, 2)}\n`)
-  } catch (e) {
-    rmSync(tmp, { force: true })
-    throw e
-  }
-  renameSync(tmp, manifestPath)
-}
+export { registerInManifest }
 
 /** FR-9..FR-12: the three tables, built on up to two workers; writes budget_table.json and registers its hash. */
 export async function runBudgetTable(

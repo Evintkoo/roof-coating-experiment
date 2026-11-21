@@ -31,7 +31,6 @@ import { safeJson } from "../core/json"
 import type { ModelContext } from "../core/pipeline/context"
 import { widenInterval } from "../core/pipeline/uncertainty"
 import type { FlaggedDesignRow } from "../core/schema"
-import { registerInManifest } from "./budget"
 import { sha256Hex, verifyData } from "./data"
 import { readTmyx } from "./epw"
 import {
@@ -43,7 +42,7 @@ import {
 } from "./indonesiaWorker"
 import { emit, levelEnabled } from "./logging"
 import { readSiteYear } from "./power"
-import { MANIFEST_FILE } from "./report/manifest"
+import { registerOutputs } from "./report/manifest"
 import { effectiveWorkers, readDesign } from "./simulate"
 
 export const INDONESIA_COLUMNS: readonly string[] = [
@@ -699,7 +698,7 @@ export async function runIndonesia(
     ["indonesia_crosscheck.csv", toCsv(CROSSCHECK_COLUMNS, crossRows)],
   ]
   atomicWrite(files.map(([n, t]) => [join(opts.out, n), t]))
-  registerOutputs(dir, opts.out, files)
+  registerOutputs(dir, opts.out, files, "indonesia")
   console.log(
     `indonesia: ${rows.length} result rows, ${summary.length} summary rows, ${S} scenarios, ${nMc} draws`,
   )
@@ -714,25 +713,6 @@ function readCandidates(dir: string): FlaggedDesignRow[] {
       throw loadErr(e.key ?? "candidates.csv", e.message)
     throw e
   }
-}
-
-/** extra[] of the manifest, so the report can refuse a changed file; skipped when the manifest or the nesting is absent. */
-function registerOutputs(
-  dir: string,
-  out: string,
-  files: [string, string][],
-): void {
-  const mp = join(dir, MANIFEST_FILE)
-  if (!existsSync(mp)) return
-  const rel = relative(resolve(dir), resolve(out))
-  if (rel.startsWith("..") || isAbsolute(rel)) return
-  for (const [name, text] of files)
-    registerInManifest(mp, {
-      path: join(rel, name).split("\\").join("/"),
-      sha256: sha256Hex(text),
-      bytes: Buffer.byteLength(text),
-      kind: "indonesia",
-    })
 }
 
 /**

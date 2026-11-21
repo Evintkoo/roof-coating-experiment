@@ -42,6 +42,7 @@ import type {
   SolveJob,
   SolveResult,
 } from "./refineWorker"
+import { registerOutputs } from "./report/manifest"
 import { effectiveWorkers } from "./simulate"
 
 type Role = (typeof ROLES)[number]
@@ -926,6 +927,13 @@ async function runRefineInner(
   }
   for (const [i, [n]] of files.entries())
     renameSync(tmps[i] as string, join(opts.out, n))
+  // S1: the four CSVs the report reads are listed in the manifest's extra[] (when --out lies inside the run directory)
+  registerOutputs(
+    dir,
+    opts.out,
+    files.filter(([n]) => n.endsWith(".csv")),
+    "refine",
+  )
   console.log(
     `refine: ${solutions.length} solves, ${frontSolutions.length} on the front, best balanced S ${sBest.toFixed(6)} (best screened ${best.S.toFixed(6)}), ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   )

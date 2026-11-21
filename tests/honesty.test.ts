@@ -142,3 +142,40 @@ test("forbiddenPhrasesAbsentFromTheIndonesiaSection", async () => {
   for (const c of cells)
     expect(c[1]).toMatch(/^-?[\d.]+ \[-?[\d.]+, -?[\d.]+\]$/)
 })
+
+// ---- S3: ageing is stated once, precisely, and no sentence of the page contradicts the Indonesia section ----
+
+test("ageingStatementsDoNotContradictAcrossThePage", async () => {
+  const { html } = await buildIndonesiaReport()
+  const text = visibleText(html)
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.replace(/\s+/g, " ").trim())
+    .filter((x) => x !== "")
+  // a sentence that says ageing or weathering is not modelled must also say where the scenario is (or that it is only a scenario)
+  const denies = (x: string): boolean =>
+    /(ageing|weathering)[^.]*not (modelled|measured)|not modelled[^.]*(ageing|weathering)/i.test(
+      x,
+    )
+  const bad = sentences.filter(
+    (x) => denies(x) && !/scenario|Indonesia section/i.test(x),
+  )
+  expect(bad).toEqual([])
+  // the scan can fail on the old wording
+  expect(denies("Weathering, ageing and adhesion are not modelled.")).toBe(true)
+  expect(
+    /scenario|Indonesia section/i.test(
+      "Weathering, ageing and adhesion are not modelled.",
+    ),
+  ).toBe(false)
+  // the overview names the initial state for the main results and the labelled scenario for ageing
+  const overview = visibleText(
+    /<section id="overview"[\s\S]*?<\/section>/.exec(html)?.[0] as string,
+  )
+  expect(overview).toContain("initial, as-applied state")
+  expect(overview).toContain("labelled scenario in the Indonesia section")
+  expect(overview).toContain("never as a measurement")
+  // a page without the Indonesia section does not point at it as if it were there
+  const plain = visibleText((await buildTestReport()).html)
+  expect(plain).not.toMatch(/ageing[^.]*not modelled here/i)
+})
