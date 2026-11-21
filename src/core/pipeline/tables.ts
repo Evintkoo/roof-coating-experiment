@@ -1,5 +1,5 @@
 import { coerceCell, parseCsv } from "../csv"
-import { ConfigError } from "../errors"
+import { ConfigError, DataError } from "../errors"
 
 // ---- Column lists (plan 03 File Structure; CSV header order) ----
 
@@ -69,6 +69,26 @@ export const DRAW_COLUMNS = [
 // ---- Row types ----
 
 export const ROLES = ["high_performing", "balanced", "low_cost"] as const
+
+/** The three shortlisted candidate ids by role, from pareto.csv rows; DataError unless exactly the three roles are present once. */
+export function shortlistFromPareto(
+  rows: readonly ParetoRow[],
+): Record<(typeof ROLES)[number], string> {
+  const found: Partial<Record<(typeof ROLES)[number], string>> = {}
+  for (const r of rows) {
+    if (r.role === "") continue
+    if (found[r.role] !== undefined)
+      throw new DataError("pareto.csv", `role ${r.role} appears twice`)
+    found[r.role] = r.candidate_id
+  }
+  const [h, b, l] = ROLES.map((role) => found[role])
+  if (h === undefined || b === undefined || l === undefined)
+    throw new DataError(
+      "pareto.csv",
+      "pareto.csv needs exactly the three shortlist roles",
+    )
+  return { high_performing: h, balanced: b, low_cost: l }
+}
 
 type Obj = Record<(typeof OBJECTIVE_COLUMNS)[number], number>
 export type ParetoRow = { candidate_id: string } & Obj & {

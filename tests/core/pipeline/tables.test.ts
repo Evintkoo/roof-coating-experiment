@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { parseCsv, toCsv } from "../../../src/core/csv"
-import { ConfigError } from "../../../src/core/errors"
+import { ConfigError, DataError } from "../../../src/core/errors"
 import {
   CONTROL_COLUMNS,
   CONTROL_NAN_COLUMNS,
@@ -13,6 +13,7 @@ import {
   parseParetoCsv,
   parseSensCsv,
   SENS_COLUMNS,
+  shortlistFromPareto,
   validateControls,
   validateCurves,
   validateDraws,
@@ -325,4 +326,40 @@ test("parseParetoSensControlsCsvRoundTrip", () => {
   const text = toCsv(CONTROL_COLUMNS, ctl, { nanColumns: CONTROL_NAN_COLUMNS })
   expect(parseControlsCsv(text)).toEqual(validateControls(ctl))
   expect(() => parseParetoCsv("a,b\n1,2\n")).toThrow(ConfigError)
+})
+
+test("shortlistFromParetoFindsThreeRoles", () => {
+  const rows: ParetoRow[] = [
+    { ...pareto(), candidate_id: "SP-001", role: "low_cost" },
+    { ...pareto(), candidate_id: "SP-002", role: "" },
+    { ...pareto(), candidate_id: "SP-003", role: "high_performing" },
+    { ...pareto(), candidate_id: "SP-004", role: "balanced" },
+  ]
+  expect(shortlistFromPareto(rows)).toEqual({
+    high_performing: "SP-003",
+    balanced: "SP-004",
+    low_cost: "SP-001",
+  })
+})
+
+test("shortlistFromParetoMissingOrDuplicateRoleIsDataError", () => {
+  const mk = (roles: ParetoRow["role"][]): ParetoRow[] =>
+    roles.map((role, i) => ({
+      ...pareto(),
+      candidate_id: `SP-00${i + 1}`,
+      role,
+    }))
+  for (const roles of [
+    ["high_performing", "balanced", ""],
+    ["high_performing", "balanced", "balanced"],
+  ] as ParetoRow["role"][][]) {
+    let err: unknown
+    try {
+      shortlistFromPareto(mk(roles))
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(DataError)
+    expect(err).toMatchObject({ code: 5 })
+  }
 })

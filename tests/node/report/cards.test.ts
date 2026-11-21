@@ -131,6 +131,12 @@ test("decisionRederivedIndependently", async () => {
   const rows = results.filter((r) => r.candidate_id === id)
   const lift = (patch: Partial<ResultRow>) =>
     results.map((r) => (r.candidate_id === id ? { ...r, ...patch } : r))
+  const goRows = lift({
+    r_solar_pred: 0.95,
+    r_solar_lo: 0.9,
+    r_solar_hi: 0.97,
+    delam_proxy: 0.2,
+  })
   const variants: [ResultRow[], number][] = [
     [
       lift({
@@ -150,6 +156,8 @@ test("decisionRederivedIndependently", async () => {
       }),
       0.3,
     ], // revise (frequency)
+    [goRows, 0.45], // revise: just below T_go_pareto_freq
+    [goRows, 0.5], // go: exactly at the threshold
     [
       lift({
         r_solar_pred: 0.95,

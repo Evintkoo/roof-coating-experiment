@@ -80,6 +80,12 @@ Event catalogue: `pipeline.e2e.test.ts` allPlan3EventsPresentInRunJsonl runs `ru
 
 All six mutants were killed on the first pass; no test was strengthened and no mutant survived.
 
+## Runbook notes
+
+- A debug-level `run.jsonl` at `n_mc` 256 is about 100 MB (dev only; production logs are info only).
+- `runtimeBelowFrozenThreshold` has only about 25 % margin on a loaded machine (22.6 s against the frozen 30 s at load 4-5); the frozen file is not edited, and a failure on a busy machine means wait for the load to fall and rerun, not edit.
+- Test subprocess runs write their run logs to a temp reports dir (`SPANDEK_REPORTS_DIR` in `tests/helpers.ts` `run()`), so the repo `reports/` directory does not grow from the test suite.
+
 ## Final gate
 
 `bun run check` (biome, `tsc --noEmit`, `bun test --timeout 30000`): exit 0, 365 pass, 0 fail (70 214 expect calls, 43 files, 112 s), biome pre-existing warnings only. 349 tests before Task 8, plus 2 in the minors commit (scenario-min reject rule, scale-invariant variance guard) and 14 in `pipeline.e2e.test.ts`.

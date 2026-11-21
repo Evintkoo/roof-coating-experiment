@@ -30,6 +30,7 @@ import {
   parseSensCsv,
   ROLES,
   SENS_COLUMNS,
+  shortlistFromPareto,
   validatePareto,
   validateSens,
 } from "../core/pipeline/tables"
@@ -380,16 +381,7 @@ async function reportCommand(ctx: Ctx): Promise<void> {
   const pareto = parseParetoCsv(paretoText)
   parseSensCsv(sensText)
 
-  const shortlist: Record<string, string> = {}
-  for (const p of pareto) if (p.role !== "") shortlist[p.role] = p.candidate_id
-  if (
-    ROLES.some((r) => shortlist[r] === undefined) ||
-    Object.keys(shortlist).length !== ROLES.length
-  )
-    throw new DataError(
-      "pareto.csv",
-      "pareto.csv needs exactly the three shortlist roles",
-    )
+  const shortlist = shortlistFromPareto(pareto)
 
   lowerPriority()
   const mctx = await loadContext(ctx.configDir, ctx.dataDir)

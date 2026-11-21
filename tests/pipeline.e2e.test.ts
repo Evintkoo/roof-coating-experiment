@@ -200,6 +200,7 @@ beforeAll(async () => {
 type Fault = {
   id: string
   phase: string
+  key?: string
   code: number
   go: () => Promise<Awaited<ReturnType<typeof run>>>
 }
@@ -282,6 +283,7 @@ const faults: Fault[] = [
   {
     id: "F7 midcoat_dft_um = 5 (simulate)",
     phase: "model",
+    key: "midcoat_dft_um",
     code: 4,
     go: () => {
       const d = baseCopy()
@@ -321,6 +323,7 @@ test.each(faults)(
     expect(lastEvent(r, "error.raised")).toMatchObject({
       code: f.code,
       phase: f.phase,
+      ...(f.key ? { key: f.key } : {}),
     })
     noTrace(r.stderr)
     if (f.code === 6) expect(lastEvent(r, "resource.load_high")).toBeDefined()
