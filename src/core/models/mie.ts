@@ -6,6 +6,7 @@ export type MieResult = {
   g: Float64Array
 }
 
+const X_MIN = 1e-3
 const X_MAX = 2e4
 
 /**
@@ -41,7 +42,8 @@ export function mieEfficiencies(
   let dIm = new Float64Array(0)
   for (let w = 0; w < len; w++) {
     const x = (Math.PI * dUm * nMedium) / (wlUm[w] as number)
-    requireIn("mie", "x", x, 0, X_MAX)
+    // g = sums / Q_sca ~ x^-4 * (cancelling terms): garbage below x ~ 1e-3 (NaN at x = 0)
+    requireIn("mie", "x", x, X_MIN, X_MAX)
     const nmax = Math.floor(x + 4 * x ** (1 / 3) + 2)
     const nmx = Math.max(nmax, Math.ceil(1.1 * mAbs * x)) + 15
     if (dRe.length < nmx + 1) {
@@ -137,6 +139,7 @@ export function mieEfficiencies(
     const sca = (2 / x2) * qs
     const ext = (2 / x2) * qext
     qSca[w] = sca
+    // clamp: at k = 0, ext - sca is a difference of equal sums and can be -1e-13
     qAbs[w] = Math.max(0, ext - sca)
     g[w] = ((4 / x2) * (gSum1 + gSum2)) / sca
   }

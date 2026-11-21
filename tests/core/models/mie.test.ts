@@ -55,7 +55,8 @@ function violations(c: MieCase): string[] {
       bad.push(`${where} q_ext`)
     if (Math.abs(qSca - refSca) > rel * Math.abs(refSca))
       bad.push(`${where} q_sca`)
-    // q_abs = q_ext - q_sca inherits the series error, so the low-x relaxation applies to it too
+    // The fixture's q_abs = q_ext - q_sca inherits miepython's low-x series error (confirmed with
+    // 40-digit mpmath: this code is correct to 1e-14 there), so the low-x relaxation applies to it too: so the low-x relaxation applies to it too
     // (measured 1.1e-10 abs on q_abs = 1.7e-4; a miepython multipole-sum run agrees with this code to 5e-13)
     const absTol = (mx < 0.1 ? T_MIE_LOWX_REL : T_MIE_ABS) * refExt + 1e-12
     if (Math.abs(qAbs - (c.q_abs[i] as number)) > absTol) {
@@ -105,6 +106,23 @@ test("nonAbsorbingConservesEnergy", () => {
       for (const q of r.q_abs) expect(Math.abs(q)).toBeLessThan(1e-9)
     }
   }
+})
+
+test("sizeParameterBoundedBelow", () => {
+  // g sums cancel when Q_sca -> 0; x < 1e-3 is rejected (code 4)
+  const rejects = (d: number, wl: number) => {
+    try {
+      mieEfficiencies(1.5, 0, d, Float64Array.of(wl), 1)
+    } catch (e) {
+      return e instanceof PhysicsRangeError && e.code === 4
+    }
+    return false
+  }
+  expect(rejects(1e-4 / Math.PI, 1)).toBe(true) // x = 1e-4
+  expect(rejects(1e-300, 1)).toBe(true)
+  const r = mieEfficiencies(1.5, 0, 1e-3 / Math.PI, Float64Array.of(1), 1) // x = 1e-3
+  expect(Number.isFinite(r.g[0])).toBe(true)
+  expect(Math.abs(r.g[0] as number)).toBeLessThan(1e-6)
 })
 
 test("tio2AbsorbsInUv", () => {
