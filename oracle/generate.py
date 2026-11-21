@@ -88,6 +88,7 @@ def build_fixtures() -> dict[str, str]:
         "xoshiro.json": json.dumps(doc, separators=(",", ":")) + "\n",
         "thermal.json": json.dumps(thermal_fixture(), separators=(",", ":")) + "\n",
         "mie.json": json.dumps(mie_fixture(), separators=(",", ":")) + "\n",
+        "solgel.json": json.dumps(solgel_fixture(), separators=(",", ":")) + "\n",
     }
 
 
@@ -248,6 +249,97 @@ def mie_fixture() -> dict:
         "seed": MIE_SEED,
         "miepython": importlib.metadata.version("miepython"),
         "convention": "miepython m = n - ik; d is the sphere diameter; x = pi*d*n_medium/wl",
+        "cases": cases,
+    }
+
+
+# ---- sol-gel oracle: ODE integration, plan 02 Task 6 (H8) -------------------------------------------
+SOLGEL_SEED = 20261121
+SOLGEL_CASES = 20
+SOLGEL_T_END = 2.592e6
+
+
+def sol_ode(k_h: float, k_c: float, cap: float, p_c: float, t_end: float, t_eval: float):
+    """Integrate dh/dt = k_h(1-h) until h = cap (then h is frozen), dc/dt = k_c h (1-c).
+
+    Returns (h, c at t_eval, gel time by event detection or None). p = c h gels at p >= p_c.
+    """
+    opts = dict(method="DOP853", rtol=1e-11, atol=1e-14, dense_output=True)
+
+    def rhs1(_t, y):
+        return [k_h * (1.0 - y[0]), k_c * y[0] * (1.0 - y[1])]
+
+    def hit_cap(_t, y):
+        return y[0] - cap
+
+    def hit_gel(_t, y):
+        return y[0] * y[1] - p_c
+
+    hit_cap.terminal = hit_gel.terminal = True
+    hit_cap.direction = hit_gel.direction = 1
+    # when does h reach the cap? (h alone, independent of the gel event which may stop phase 1 early)
+    s0 = solve_ivp(lambda _t, y: [k_h * (1.0 - y[0])], (0.0, t_end), [0.0], events=[hit_cap], **opts)
+    assert s0.success
+    capped = len(s0.t_events[0]) > 0
+    t_cap = float(s0.t_events[0][0]) if capped else t_end
+    s1 = solve_ivp(rhs1, (0.0, t_cap), [0.0, 0.0], events=[hit_gel], **opts)
+    assert s1.success
+    gel = float(s1.t_events[0][0]) if len(s1.t_events[0]) else None
+    if capped and gel is None:
+        c_cap = float(s1.y[1, -1])
+
+        def rhs2(_t, y):
+            return [k_c * cap * (1.0 - y[0])]
+
+        def gel2(_t, y):
+            return cap * y[0] - p_c
+
+        gel2.terminal = True
+        gel2.direction = 1
+        sol2 = solve_ivp(rhs2, (t_cap, t_end), [c_cap], events=[gel2], **opts)
+        assert sol2.success
+        if len(sol2.t_events[0]):
+            gel = float(sol2.t_events[0][0])
+    # state at t_eval (independent integration, no events)
+    def at(t: float):
+        if t <= t_cap:
+            y = solve_ivp(rhs1, (0.0, max(t, 1e-300)), [0.0, 0.0], **opts).y[:, -1]
+            return float(y[0]), float(y[1])
+        y1 = solve_ivp(rhs1, (0.0, t_cap), [0.0, 0.0], **opts).y[:, -1]
+        y2 = solve_ivp(
+            lambda _t, y: [k_c * cap * (1.0 - y[0])], (t_cap, t), [float(y1[1])], **opts
+        ).y[:, -1]
+        return cap, float(y2[0])
+
+    h, c = at(t_eval)
+    return h, c, gel
+
+
+def solgel_fixture() -> dict:
+    rng = SplitMix64(SOLGEL_SEED)
+    p_c_of = lambda x: 1.0 / ((16 * (1 - x) + 9 * x) / (4 * (1 - x) + 3 * x) - 1.0)
+    cases = []
+    for _ in range(SOLGEL_CASES):
+        ph = 3.5 + 1.5 * rng.uniform()
+        water = 0.3 + 4.7 * rng.uniform()
+        x = 0.2 + 0.6 * rng.uniform()
+        k_h_coeff = 10 ** (math.log10(0.03) + (math.log10(6.0) - math.log10(0.03)) * rng.uniform())
+        k_c = 10 ** (-6.0 + 2.5 * rng.uniform())
+        t_s = SOLGEL_T_END * rng.uniform()
+        k_h = k_h_coeff * 10.0 ** (-ph)
+        cap = min(1.0, water)
+        h, c, gel = sol_ode(k_h, k_c, cap, p_c_of(x), SOLGEL_T_END, t_s)
+        cases.append(
+            {
+                "ph": ph, "waterRatio": water, "x": x, "kHCoeff": k_h_coeff, "kC": k_c,
+                "tEndS": SOLGEL_T_END, "tS": t_s, "kH": k_h, "h": h, "c": c,
+                "gel_time_s": gel,  # null = no gel inside the window
+            }
+        )
+    return {
+        "seed": SOLGEL_SEED,
+        "scipy": __import__("scipy").__version__,
+        "method": "DOP853 rtol=1e-11, h capped at min(1, r_w) by event, gel by event p=c*h=p_c; null = never gels",
         "cases": cases,
     }
 

@@ -145,3 +145,8 @@ export function lastEvent(
   if (!e) throw new Error(`no ${name} event`)
   return e
 }
+
+/** Relative error |a - b| / |b| (absolute when b = 0). */
+export function relErr(a: number, b: number): number {
+  return b === 0 ? Math.abs(a) : Math.abs(a - b) / Math.abs(b)
+}
