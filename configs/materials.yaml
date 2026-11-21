@@ -100,7 +100,7 @@ barrier:
     value: 50.0
     unit: "um"
     status: scenario
-    source: "scenario: tuned so the proxy is informative; encodes the assumed interior optimum, not evidence for it (plan 02 Ruling R4). Spike value 0.3 (Lei et al. 2019 critical thickness, a few hundred nm) saturated delamination at 1; kept as shape constant so delam is not flat"
+    source: "scenario: tuned so the proxy is informative; encodes the assumed H3 direction (delamination rises with MTES), not evidence for it (plan 02 Ruling R4). Spike value 0.3 (Lei et al. 2019 critical thickness, a few hundred nm) saturated delamination at 1; kept as shape constant so delam is not flat"
   crack_exponent:
     value: 1.0
     unit: "1"
