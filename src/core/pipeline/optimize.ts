@@ -134,7 +134,9 @@ export function shortlist(
   const hi = Array.from({ length: m }, (_, k) =>
     Math.max(...objs.map((o) => o.values[k] as number)),
   )
-  // distance to the utopia point in min-max normalised objectives (0 = best on every objective)
+  // distance to the utopia point in min-max normalised objectives (0 = best on every objective).
+  // The normalisation bounds lo/hi run over ALL feasible candidates, not over the front members only (plan 03 D7: the
+  // utopia point is the best of the whole feasible set); only the ranking pool is restricted to front members.
   const dist = (i: number) => {
     let s = 0
     for (let k = 0; k < m; k++) {

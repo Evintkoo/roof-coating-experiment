@@ -236,6 +236,41 @@ test("lowCostFallbackLogged", () => {
   expect(fb[0]?.fields).toMatchObject({ candidate_id: "SP-003" })
 })
 
+test("lowCostPrefersEligibleMemberOverCheaperIneligible", () => {
+  // C1 = 0.7: only A and B (Pareto members) clear it. C is the cheapest member overall but does not clear C1,
+  // so low_cost must be the eligible B (not C), and with an eligible member available no fallback is logged.
+  const objs = candidateObjectives(
+    results([
+      { id: "SP-001", v: [0.9, 50, 0.5, 0.5, 0.9] }, // A: best r_solar
+      { id: "SP-002", v: [0.75, 55, 0.6, 0.6, 0.6] }, // B: eligible, cheaper than A
+      { id: "SP-003", v: [0.6, 54, 0.55, 0.55, 0.05] }, // C: cheapest, ineligible
+      { id: "SP-004", v: [0.68, 45, 0.25, 0.25, 0.4] }, // D: balanced, ineligible
+    ]),
+  )
+  expect(
+    paretoFront(
+      objs.map((o) => o.values),
+      SENSE,
+    ),
+  ).toEqual([true, true, true, true])
+  const got = capture()
+  const s = shortlist(objs, new Float64Array(4), 0.7)
+  expect(s).toEqual({
+    high_performing: "SP-001",
+    balanced: "SP-004",
+    low_cost: "SP-002",
+  })
+  expect(got.some((e) => e.event === "shortlist.low_cost_fallback")).toBe(false)
+  // C1 = 0.8: A is the only eligible member and high_performing already took it, so low_cost falls
+  // back to the cheapest remaining member (C) and says so
+  const got2 = capture()
+  const t = shortlist(objs, new Float64Array(4), 0.8)
+  expect(t.low_cost).toBe("SP-003")
+  expect(
+    got2.filter((e) => e.event === "shortlist.low_cost_fallback").length,
+  ).toBe(1)
+})
+
 test("shortlistDeterministic", () => {
   const objs = candidateObjectives(results(four))
   const a = shortlist(objs, new Float64Array(4), 0.55)

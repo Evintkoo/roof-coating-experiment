@@ -395,3 +395,18 @@ test("optimizeRequiresAllThreeInputFilesExit5", async () => {
   const none = await run(["optimize", "--max-load", "1000"])
   expect(none.exitCode).toBe(2)
 })
+
+test("optimizeTruncatedDrawsCsvExit5", async () => {
+  const dir = await simulated()
+  const path = join(dir, "draws.csv")
+  const lines = readFileSync(path, "utf8").split("\n")
+  // header + all but the last 3 data rows: n_mc x feasible candidates no longer matches
+  writeFileSync(path, `${lines.slice(0, -4).join("\n")}\n`)
+  const r = await optimize(dir)
+  expect(r.exitCode).toBe(5)
+  expect(lastEvent(r, "error.raised")).toMatchObject({
+    code: 5,
+    key: "draws.csv",
+  })
+  expect(existsSync(join(dir, "pareto.csv"))).toBe(false)
+})
