@@ -13,7 +13,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DESIGN_COLUMNS } from "../../src/core/columns"
 import { parseCsv, toCsv } from "../../src/core/csv"
-import { PARETO_COLUMNS, validatePareto } from "../../src/core/pipeline/tables"
+import {
+  PARETO_COLUMNS,
+  SENS_COLUMNS,
+  validatePareto,
+  validateSens,
+} from "../../src/core/pipeline/tables"
 import { copyConfigWith, events, lastEvent, repoRoot, run } from "../helpers"
 
 const tmpOut = () => join(mkdtempSync(join(tmpdir(), "spandek-out-")), "out")
@@ -409,4 +414,44 @@ test("optimizeTruncatedDrawsCsvExit5", async () => {
     key: "draws.csv",
   })
   expect(existsSync(join(dir, "pareto.csv"))).toBe(false)
+})
+
+// ---- sensitivity (plan 03 Task 6) ----
+const sensitivity = (dir: string, extra: string[] = ["--n", "8"]) =>
+  run(["sensitivity", "--in", dir, "--max-load", "1000", ...extra])
+
+test("sensitivityWritesValidatedCsvAtomically", async () => {
+  const dir = await simulated()
+  const r = await sensitivity(dir)
+  expect(r.exitCode).toBe(0)
+  const text = readFileSync(join(dir, "sensitivity.csv"), "utf8")
+  expect(text.split("\n")[0]).toBe(SENS_COLUMNS.join(","))
+  const rows = parseCsv(text)
+  expect(rows.length).toBe(4 * 11 * 4)
+  const typed = validateSens(
+    rows.map((x) => ({ ...x, value: Number(x.value), conf: Number(x.conf) })),
+  )
+  expect(typed.length).toBe(rows.length)
+  expect(existsSync(`${join(dir, "sensitivity.csv")}.tmp`)).toBe(false)
+  expect(events(r).filter((e) => e.event === "sensitivity.done").length).toBe(8)
+  // same inputs, same bytes
+  const again = await sensitivity(dir)
+  expect(again.exitCode).toBe(0)
+  expect(readFileSync(join(dir, "sensitivity.csv"), "utf8")).toBe(text)
+  const h = await run(["sensitivity", "--help"])
+  expect(h.stdout).toMatch(/Morris/)
+})
+
+test("sensitivityRequiresAllThreeInputFilesExit5", async () => {
+  for (const f of ["run_meta.json", "results.csv", "draws.csv"]) {
+    const dir = await simulated()
+    rmSync(join(dir, f))
+    const r = await sensitivity(dir)
+    expect(r.exitCode).toBe(5)
+    expect(lastEvent(r, "error.raised")).toMatchObject({ code: 5, key: f })
+    expect(existsSync(join(dir, "sensitivity.csv"))).toBe(false)
+  }
+  expect((await run(["sensitivity", "--max-load", "1000"])).exitCode).toBe(2)
+  const dir = await simulated()
+  expect((await sensitivity(dir, ["--n", "1"])).exitCode).toBe(2)
 })

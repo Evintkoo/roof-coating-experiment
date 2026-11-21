@@ -18,10 +18,13 @@ import {
 import { ConfigError, DataError, SpandekError } from "../core/errors"
 import type { Level } from "../core/events"
 import { buildPareto, candidateObjectives } from "../core/pipeline/optimize"
+import { runSensitivity } from "../core/pipeline/sensitivity"
 import {
   PARETO_COLUMNS,
   parseDrawsCsv,
+  SENS_COLUMNS,
   validatePareto,
+  validateSens,
 } from "../core/pipeline/tables"
 import { parseResultsCsv, validateDesign } from "../core/schema"
 import {
@@ -30,6 +33,7 @@ import {
   loadMaterialRanges,
   loadWeather,
 } from "./config"
+import { loadContext } from "./context"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
@@ -283,6 +287,45 @@ async function optimizeCommand(ctx: Ctx): Promise<void> {
   )
 }
 
+const SENSITIVITY_HELP =
+  "sensitivity --in DIR [--n 1024] [--seed N]: global sensitivity of the full C4 stack over 11 variables (7 design variables, sol-gel pH, irradiance, air temperature, wind): Morris screening (20 trajectories) and Sobol indices (Saltelli 2010 first order, Jansen total; n x 13 evaluations) for t_max_c, r_solar, corrosion_risk and gel_time_rel. Reads run_meta.json, results.csv and draws.csv from DIR (all three required; the seed defaults to run_meta.json's) and writes DIR/sensitivity.csv: output, method, variable, index (S1, ST, mu_star, sigma), value, conf (95 % half-width; 0 for sigma)."
+
+async function sensitivityCommand(ctx: Ctx): Promise<void> {
+  const dir = strFlag(ctx.flags, "--in")
+  const n = intFlag(ctx.flags, "--n", false) ?? 1024
+  if (n < 2) throw new ConfigError("n", "must be at least 2")
+  const metaText = readInput(dir, "run_meta.json")
+  // results.csv and draws.csv are completion evidence only: they must exist and parse, the analysis re-evaluates the models
+  parseResultsCsv(readInput(dir, "results.csv"))
+  parseDrawsCsv(readInput(dir, "draws.csv"))
+  let meta: unknown
+  try {
+    meta = JSON.parse(metaText)
+  } catch {
+    throw new ConfigError("run_meta.json", "not valid JSON")
+  }
+  const metaSeed = (meta as { seed?: unknown } | null)?.seed
+  const seed = intFlag(ctx.flags, "--seed", false) ?? metaSeed
+  if (typeof seed !== "number" || !Number.isInteger(seed) || seed < 0)
+    throw new ConfigError(
+      "seed",
+      "run_meta.json needs an integer seed (or pass --seed)",
+    )
+  lowerPriority()
+  const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+  const rows = validateSens(runSensitivity(mctx, seed, n))
+  const path = join(dir, "sensitivity.csv")
+  const tmp = `${path}.tmp`
+  try {
+    writeFileSync(tmp, toCsv(SENS_COLUMNS, rows))
+  } catch (e) {
+    rmSync(tmp, { force: true })
+    throw e
+  }
+  renameSync(tmp, path)
+  console.log(`sensitivity: ${rows.length} rows, n = ${n}, seed ${seed}`)
+}
+
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
   await fetchData(ctx.dataDir)
   await verifyData(ctx.dataDir)
@@ -307,6 +350,12 @@ const COMMANDS: Record<string, Command> = {
     valueFlags: ["--in"],
     switches: [],
     run: optimizeCommand,
+  },
+  sensitivity: {
+    help: SENSITIVITY_HELP,
+    valueFlags: ["--in", "--n", "--seed"],
+    switches: [],
+    run: sensitivityCommand,
   },
   simulate: {
     help: "simulate --design DIR --out DIR --seed N [--n-mc N]: run the candidates through the models with parameter uncertainty.",

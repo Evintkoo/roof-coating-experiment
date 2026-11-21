@@ -89,6 +89,7 @@ def build_fixtures() -> dict[str, str]:
         "thermal.json": json.dumps(thermal_fixture(), separators=(",", ":")) + "\n",
         "mie.json": json.dumps(mie_fixture(), separators=(",", ":")) + "\n",
         "solgel.json": json.dumps(solgel_fixture(), separators=(",", ":")) + "\n",
+        "sobol.json": json.dumps(sobol_fixture(), separators=(",", ":")) + "\n",
     }
 
 
@@ -354,6 +355,52 @@ def solgel_fixture() -> dict:
         "scipy": __import__("scipy").__version__,
         "method": "DOP853 rtol=1e-11, h capped at min(1, r_w) by event, gel by event p=c*h=p_c; null = never gels",
         "cases": cases,
+    }
+
+
+# ---- Sobol oracle: Ishigami with scipy.stats.sobol_indices and SALib, plan 03 Task 6 (H2) ----------
+SOBOL_SEED = 20261121
+SOBOL_N = 2**14
+ISHI_A = 7.0
+ISHI_B = 0.1
+
+
+def ishigami(x):
+    """x is (3, n) or (n, 3)-transposed by the caller; columns are x1, x2, x3 on [-pi, pi]."""
+    return np.sin(x[0]) + ISHI_A * np.sin(x[1]) ** 2 + ISHI_B * x[2] ** 4 * np.sin(x[0])
+
+
+def sobol_fixture() -> dict:
+    from SALib.analyze import sobol as salib_sobol
+    from SALib.sample import sobol as salib_sample
+    from scipy import stats
+
+    dists = [stats.uniform(loc=-math.pi, scale=2 * math.pi)] * 3
+    res = stats.sobol_indices(
+        func=ishigami, n=SOBOL_N, dists=dists, random_state=np.random.default_rng(SOBOL_SEED)
+    )
+    problem = {"num_vars": 3, "names": ["x1", "x2", "x3"], "bounds": [[-math.pi, math.pi]] * 3}
+    pts = salib_sample.sample(problem, SOBOL_N, calc_second_order=False, scramble=True, seed=SOBOL_SEED)
+    y = ishigami(pts.T)
+    sa = salib_sobol.analyze(
+        problem, y, calc_second_order=False, num_resamples=100, conf_level=0.95, seed=SOBOL_SEED
+    )
+    r = lambda v: [round(float(t), 6) for t in v]  # noqa: E731
+    return {
+        "function": f"Ishigami a={ISHI_A} b={ISHI_B} on [-pi, pi]^3",
+        "n": SOBOL_N,
+        "seed": SOBOL_SEED,
+        "versions": {
+            "scipy": __import__("scipy").__version__,
+            "numpy": np.__version__,
+            "SALib": importlib.metadata.version("SALib"),
+        },
+        "analytic": {"S1": [0.3139, 0.4424, 0.0], "ST": [0.5576, 0.4424, 0.2437]},
+        "scipy": {
+            "first_order": r(res.first_order),
+            "total_order": r(res.total_order),
+        },
+        "salib": {"S1": r(sa["S1"]), "ST": r(sa["ST"]), "S1_conf": r(sa["S1_conf"]), "ST_conf": r(sa["ST_conf"])},
     }
 
 
