@@ -1,0 +1,78 @@
+import { appendFileSync } from "node:fs"
+import { join } from "node:path"
+import { type Level, setEventSink } from "../core/events"
+
+type Fields = Record<string, string | number | boolean>
+
+const MAX_BYTES = 2048
+const RANK: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 }
+/** error.raised may carry only these fields: never free text. */
+const ERROR_RAISED_FIELDS = new Set(["code", "phase", "key"])
+
+let runId = "unconfigured"
+let minLevel: Level = "info"
+let runDir: string | undefined
+
+export function newRunId(): string {
+  const d = new Date()
+  const p = (n: number, w = 2) => String(n).padStart(w, "0")
+  const ts = `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}T${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}${p(d.getUTCMilliseconds(), 3)}`
+  return `${ts}-${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`
+}
+
+export function configureLogging(opts: {
+  runId: string
+  level: Level
+  runDir?: string
+}): void {
+  runId = opts.runId
+  minLevel = opts.level
+  runDir = opts.runDir
+  setEventSink(emit)
+}
+
+const json = (r: Record<string, unknown>) => JSON.stringify(r)
+const bytes = (s: string) => Buffer.byteLength(s)
+
+function sanitize(v: string | number | boolean): string | number | boolean {
+  if (typeof v === "number" && !Number.isFinite(v)) {
+    return Number.isNaN(v) ? "NaN" : v > 0 ? "Infinity" : "-Infinity"
+  }
+  return v
+}
+
+export function emit(event: string, level: Level, fields: Fields): void {
+  try {
+    if (RANK[level] < RANK[minLevel]) return
+    const base: Record<string, unknown> = {
+      ts: new Date().toISOString(),
+      run: runId,
+      level,
+      event,
+    }
+    let line = json(base)
+    const restricted = event === "error.raised"
+    let truncated = false
+    for (const [k, raw] of Object.entries(fields)) {
+      if (k in base || k === "truncated") continue
+      if (restricted && !ERROR_RAISED_FIELDS.has(k)) continue
+      const next = { ...base, [k]: sanitize(raw) }
+      const nextLine = json(next)
+      // reserve room for the ` "truncated":true` marker
+      if (bytes(nextLine) > MAX_BYTES - 20) {
+        truncated = true
+        continue
+      }
+      Object.assign(base, next)
+      line = nextLine
+    }
+    if (truncated) {
+      base.truncated = true
+      line = json(base)
+    }
+    if (runDir) appendFileSync(join(runDir, "events.jsonl"), `${line}\n`)
+    else process.stderr.write(`${line}\n`)
+  } catch {
+    // logging must never mask the real error
+  }
+}
