@@ -17,16 +17,27 @@ import {
 } from "../core/design"
 import { ConfigError, DataError, SpandekError } from "../core/errors"
 import type { Level } from "../core/events"
+import { safeJson } from "../core/json"
+import { buildControls } from "../core/pipeline/controls"
 import { buildPareto, candidateObjectives } from "../core/pipeline/optimize"
 import { runSensitivity } from "../core/pipeline/sensitivity"
 import {
+  CONTROL_COLUMNS,
+  CONTROL_NAN_COLUMNS,
   PARETO_COLUMNS,
   parseDrawsCsv,
+  parseParetoCsv,
+  parseSensCsv,
+  ROLES,
   SENS_COLUMNS,
   validatePareto,
   validateSens,
 } from "../core/pipeline/tables"
-import { parseResultsCsv, validateDesign } from "../core/schema"
+import {
+  type FlaggedDesignRow,
+  parseResultsCsv,
+  validateDesign,
+} from "../core/schema"
 import {
   configSha256,
   loadControls,
@@ -37,6 +48,9 @@ import { loadContext } from "./context"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
+import { writeCard } from "./report/cards"
+import { buildCurves, buildSpectra } from "./report/curves"
+import { writeManifest } from "./report/manifest"
 import { checkLoad, lowerPriority, runWithTimeout } from "./resources"
 import { effectiveWorkers, runSimulate } from "./simulate"
 
@@ -326,6 +340,125 @@ async function sensitivityCommand(ctx: Ctx): Promise<void> {
   console.log(`sensitivity: ${rows.length} rows, n = ${n}, seed ${seed}`)
 }
 
+const REPORT_HELP =
+  "report --in DIR: candidate cards, controls, curve data and run manifest from a finished run. Requires run_meta.json, results.csv, draws.csv, pareto.csv and sensitivity.csv in DIR (missing: exit 5) and writes into DIR: candidate_cards/<role>_<id>.md (seven fields, decision by the plan 03 D6 rule), controls.csv (C0, C1 per scenario; C2, C3 per shortlisted candidate and scenario; nominal only), curves.json and spectra.json (nominal plus p5-p95 band for the shortlist), run_manifest.json (hashes of config, data and every output)."
+
+function writeAtomic(path: string, text: string): void {
+  const tmp = `${path}.tmp`
+  try {
+    writeFileSync(tmp, text)
+  } catch (e) {
+    rmSync(tmp, { force: true })
+    throw e
+  }
+  renameSync(tmp, path)
+}
+
+async function reportCommand(ctx: Ctx): Promise<void> {
+  const dir = strFlag(ctx.flags, "--in")
+  // every input must exist before anything is written; run_meta.json is simulate's completion marker
+  const metaText = readInput(dir, "run_meta.json")
+  const resultsText = readInput(dir, "results.csv")
+  readInput(dir, "draws.csv")
+  const paretoText = readInput(dir, "pareto.csv")
+  const sensText = readInput(dir, "sensitivity.csv")
+  let meta: Record<string, unknown>
+  try {
+    meta = JSON.parse(metaText) as Record<string, unknown>
+  } catch {
+    throw new ConfigError("run_meta.json", "not valid JSON")
+  }
+  const { seed, n_mc: nMc, run_id: runId } = meta
+  if (typeof seed !== "number" || !Number.isInteger(seed) || seed < 0)
+    throw new ConfigError("seed", "run_meta.json needs an integer seed")
+  if (typeof nMc !== "number" || !Number.isInteger(nMc) || nMc < 1)
+    throw new ConfigError("n_mc", "run_meta.json needs an integer n_mc >= 1")
+  if (typeof runId !== "string" || runId === "")
+    throw new ConfigError("run_id", "run_meta.json needs a run_id")
+  const results = parseResultsCsv(resultsText)
+  parseDrawsCsv(readInput(dir, "draws.csv"))
+  const pareto = parseParetoCsv(paretoText)
+  parseSensCsv(sensText)
+
+  const shortlist: Record<string, string> = {}
+  for (const p of pareto) if (p.role !== "") shortlist[p.role] = p.candidate_id
+  if (
+    ROLES.some((r) => shortlist[r] === undefined) ||
+    Object.keys(shortlist).length !== ROLES.length
+  )
+    throw new DataError(
+      "pareto.csv",
+      "pareto.csv needs exactly the three shortlist roles",
+    )
+
+  lowerPriority()
+  const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+  const seen = new Set<string>()
+  const design: FlaggedDesignRow[] = []
+  for (const r of results) {
+    if (seen.has(r.candidate_id)) continue
+    seen.add(r.candidate_id)
+    design.push({
+      candidate_id: r.candidate_id,
+      primer_gptes_molfrac: r.primer_gptes_molfrac,
+      primer_dft_um: r.primer_dft_um,
+      midcoat_pvc: r.midcoat_pvc,
+      midcoat_tio2_fraction: r.midcoat_tio2_fraction,
+      midcoat_dft_um: r.midcoat_dft_um,
+      topcoat_mtes_molfrac: r.topcoat_mtes_molfrac,
+      topcoat_dft_um: r.topcoat_dft_um,
+      feasible: r.feasible,
+      violations: "",
+    })
+  }
+  const weather = weatherL9(mctx.weather)
+  const controls = buildControls(shortlist, design, weather, mctx)
+  const curves = buildCurves(
+    results,
+    shortlist,
+    design,
+    weather,
+    mctx,
+    nMc,
+    seed,
+  )
+  const spectra = buildSpectra(shortlist, design, mctx, nMc, seed)
+  const controlsCsv = toCsv(CONTROL_COLUMNS, controls, {
+    nanColumns: CONTROL_NAN_COLUMNS,
+  })
+  const curvesJson = `${safeJson(curves, 2)}\n`
+  const spectraJson = `${safeJson(spectra, 2)}\n`
+
+  writeAtomic(join(dir, "controls.csv"), controlsCsv)
+  writeAtomic(join(dir, "curves.json"), curvesJson)
+  writeAtomic(join(dir, "spectra.json"), spectraJson)
+  const files = [
+    "run_meta.json",
+    "results.csv",
+    "draws.csv",
+    "pareto.csv",
+    "sensitivity.csv",
+    "controls.csv",
+    "curves.json",
+    "spectra.json",
+  ]
+  for (const role of ROLES) {
+    const id = shortlist[role] as string
+    const freq = pareto.find((p) => p.candidate_id === id)
+      ?.pareto_freq as number
+    const path = await writeCard(id, role, results, controls, mctx, dir, freq)
+    files.push(`candidate_cards/${path.split("/").pop()}`)
+  }
+  await writeManifest(dir, mctx, seed, nMc, files, {
+    runId,
+    configDir: ctx.configDir,
+    dataDir: ctx.dataDir,
+  })
+  console.log(
+    `report: 3 cards, ${controls.length} control rows, ${curves.series.length} curve series, manifest written`,
+  )
+}
+
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
   await fetchData(ctx.dataDir)
   await verifyData(ctx.dataDir)
@@ -356,6 +489,12 @@ const COMMANDS: Record<string, Command> = {
     valueFlags: ["--in", "--n", "--seed"],
     switches: [],
     run: sensitivityCommand,
+  },
+  report: {
+    help: REPORT_HELP,
+    valueFlags: ["--in"],
+    switches: [],
+    run: reportCommand,
   },
   simulate: {
     help: "simulate --design DIR --out DIR --seed N [--n-mc N]: run the candidates through the models with parameter uncertainty.",

@@ -8,7 +8,10 @@ import {
   type DrawRow,
   PARETO_COLUMNS,
   type ParetoRow,
+  parseControlsCsv,
   parseDrawsCsv,
+  parseParetoCsv,
+  parseSensCsv,
   SENS_COLUMNS,
   validateControls,
   validateCurves,
@@ -270,4 +273,56 @@ test("curvesAndSpectraValidators", () => {
       series: [{ ...spectra.series[1], r: [0.2, Number.NaN] }],
     }),
   )
+})
+
+test("parseParetoSensControlsCsvRoundTrip", () => {
+  const paretoRows = [
+    {
+      candidate_id: "SP-001",
+      r_solar_pred: 0.8,
+      t_max_pred: 60,
+      corrosion_proxy: 0.2,
+      delam_proxy: 0.3,
+      cost_proxy: 0.4,
+      t_max_worst: 66,
+      on_front: true,
+      pareto_freq: 0.75,
+      role: "balanced",
+    },
+  ]
+  expect(parseParetoCsv(toCsv(PARETO_COLUMNS, paretoRows))).toEqual(
+    validatePareto(paretoRows),
+  )
+  const sens = [
+    {
+      output: "t_max_c",
+      method: "sobol",
+      variable: "T1",
+      index: "S1",
+      value: 0.1,
+      conf: 0.02,
+    },
+  ]
+  expect(parseSensCsv(toCsv(SENS_COLUMNS, sens))).toEqual(validateSens(sens))
+  const ctl = [
+    {
+      control_id: "C1",
+      for_candidate: "-",
+      scenario_id: "W1",
+      r_solar_pred: 0.9,
+      t_max_pred: 50,
+      q_in_mean_w_m2: 10,
+      corrosion_proxy: Number.NaN,
+      wetting_proxy: Number.NaN,
+      wetting_theta_pred: Number.NaN,
+      delam_proxy: Number.NaN,
+      cost_proxy: Number.NaN,
+      gel_time_rel: Number.NaN,
+      unmodelled:
+        "corrosion_proxy;wetting_proxy;wetting_theta_pred;delam_proxy;cost_proxy;gel_time_rel",
+    },
+  ]
+  const text = toCsv(CONTROL_COLUMNS, ctl, { nanColumns: CONTROL_NAN_COLUMNS })
+  expect(parseControlsCsv(text)).toEqual(validateControls(ctl))
+  expect(() => parseParetoCsv("a,b\n1,2\n")).toThrow(ConfigError)
 })

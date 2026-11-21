@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -14,10 +15,14 @@ import { join } from "node:path"
 import { DESIGN_COLUMNS } from "../../src/core/columns"
 import { parseCsv, toCsv } from "../../src/core/csv"
 import {
+  CONTROL_COLUMNS,
   PARETO_COLUMNS,
+  parseControlsCsv,
   SENS_COLUMNS,
+  validateCurves,
   validatePareto,
   validateSens,
+  validateSpectra,
 } from "../../src/core/pipeline/tables"
 import { copyConfigWith, events, lastEvent, repoRoot, run } from "../helpers"
 
@@ -461,4 +466,136 @@ test("sensitivityAppliesGlobalLoadGuardExit6", async () => {
   const r = await run(["sensitivity", "--in", dir, "--max-load", "-1"])
   expect(r.exitCode).toBe(6)
   expect(existsSync(join(dir, "sensitivity.csv"))).toBe(false)
+})
+
+// ---- report (plan 03 Task 7) ----
+let prepped: string | undefined
+/** simulate + optimize + sensitivity once (tiny n); each test works on its own copy. */
+async function readyForReport(): Promise<string> {
+  if (prepped === undefined) {
+    const dir = await simulated()
+    expect((await optimize(dir)).exitCode).toBe(0)
+    expect((await sensitivity(dir)).exitCode).toBe(0)
+    prepped = dir
+  }
+  const copy = tmpOut()
+  cpSync(prepped, copy, { recursive: true })
+  return copy
+}
+const report = (dir: string) =>
+  run(["report", "--in", dir, "--max-load", "1000"])
+const sha = (p: string) =>
+  createHash("sha256").update(readFileSync(p)).digest("hex")
+
+test("reportWritesCardsControlsCurvesSpectraManifest", async () => {
+  const dir = await readyForReport()
+  const r = await report(dir)
+  expect(r.exitCode).toBe(0)
+  const roles = parseCsv(readFileSync(join(dir, "pareto.csv"), "utf8")).filter(
+    (x) => x.role !== "",
+  )
+  const cards = roles.map((x) =>
+    join(dir, "candidate_cards", `${x.role}_${x.candidate_id}.md`),
+  )
+  expect(cards.length).toBe(3)
+  for (const c of cards)
+    expect(readFileSync(c, "utf8")).toContain("### Decision")
+  // controls: C0, C1 once per scenario, C2 and C3 per shortlisted candidate and scenario
+  const ctl = parseControlsCsv(readFileSync(join(dir, "controls.csv"), "utf8"))
+  expect(ctl.length).toBe(9 * 2 + 3 * 9 * 2)
+  expect(readFileSync(join(dir, "controls.csv"), "utf8").split("\n")[0]).toBe(
+    CONTROL_COLUMNS.join(","),
+  )
+  const curves = validateCurves(
+    JSON.parse(readFileSync(join(dir, "curves.json"), "utf8")),
+  )
+  expect(curves.n_mc).toBe(4)
+  expect(curves.series.length).toBe(99)
+  const spectra = validateSpectra(
+    JSON.parse(readFileSync(join(dir, "spectra.json"), "utf8")),
+  )
+  expect(spectra.wl_um.length).toBe(221)
+  // manifest: every listed file exists with the right hash; the run id comes from run_meta.json
+  const man = JSON.parse(
+    readFileSync(join(dir, "run_manifest.json"), "utf8"),
+  ) as { run_id: string; files: { path: string; sha256: string }[] }
+  const meta = JSON.parse(readFileSync(join(dir, "run_meta.json"), "utf8"))
+  expect(man.run_id).toBe(meta.run_id)
+  const paths = man.files.map((f) => f.path)
+  for (const want of [
+    "results.csv",
+    "draws.csv",
+    "pareto.csv",
+    "sensitivity.csv",
+    "controls.csv",
+    "curves.json",
+    "spectra.json",
+    "run_meta.json",
+    ...cards.map((c) => `candidate_cards/${c.split("/").pop()}`),
+  ])
+    expect(paths).toContain(want)
+  for (const f of man.files) expect(f.sha256).toBe(sha(join(dir, f.path)))
+  expect(listTmp(dir)).toEqual([])
+  expect(events(r).filter((e) => e.event === "card.written").length).toBe(3)
+  expect(events(r).filter((e) => e.event === "manifest.written").length).toBe(1)
+  const h = await run(["report", "--help"])
+  expect(h.stdout).toMatch(/candidate_cards/)
+})
+
+function listTmp(dir: string): string[] {
+  return readdirSync(dir, { recursive: true })
+    .map(String)
+    .filter((f) => f.endsWith(".tmp"))
+}
+
+test("reportSameInputsSameBytes", async () => {
+  const a = await readyForReport()
+  expect((await report(a)).exitCode).toBe(0)
+  const first = [
+    "curves.json",
+    "spectra.json",
+    "controls.csv",
+    "run_manifest.json",
+  ].map((f) => sha(join(a, f)))
+  expect((await report(a)).exitCode).toBe(0)
+  expect(
+    ["curves.json", "spectra.json", "controls.csv", "run_manifest.json"].map(
+      (f) => sha(join(a, f)),
+    ),
+  ).toEqual(first)
+})
+
+test("reportMissingInputExit5AndWritesNothing", async () => {
+  for (const f of [
+    "run_meta.json",
+    "results.csv",
+    "draws.csv",
+    "pareto.csv",
+    "sensitivity.csv",
+  ]) {
+    const dir = await readyForReport()
+    rmSync(join(dir, f))
+    const r = await report(dir)
+    expect(r.exitCode).toBe(5)
+    expect(lastEvent(r, "error.raised")).toMatchObject({ code: 5, key: f })
+    noTrace(r.stderr)
+    expect(existsSync(join(dir, "run_manifest.json"))).toBe(false)
+    expect(existsSync(join(dir, "candidate_cards"))).toBe(false)
+    expect(existsSync(join(dir, "controls.csv"))).toBe(false)
+  }
+})
+
+test("reportRejectsCorruptTableExit2OrFive", async () => {
+  const dir = await readyForReport()
+  writeFileSync(join(dir, "pareto.csv"), "candidate_id\nSP-001\n")
+  const r = await report(dir)
+  expect([2, 5]).toContain(r.exitCode)
+  expect(existsSync(join(dir, "run_manifest.json"))).toBe(false)
+})
+
+test("reportAppliesGlobalLoadGuardExit6", async () => {
+  const dir = await readyForReport()
+  const r = await run(["report", "--in", dir, "--max-load", "-1"])
+  expect(r.exitCode).toBe(6)
+  expect(existsSync(join(dir, "run_manifest.json"))).toBe(false)
 })

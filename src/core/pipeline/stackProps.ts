@@ -213,7 +213,11 @@ export function evaluate(
  * (see unmodelledColumns(_, true)). C_A is the bare substrate value: the datasheet gives no DFT.
  * Immaterial: the substrate-only C_A changes day-2 T_max by about 7e-7 K at a 300 um coating.
  */
-export function evaluateC1(s: Weather, ctx: ModelContext): Outcome {
+export function evaluateC1(
+  s: Weather,
+  ctx: ModelContext,
+  opts: { series?: boolean } = {},
+): Outcome {
   const nan = Number.NaN
   const sp: StackProps = {
     r_solar: ctx.controls.c1_r_solar.value,
@@ -229,7 +233,7 @@ export function evaluateC1(s: Weather, ctx: ModelContext): Outcome {
     gel_time_rel: nan,
     spectrum: null,
   }
-  return thermalOutcomes([{ sp, s }], ctx)[0] as Outcome
+  return thermalOutcomes([{ sp, s }], ctx, opts)[0] as Outcome
 }
 
 /**

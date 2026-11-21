@@ -398,3 +398,63 @@ export function validateSpectra(j: unknown): SpectraJson {
   })
   return j as SpectraJson
 }
+
+const STRING_COLUMNS = new Set([
+  "candidate_id",
+  "role",
+  "control_id",
+  "for_candidate",
+  "scenario_id",
+  "unmodelled",
+  "output",
+  "method",
+  "variable",
+  "index",
+])
+
+function parseTable(
+  input: string,
+  columns: readonly string[],
+  where: string,
+  opts?: Parameters<typeof coerceCell>[2],
+  bools: readonly string[] = [],
+): Rec[] {
+  const text = input.startsWith("﻿") ? input.slice(1) : input
+  const first = text.split("\n", 1)[0]?.replace(/\r$/, "") ?? ""
+  if (first !== columns.join(","))
+    throw new ConfigError(
+      "header",
+      `${where}: header differs from the contract`,
+    )
+  return parseCsv(text).map((rec) => {
+    const o: Rec = {}
+    for (const [k, v] of Object.entries(rec)) {
+      if (STRING_COLUMNS.has(k)) o[k] = v
+      else if (bools.includes(k)) {
+        if (v !== "true" && v !== "false")
+          throw new ConfigError(k, `${where}: ${k} must be true or false`)
+        o[k] = v === "true"
+      } else o[k] = coerceCell(k, v, opts)
+    }
+    return o
+  })
+}
+
+/** Parse pareto.csv text (strict header) into validated rows. */
+export const parseParetoCsv = (input: string): ParetoRow[] =>
+  validatePareto(
+    parseTable(input, PARETO_COLUMNS, "pareto.csv", undefined, ["on_front"]),
+  )
+
+/** Parse sensitivity.csv text (strict header) into validated rows. */
+export const parseSensCsv = (input: string): SensRow[] =>
+  validateSens(parseTable(input, SENS_COLUMNS, "sensitivity.csv"))
+
+/** Parse controls.csv text (strict header; empty cells only in the unmodelled columns) into validated rows. */
+export const parseControlsCsv = (input: string): ControlRow[] =>
+  validateControls(
+    parseTable(input, CONTROL_COLUMNS, "controls.csv", {
+      nanColumns: CONTROL_NAN_COLUMNS,
+      infColumns: new Set(["gel_time_rel"]),
+    }),
+  )
