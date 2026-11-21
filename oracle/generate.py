@@ -93,6 +93,7 @@ def build_fixtures() -> dict[str, str]:
         "sobol.json": json.dumps(sobol_fixture(), separators=(",", ":")) + "\n",
         "gradient.json": json.dumps(gradient_fixture(), separators=(",", ":")) + "\n",
         "benchmarks.json": json.dumps(gradient_benchmarks(), separators=(",", ":")) + "\n",
+        "optimisation.json": json.dumps(optimisation_fixture(), separators=(",", ":")) + "\n",
     }
 
 
@@ -573,6 +574,182 @@ def gradient_benchmarks() -> dict:
 
     add("exp_product", {}, 3, prod_f, prod_g, 16)
     return {"versions": {"mpmath": importlib.metadata.version("mpmath")}, "dps": GRAD_DPS, "functions": out}
+
+
+# ---- optimiser oracle (plan 05 Task 4, H3) ------------------------------------------------------
+# Six problems on the scaled box [0,1]^n. The known optimum comes from a closed form or from a KKT-verified active-set
+# solve in mpmath (never from scipy); scipy L-BFGS-B / SLSQP at tight tolerances is the second, independent witness.
+def _spd(n: int, cond: float, seed: int) -> list[list[float]]:
+    """Fixed SPD matrix with eigenvalues log-spaced in [1, cond]: Q diag Q^T with Q from a Householder product."""
+    rng = np.random.default_rng(seed)
+    q = np.eye(n)
+    for _ in range(3):
+        v = rng.standard_normal(n)
+        v /= np.linalg.norm(v)
+        q = q @ (np.eye(n) - 2 * np.outer(v, v))
+    lam = np.logspace(0, math.log10(cond), n)
+    a = q @ np.diag(lam) @ q.T
+    a = np.round((a + a.T) / 2, 6)
+    assert np.linalg.eigvalsh(a).min() > 0.5
+    return a.tolist()
+
+
+def _kkt_box_quadratic(a: list[list[float]], c: list[float]) -> tuple[list[float], list[int]]:
+    """min 0.5 (u-c)^T A (u-c) on [0,1]^n: active set from scipy, then an exact 60-digit solve and a KKT check."""
+    from scipy.optimize import minimize
+
+    n = len(c)
+    an = np.array(a)
+    cn = np.array(c)
+    res = minimize(
+        lambda u: 0.5 * (u - cn) @ an @ (u - cn),
+        np.full(n, 0.5),
+        jac=lambda u: an @ (u - cn),
+        bounds=[(0, 1)] * n,
+        method="L-BFGS-B",
+        options={"ftol": 1e-16, "gtol": 1e-13, "maxiter": 10000},
+    )
+    mpmath.mp.dps = GRAD_DPS
+    at = [i for i in range(n) if res.x[i] < 1e-7 or res.x[i] > 1 - 1e-7]
+    free = [i for i in range(n) if i not in at]
+    u = [mpmath.mpf(0)] * n
+    for i in at:
+        u[i] = mpmath.mpf(1 if res.x[i] > 0.5 else 0)
+    if free:
+        am = mpmath.matrix(a)
+        rhs = mpmath.matrix(
+            [sum(am[i, j] * mpmath.mpf(c[j]) for j in range(n)) - sum(am[i, j] * u[j] for j in at) for i in free]
+        )
+        sub = mpmath.matrix([[am[i, j] for j in free] for i in free])
+        sol = mpmath.lu_solve(sub, rhs)
+        for k, i in enumerate(free):
+            u[i] = sol[k]
+    g = [sum(mpmath.mpf(a[i][j]) * (u[j] - mpmath.mpf(c[j])) for j in range(n)) for i in range(n)]
+    for i in range(n):
+        if i in free:
+            assert 0 < u[i] < 1 and abs(g[i]) < mpmath.mpf("1e-40")
+        elif u[i] == 0:
+            assert g[i] >= 0
+        else:
+            assert g[i] <= 0
+    return [float(v) for v in u], at
+
+
+def optimisation_fixture() -> dict:
+    from scipy.optimize import minimize
+
+    probs = []
+
+    def finish(pid, kind, params, cons, u0, ustar, fval, scipy_res, method):
+        us = np.array(ustar)
+        probs.append(
+            {
+                "id": pid,
+                "kind": kind,
+                "params": params,
+                "cons": cons,
+                "u0": u0,
+                "ustar": ustar,
+                "fstar": float(fval),
+                "scipy": {
+                    "method": method,
+                    "u": [float(v) for v in scipy_res.x],
+                    "f": float(scipy_res.fun),
+                    "dist_to_known": float(np.linalg.norm(scipy_res.x - us)),
+                },
+            }
+        )
+        assert np.linalg.norm(scipy_res.x - us) < 1e-5, (pid, scipy_res.x, ustar)
+
+    def quad_problem(pid, a, c, u0):
+        an, cn = np.array(a), np.array(c)
+        ustar, at = _kkt_box_quadratic(a, c)
+        r = minimize(
+            lambda u: 0.5 * (u - cn) @ an @ (u - cn),
+            np.array(u0),
+            jac=lambda u: an @ (u - cn),
+            bounds=[(0, 1)] * len(c),
+            method="L-BFGS-B",
+            options={"ftol": 1e-16, "gtol": 1e-13, "maxiter": 10000},
+        )
+        us = np.array(ustar)
+        finish(pid, "quad", {"A": a, "c": c}, [], u0, ustar, 0.5 * (us - cn) @ an @ (us - cn), r, "L-BFGS-B")
+        probs[-1]["active_bounds"] = at
+
+    # P1: diagonal box quadratic, four of five bounds or interior points known in closed form (clip(c))
+    diag = [1.0, 2.0, 5.0, 10.0, 50.0]
+    a1 = [[diag[i] if i == j else 0.0 for j in range(5)] for i in range(5)]
+    c1 = [1.4, -0.3, 0.5, 0.2, 0.9]
+    quad_problem("box_quad_diag_active", a1, c1, [0.5] * 5)
+    assert probs[-1]["ustar"] == [1.0, 0.0, 0.5, 0.2, 0.9]
+
+    # P2: dense ill-conditioned (cond 300) 9-d quadratic with several active bounds
+    a2 = _spd(9, 3e2, 7)
+    c2 = [1.3, 0.4, -0.25, 0.7, 0.55, 1.2, 0.1, -0.05, 0.8]
+    quad_problem("box_quad_dense_cond3e2", a2, c2, [0.5] * 9)
+
+    # P3, P4: Rosenbrock, x_i = lo_i + (hi_i - lo_i) u_i
+    def rosen_problem(pid, lo, hi, xstar_scaled, u0, method="L-BFGS-B"):
+        lo_n, hi_n = np.array(lo), np.array(hi)
+
+        def x_of(u):
+            return lo_n + (hi_n - lo_n) * u
+
+        def f(u):
+            x = x_of(u)
+            return 100 * (x[1] - x[0] ** 2) ** 2 + (1 - x[0]) ** 2
+
+        def g(u):
+            x = x_of(u)
+            gx = np.array([-400 * x[0] * (x[1] - x[0] ** 2) - 2 * (1 - x[0]), 200 * (x[1] - x[0] ** 2)])
+            return gx * (hi_n - lo_n)
+
+        r = minimize(f, np.array(u0), jac=g, bounds=[(0, 1)] * 2, method=method,
+                     options={"ftol": 1e-16, "gtol": 1e-13, "maxiter": 10000})
+        xs = np.array(xstar_scaled)
+        ustar = [float(v) for v in (xs - lo_n) / (hi_n - lo_n)]
+        finish(pid, "rosenbrock", {"lo": lo, "hi": hi}, [], u0, ustar, f(np.array(ustar)), r, method)
+
+    rosen_problem("rosenbrock_box_interior", [-2.0, -2.0], [2.0, 2.0], [1.0, 1.0], [0.2, 0.75])
+    # active bound: x1 <= 0.5 forces x1 = 0.5, x2 = x1^2 = 0.25 (closed form, f = 0.25)
+    rosen_problem("rosenbrock_box_active", [-2.0, -1.0], [0.5, 3.0], [0.5, 0.25], [0.32, 0.5])
+    assert abs(probs[-1]["fstar"] - 0.25) < 1e-12
+
+    # P5: nearest point to c in the half-space u0+u1+u2 <= 1 inside the box; closed form (0.55, 0.45, 0)
+    c5 = [0.9, 0.8, 0.2]
+    u0_5 = [0.1, 0.1, 0.1]
+    r5 = minimize(
+        lambda u: float(np.sum((u - np.array(c5)) ** 2)),
+        np.array(u0_5),
+        jac=lambda u: 2 * (u - np.array(c5)),
+        bounds=[(0, 1)] * 3,
+        constraints=[{"type": "ineq", "fun": lambda u: 1 - np.sum(u), "jac": lambda u: -np.ones(3)}],
+        method="SLSQP",
+        options={"ftol": 1e-16, "maxiter": 500},
+    )
+    us5 = [0.55, 0.45, 0.0]
+    finish("linear_constraint_with_bound", "sqdist", {"c": c5}, [{"kind": "linear", "a": [1, 1, 1], "b": 1.0}],
+           u0_5, us5, sum((us5[i] - c5[i]) ** 2 for i in range(3)), r5, "SLSQP")
+
+    # P6: maximise u0 + u1 inside the disc u0^2 + u1^2 <= 1/2; closed form (1/2, 1/2), f = -1
+    r6 = minimize(
+        lambda u: -(u[0] + u[1]),
+        np.array([0.1, 0.2]),
+        jac=lambda u: np.array([-1.0, -1.0]),
+        bounds=[(0, 1)] * 2,
+        constraints=[{"type": "ineq", "fun": lambda u: 0.5 - u[0] ** 2 - u[1] ** 2,
+                      "jac": lambda u: np.array([-2 * u[0], -2 * u[1]])}],
+        method="SLSQP",
+        options={"ftol": 1e-16, "maxiter": 500},
+    )
+    finish("nonlinear_disc_constraint", "neg_sum", {}, [{"kind": "ball", "r2": 0.5}], [0.1, 0.2], [0.5, 0.5], -1.0, r6, "SLSQP")
+    return {
+        "description": "optimiser benchmarks on the scaled box [0,1]^n; ustar is a closed form or a KKT-verified 60-digit "
+        "active-set solve, scipy the independent second witness",
+        "versions": {"scipy": __import__("scipy").__version__, "numpy": np.__version__,
+                     "mpmath": importlib.metadata.version("mpmath")},
+        "problems": probs,
+    }
 
 
 def sums_text(files: dict[str, str]) -> str:
