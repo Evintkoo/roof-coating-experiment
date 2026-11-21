@@ -15,7 +15,12 @@ import {
   requireMinFeasible,
   weatherL9,
 } from "../core/design"
-import { ConfigError, DataError, SpandekError } from "../core/errors"
+import {
+  ConfigError,
+  DataError,
+  ResourceError,
+  SpandekError,
+} from "../core/errors"
 import type { Level } from "../core/events"
 import { safeJson } from "../core/json"
 import { buildControls } from "../core/pipeline/controls"
@@ -39,6 +44,14 @@ import {
   parseResultsCsv,
   validateDesign,
 } from "../core/schema"
+import {
+  emitQuery,
+  polish,
+  queryTable,
+  readVerifiedTable,
+  runBudgetTable,
+  validateQuery,
+} from "./budget"
 import {
   configSha256,
   loadControls,
@@ -77,6 +90,8 @@ type Command = {
   valueFlags: readonly string[]
   /** Flags (beyond the global ones) that are switches. */
   switches: readonly string[]
+  /** Pure command: takes none of the global flags (--config-dir, --data-dir, --max-load) and skips the load guard. */
+  pure?: boolean
   run: (ctx: Ctx) => Promise<void>
 }
 
@@ -522,21 +537,88 @@ async function refineCommand(ctx: Ctx): Promise<void> {
   const p3 = loadPlan3(dir)
   const seed = intFlag(flags, "--seed", false) ?? p3.seed
   lowerPriority()
-  await runWithTimeout(
-    async (signal) => {
-      const mctx = await loadContext(ctx.configDir, ctx.dataDir)
-      await runRefine(mctx, shortlistFromPareto(p3.pareto), seed, dir, {
-        out,
-        cfg,
-        ...(starts !== undefined ? { starts } : {}),
-        workers,
-        signal,
-        runId: ctx.runId,
-      })
-    },
-    limitS,
-    "refine",
+  try {
+    await runWithTimeout(
+      async (signal) => {
+        const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+        await runRefine(mctx, shortlistFromPareto(p3.pareto), seed, dir, {
+          out,
+          cfg,
+          ...(starts !== undefined ? { starts } : {}),
+          workers,
+          signal,
+          runId: ctx.runId,
+        })
+      },
+      limitS,
+      "refine",
+    )
+  } catch (e) {
+    // F8: the plan names phase refine.run for a time limit
+    if (e instanceof ResourceError)
+      throw new SpandekError(6, "refine.run", "time_limit", e.message)
+    throw e
+  }
+}
+
+const BUDGET_TABLE_HELP =
+  "budget-table --in DIR --out DIR [--workers N] [--time-limit-s S]: the performance-price frontier (plan 05 FR-9..FR-13). For each priority profile (cooling_first, balanced, durability_first) solves min Chebyshev scalar s.t. cost <= B for 100 budgets from the minimum feasible cost c_min to the cost c_max of the profile's unconstrained optimum, each level warm-started from the previous, with uncertainty intervals from 64 draws. Reads the plan-3 DIR (run_manifest.json from `report` is required: exit 5) and writes budget_table.json into the output DIR, which must lie inside --in; the SHA-256 of the table is registered in DIR/run_manifest.json extra[]. Optimum of the models, not a measured optimum (PROXY). Exit 3 no feasible recipe, 4 build failed, 5 missing input, 6 time limit (default 900 s)."
+
+async function budgetTableCommand(ctx: Ctx): Promise<void> {
+  const { flags } = ctx
+  const dir = strFlag(flags, "--in")
+  const out = strFlag(flags, "--out")
+  const workers = effectiveWorkers(intFlag(flags, "--workers", false) ?? 2)
+  const t = strFlag(flags, "--time-limit-s", "900")
+  const limitS = Number(t)
+  if (t.trim() === "" || !Number.isFinite(limitS) || limitS <= 0)
+    throw new ConfigError("time-limit-s", "must be a number above 0")
+  const cfg = await loadOptimize(join(ctx.configDir, "optimize.yaml"))
+  const p3 = loadPlan3(dir)
+  lowerPriority()
+  try {
+    await runWithTimeout(
+      async (signal) => {
+        const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+        await runBudgetTable(mctx, p3.seed, dir, {
+          out,
+          cfg,
+          workers,
+          signal,
+          runId: ctx.runId,
+        })
+      },
+      limitS,
+      "budget-table",
+    )
+  } catch (e) {
+    if (e instanceof ResourceError)
+      throw new SpandekError(6, "budget.build", "time_limit", e.message)
+    throw e
+  }
+}
+
+const BUDGET_HELP =
+  "budget --table FILE --amount B --profile P [--polish]: pure lookup in a budget_table.json built by `budget-table`: the recipe of the largest tabulated budget <= B with its cost, headroom, objectives, uncertainty intervals and the knee budget, printed as JSON. P is cooling_first, balanced or durability_first; B is in the table's cost unit (relative cost_proxy). The table's SHA-256 is checked against the run_manifest.json beside it (exit 5). B below the minimum feasible cost: exit 3 and the minimum is printed. Takes neither --config-dir nor --max-load. --polish additionally re-solves the exact budget warm-started from the entry and keeps the result only when it is better; it loads the models from the default configs/ and data/literature directories of the working directory."
+
+async function budgetCommand(ctx: Ctx): Promise<void> {
+  const { flags } = ctx
+  const amount = validateQuery(
+    strFlag(flags, "--amount"),
+    strFlag(flags, "--profile"),
   )
+  const profile = strFlag(flags, "--profile")
+  const file = readVerifiedTable(strFlag(flags, "--table"))
+  const q = queryTable(file, profile, amount)
+  let result = q.result
+  if (flags.has("--polish")) {
+    lowerPriority()
+    const cfg = await loadOptimize(join(ctx.configDir, "optimize.yaml"))
+    const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+    result = polish(mctx, cfg, file, q, amount)
+  }
+  emitQuery(result)
+  console.log(safeJson(result, 2))
 }
 
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
@@ -609,6 +691,19 @@ const COMMANDS: Record<string, Command> = {
     switches: [],
     run: refineCommand,
   },
+  "budget-table": {
+    help: BUDGET_TABLE_HELP,
+    valueFlags: ["--in", "--out", "--workers", "--time-limit-s"],
+    switches: [],
+    run: budgetTableCommand,
+  },
+  budget: {
+    help: BUDGET_HELP,
+    valueFlags: ["--table", "--amount", "--profile"],
+    switches: ["--polish"],
+    pure: true,
+    run: budgetCommand,
+  },
   "fetch-data": {
     help: "fetch-data: download and verify the literature data.",
     valueFlags: [],
@@ -655,7 +750,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     }
     const flags = parseFlags(
       argv.slice(1),
-      [...GLOBAL_VALUE_FLAGS, ...cmd.valueFlags],
+      cmd.pure ? cmd.valueFlags : [...GLOBAL_VALUE_FLAGS, ...cmd.valueFlags],
       cmd.switches,
     )
     const s = flags.get("--seed")
@@ -681,7 +776,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       seed,
       config_sha256: sha,
     })
-    checkLoad(maxLoadFlag(flags))
+    if (!cmd.pure) checkLoad(maxLoadFlag(flags))
     await cmd.run(ctx)
   } catch (e) {
     if (e instanceof SpandekError) {

@@ -3,9 +3,14 @@ import { join } from "node:path"
 import { weatherL9 } from "../../../src/core/design"
 import { PhysicsRangeError } from "../../../src/core/errors"
 import {
+  budgetSolver,
+  COST_COORDS,
   makeModel,
+  pullIntoBudget,
+  solveMinCost,
   solveQuantile,
   solveScalar,
+  solveUnderBudget,
 } from "../../../src/core/opt/objective"
 import { chebyshev, normalised } from "../../../src/core/opt/scalarize"
 import { fromScaled, toScaled, VARS } from "../../../src/core/opt/vars"
@@ -141,3 +146,101 @@ test("gradeOfADrawKeepsItsRelativePerturbation", () => {
   const nominal = model().objectives(u)[0] as number
   expect(m.objectives(u)[0]).not.toBe(nominal)
 })
+
+// ---- plan 05 Task 6: cost, budget-constrained solves ----
+
+test("costEqualsTheObjectiveAndDependsOnlyOnTheThreeDfts", () => {
+  const m = model()
+  const u = U0()
+  expect(Math.abs(m.cost(u) - (m.objectives(u)[4] as number))).toBeLessThan(
+    1e-12,
+  )
+  expect(COST_COORDS.map((i) => VARS[i]?.id)).toEqual(["p2", "m3", "t2"])
+  // moving any of the other six coordinates leaves the cost bit-identical; moving a DFT raises it
+  for (let i = 0; i < VARS.length; i++) {
+    const v = Float64Array.from(u)
+    v[i] = (u[i] as number) > 0.5 ? 0.1 : 0.9
+    if (COST_COORDS.includes(i)) expect(m.cost(v)).not.toBe(m.cost(u))
+    else expect(m.cost(v)).toBe(m.cost(u))
+  }
+  const up = Float64Array.from(u)
+  up[4] = Math.min(1, (u[4] as number) + 0.1)
+  expect(m.cost(up)).toBeGreaterThan(m.cost(u))
+})
+
+test("minCostSolveReachesTheCheapestFeasibleRecipe", () => {
+  const m = model()
+  const r = solveMinCost(m, U0(), { maxIter: 60, kktTol: 1e-7 })
+  expect(m.maxViolation(r.u)).toBeLessThanOrEqual(1e-9)
+  expect(m.cost(r.u)).toBeLessThan(m.cost(U0()))
+  // the three DFTs sit on their lower bounds (t2 may be held up by the delamination cap): cost cannot be lowered by any
+  // single feasible move of one cost coordinate
+  for (const i of COST_COORDS) {
+    const v = Float64Array.from(r.u)
+    v[i] = Math.max(0, (v[i] as number) - 1e-3)
+    if (v[i] !== r.u[i] && m.maxViolation(v) <= 0)
+      expect(m.cost(v)).toBeGreaterThanOrEqual(m.cost(r.u) - 1e-9)
+  }
+})
+
+test("pullIntoBudgetKeepsTheOtherSixLevelsAndTheBudget", () => {
+  const m = model()
+  const ref = solveMinCost(m, U0(), { maxIter: 60, kktTol: 1e-7 }).u
+  const u = U0()
+  const budget = 0.5 * (m.cost(u) + m.cost(ref))
+  expect(m.cost(u)).toBeGreaterThan(budget)
+  const p = pullIntoBudget(m, u, budget, ref)
+  expect(m.cost(p)).toBeLessThanOrEqual(budget)
+  expect(m.cost(p)).toBeGreaterThan(budget - 1e-9) // as close as the cost allows
+  expect(m.maxViolation(p)).toBeLessThanOrEqual(1e-9)
+  for (let i = 0; i < VARS.length; i++)
+    if (!COST_COORDS.includes(i)) expect(p[i]).toBe(u[i] as number)
+  // already inside: returned as is
+  expect(pullIntoBudget(m, ref, budget, ref)).toBe(ref)
+})
+
+test("solveUnderBudgetSpendsTheBudgetAndNeverExceedsIt", () => {
+  const m = model()
+  const ref = solveMinCost(m, U0(), { maxIter: 60, kktTol: 1e-7 }).u
+  const w = [0.25, 0.25, 0.25, 0.25, 0]
+  const o = { maxIter: 60, kktTol: 1e-7 }
+  const budgets = [
+    m.cost(ref),
+    0.5 * (m.cost(ref) + m.cost(U0())),
+    m.cost(U0()),
+  ]
+  let prev = Number.POSITIVE_INFINITY
+  for (const b of budgets) {
+    const r = solveUnderBudget(m, w, b, ref, o, ref)
+    expect(m.cost(r.u)).toBeLessThanOrEqual(b)
+    expect(m.maxViolation(r.u)).toBeLessThanOrEqual(1e-9)
+    expect(r.f).toBeLessThanOrEqual(prev + 1e-12) // more budget never hurts
+    prev = r.f
+  }
+  // an over-budget start is pulled in first, not rejected
+  const r = solveUnderBudget(m, w, budgets[1] as number, U0(), o, ref)
+  expect(m.cost(r.u)).toBeLessThanOrEqual(budgets[1] as number)
+}, 120_000)
+
+test("budgetSolverTakesTheBetterOfTheUpwardAndDownwardCandidate", () => {
+  const m = model()
+  const o = { maxIter: 60, kktTol: 1e-7 }
+  const ref = solveMinCost(m, U0(), o).u
+  const w = [0.25, 0.25, 0.25, 0.25, 0]
+  const star = solveScalar(m, w, U0(), o).u
+  const cMin = m.cost(ref)
+  const cMax = m.cost(star)
+  const levels = [cMin, 0.5 * (cMin + cMax), cMax]
+  const solve = budgetSolver(m, w, levels, ref, star, o)
+  const lvl0 = solve(levels[0] as number, null)
+  const lvl1 = solve(levels[1] as number, lvl0.u)
+  const lvl2 = solve(levels[2] as number, lvl1.u)
+  levels.forEach((b, k) => {
+    const r = [lvl0, lvl1, lvl2][k] as typeof lvl0
+    expect(m.cost(r.u)).toBeLessThanOrEqual(b)
+  })
+  // the top level reaches the unconstrained optimum, which upward continuation from c_min alone may not
+  expect(lvl2.f).toBeLessThanOrEqual(m.scalar(star, w) + 1e-9)
+  const upOnly = solveUnderBudget(m, w, cMax, lvl1.u, o, ref)
+  expect(lvl2.f).toBeLessThanOrEqual(upOnly.f)
+}, 120_000)
