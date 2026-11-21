@@ -6,6 +6,7 @@ import { ConfigError, DataError } from "../../src/core/errors"
 import {
   configSha256,
   loadMaterialRanges,
+  loadMaterials,
   loadWeather,
 } from "../../src/node/config"
 import { configureLogging, newRunId } from "../../src/node/logging"
@@ -60,4 +61,22 @@ test("configSha256IsStableAndOrderSensitive", async () => {
   hasher.update(readFileSync(rangesPath))
   hasher.update(readFileSync(weatherPath))
   expect(a).toBe(hasher.digest("hex"))
+})
+
+test("loadMaterialsEmitsConfigLoaded", async () => {
+  const runDir = mkdtempSync(join(tmpdir(), "spandek-cfg-"))
+  configureLogging({ runId: newRunId(), level: "info", runDir })
+  const m = await loadMaterials(join(repoRoot, "configs", "materials.yaml"))
+  expect(m.binder.n.value).toBe(1.48)
+  expect(m.substrate.r_solar.status).toBe("scenario")
+  const lines = readFileSync(join(runDir, "run.jsonl"), "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l))
+  expect(
+    lines.some((l) => l.event === "config.loaded" && l.kind === "materials"),
+  ).toBe(true)
+  await expect(
+    loadMaterials(join(tmpdir(), "nope-materials.yaml")),
+  ).rejects.toBeInstanceOf(DataError)
 })

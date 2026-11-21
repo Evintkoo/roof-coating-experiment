@@ -1,0 +1,186 @@
+# Material constants for plans 2-3. Every field: value, unit, status, source.
+# status vocabulary (the plan-01 schema): literature | vendor | scenario.
+# "secondary" in a source string means the number was seen only through a search
+# snippet or a review and the original page/paper was not read; such values are
+# always status scenario here. Nothing below is calibrated; see docs/spikes/plan-02.md.
+tio2:
+  diameter_um:
+    value: 0.25
+    unit: "um"
+    status: scenario
+    source: "secondary, scenario midpoint of 0.2-0.3 um: PCI Magazine 'TiO2 Basics for Paint Appearance and Performance' (pcimag.com/articles/83622; page returned 403, text seen only in a search snippet: well-dispersed TiO2 scatters visible light best at about 0.2-0.3 um)"
+baso4:
+  diameter_um:
+    value: 1.0
+    unit: "um"
+    status: vendor
+    source: "Solvay Blanc Fixe product page (solvay.com/en/brands/blanc-fixe, fetched): average particle size 0.7 / 0.8 / 1 / 1.7 / 4 um by grade; 1.0 um = grade HD 80, the grade choice is a scenario choice"
+  n:
+    value: 1.64
+    unit: "1"
+    status: scenario
+    source: "scenario constant, k = 0 assumed (no tabulated BaSO4 n,k in refractiveindex.info-database or any reachable source). Secondary: Solvay product text seen only in a search snippet, 'refractive index (1.64 of BaSO4)'"
+binder:
+  n:
+    value: 1.48
+    unit: "1"
+    status: scenario
+    source: "secondary (snippet): PCI Magazine 'Hollow Latex Particles: Binders That Provide Opacity' (pcimag.com/articles/88550; page returned 403, text seen only in a search snippet: n = 1.48 for the acrylic binder). 1.49-1.50 could not be cited"
+substrate:
+  r_solar:
+    value: 0.65
+    unit: "1"
+    status: scenario
+    source: "scenario for bare mill-finish aluminium sheet, bounds 0.55-0.75 (ruling R3). No CRRC/ENERGY STAR/LBNL/ORNL value found; the ATAS guide lists mill finish aluminium as N/A. Galvalume manufacturer values were not used. Needs a blank-coupon reflectometer measurement (BLOCKED-8)"
+  emissivity:
+    value: 0.09
+    unit: "1"
+    status: scenario
+    source: "secondary: Engineering Toolbox emissivity table (engineeringtoolbox.com/emissivity-coefficients-d_447.html, page fetched): 'Aluminum Commercial sheet 0.09' at about 300 K. A generic engineering table, not a roofing test; that it equals mill finish roofing sheet is an assumption. Bounds 0.05-0.12. Needs a blank-coupon emissometer measurement (BLOCKED-8)"
+  c_j_m2k:
+    value: 1218.9
+    unit: "J/(m2 K)"
+    status: scenario
+    source: "secondary: rho * cp * thickness = 2730 kg/m3 * 893 J/(kg K) * 0.0005 m (arithmetic exact). Alloy 3003 density and specific heat seen in a supplier datasheet search snippet (supplier not captured); the 0.5 mm sheet thickness is an assumption"
+coating:
+  emissivity:
+    value: 0.87
+    unit: "1"
+    status: scenario
+    source: "secondary (vendor-reported via search snippet): APOC 252 Sunwhite brochure on buildsite.com, CRRC-reported initial thermal emittance 0.87, weathered 0.90; the PDF was not opened. Verify against the PDF before citing"
+topcoat:
+  mu_per_um:
+    value: 0.002
+    unit: "1/um"
+    status: scenario
+    source: "scenario, bounds 0.0005-0.01, no source: a dense silica film (n about 1.45) is nearly transparent over 0.3-2.5 um, exp(-mu d) = 0.99-0.999 for 1-5 um at 0.002. Replace with a measured film transmittance"
+wetting:
+  theta_silica_deg:
+    value: 30
+    unit: "deg"
+    status: scenario
+    source: "scenario, range 6-60, anchored on Xia et al. RSC Adv. 2018, 8, 6091 (DOI 10.1039/c7ra12817g; fully condensed hydrophilic silica 6 deg, base-catalysed recipe) and Vishnevskiy et al. Polymers 2025 (MTEOS/TEOS 34.8 deg at CH3/Si 0.2); not an acid-system measurement"
+  theta_mtes_deg:
+    value: 100
+    unit: "deg"
+    status: scenario
+    source: "scenario, range 90-110, anchored on 112.2 deg (Vishnevskiy et al. Polymers 2025, CH3/Si 1.0, porous, 400 C bake); other values seen only in search summaries. Means a mostly MTES-derived film"
+  theta_binder_deg:
+    value: 75
+    unit: "deg"
+    status: scenario
+    source: "secondary (search summary): US patent comparative examples of acrylic latex films, 73 and 81 deg (patent number not retained); scenario, range 65-85; no value for a cured acrylic roof coating found. Needs a goniometer measurement"
+  r_max:
+    value: 1.5
+    unit: "1"
+    status: scenario
+    source: "scenario upper corner of Wenzel roughness (r = actual/projected area); sprayed pigmented topcoat plausibly 1.1-1.5; no source"
+  f_solid_min:
+    value: 0.5
+    unit: "1"
+    status: scenario
+    source: "scenario lower bound of the Cassie solid fraction; no hierarchical texture is modelled so 0.5 does not assert superhydrophobicity; no source"
+barrier:
+  eps_lo:
+    value: 0.05
+    unit: "1"
+    status: scenario
+    source: "scenario shape constant of the network porosity-like index, not a measured porosity; no source"
+  eps_hi:
+    value: 0.4
+    unit: "1"
+    status: scenario
+    source: "scenario shape constant of the network porosity-like index, not a measured porosity; no source"
+  h_c0_primer_um:
+    value: 1.0
+    unit: "um"
+    status: scenario
+    source: "scenario, deliberately conservative: organosilica films crack-free to at least 1.25 um (secondary, search summary of a koreascience.kr paper, not opened)"
+  h_c0_top_um:
+    value: 0.3
+    unit: "um"
+    status: scenario
+    source: "scenario: Lei et al., J. Am. Ceram. Soc. 103, 70 (2019), PMC7316397, 'critical thickness of sol-gel derived thin films is about a few hundred nanometers' (read); 0.3 um is the scenario pick"
+  crack_exponent:
+    value: 1.0
+    unit: "1"
+    status: scenario
+    source: "scenario, sensitivity 0.5-2, encodes denser network cracking at lower thickness; not measurable"
+  t_ref_rel:
+    value: 1.0
+    unit: "1"
+    status: scenario
+    source: "scenario normalisation of the ingress time, frozen once and never tuned; no source"
+sol_gel:
+  k_h:
+    value: 0.15
+    unit: "L/(mol s)"
+    status: scenario
+    source: "scenario, range 0.03-6, order of magnitude only; a pseudo-first-order constant per [H+] with water folded in, k_h = k_H 10^-pH. Anchored on Aelion, Loebel, Eirich, J. Am. Chem. Soc. 72, 5705 (1950) as quoted in the Polymers 2019, 11, 537 review (secondary, original not read; the review's exponent sign looks like a typo). TEOS reference; GPTES about 3x faster (scenario, range 1-10), not modelled separately"
+  k_c:
+    value: 1e-05
+    unit: "1/s"
+    status: scenario
+    source: "scenario, range 1e-6 to 1e-4, a model constant not an elementary rate constant; chosen so reference gel time is 1-3 days; no source"
+  t_end_s:
+    value: 2592000.0
+    unit: "s"
+    status: scenario
+    source: "scenario horizon of 30 days, derived by running the bisection model; brackets gel times of 17 h to 7 d with margin; no source"
+cost:
+  rc_primer:
+    value: 1.0
+    unit: "relative per area"
+    status: scenario
+    source: "scenario relative cost index (mid-coat = 1), no prices used (BLOCKED-4)"
+  rc_mid:
+    value: 1.0
+    unit: "relative per area"
+    status: scenario
+    source: "scenario relative cost index (mid-coat = 1), no prices used (BLOCKED-4)"
+  rc_top:
+    value: 1.5
+    unit: "relative per area"
+    status: scenario
+    source: "scenario relative cost index (mid-coat = 1), specialty silane topcoat, no prices used (BLOCKED-4)"
+baseline_corrosion_risk:
+  value: 1.0
+  unit: "1"
+  status: scenario
+  source: "scenario convention: bare aluminium sheet without barrier = 1 (relative index; literature found covers AA2024/AA6xxx, none for AA3003)"
+unc:
+  diameter_rel:
+    value: 0.1
+    unit: "relative"
+    status: scenario
+    source: "scenario: supplier d50 tolerance plus size-distribution width; no source"
+  n_rel:
+    value: 0.03
+    unit: "relative"
+    status: scenario
+    source: "scenario: spread among tabulated refractive indices; no source"
+  mu_rel:
+    value: 0.2
+    unit: "relative"
+    status: scenario
+    source: "scenario: transferred extinction-type coefficient, least certain; no source"
+  eps_rel:
+    value: 0.3
+    unit: "relative"
+    status: scenario
+    source: "scenario: eps is a proxy index spanning 0.05-0.40; no source"
+  h_c0_rel:
+    value: 0.4
+    unit: "relative"
+    status: scenario
+    source: "scenario: cracking threshold varies 2x-4x with cure and recipe in the sources read; no source"
+  substrate_r_abs:
+    value: 0.05
+    unit: "absolute"
+    status: scenario
+    source: "scenario: mill-finish aluminium has no citable value (BLOCKED-8)"
+  theta_deg:
+    value: 10
+    unit: "deg"
+    status: scenario
+    source: "scenario: spread of reported contact angles is 8-25 deg; 10 is a conservative lower pick"

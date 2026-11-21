@@ -19,6 +19,8 @@ import { ConfigError, ResourceError, SpandekError } from "../core/errors"
 import type { Level } from "../core/events"
 import { validateDesign } from "../core/schema"
 import { configSha256, loadMaterialRanges, loadWeather } from "./config"
+import { verifyData } from "./data"
+import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
 
 const N_CANDIDATES = 96
@@ -164,6 +166,17 @@ async function designCommand(ctx: Ctx): Promise<void> {
   console.log(`design: feasible ${feasible} of ${n}, config sha256 ${sha}`)
 }
 
+async function fetchDataCommand(ctx: Ctx): Promise<void> {
+  await fetchData(ctx.dataDir)
+  await verifyData(ctx.dataDir)
+  console.log(`fetch-data: wrote and verified ${ctx.dataDir}`)
+}
+
+async function verifyDataCommand(ctx: Ctx): Promise<void> {
+  await verifyData(ctx.dataDir)
+  console.log(`verify-data: ${ctx.dataDir} matches SHA256SUMS`)
+}
+
 /** Subcommand registry: plans 3-5 add their commands here. */
 const COMMANDS: Record<string, Command> = {
   design: {
@@ -171,6 +184,8 @@ const COMMANDS: Record<string, Command> = {
     switches: ["--force"],
     run: designCommand,
   },
+  "fetch-data": { valueFlags: [], switches: [], run: fetchDataCommand },
+  "verify-data": { valueFlags: [], switches: [], run: verifyDataCommand },
 }
 
 export async function main(argv: readonly string[]): Promise<number> {

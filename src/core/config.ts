@@ -65,6 +65,62 @@ export const WeatherSchema = z.strictObject({
   }),
 })
 
+const num = (v: z.ZodNumber) => Sourced.extend({ value: v })
+const pos = num(z.number().gt(0))
+const nonNeg = num(z.number().gte(0))
+const unit01 = num(z.number().gte(0).lte(1))
+const emissivity = num(z.number().gt(0).lte(1))
+const angle = num(z.number().gte(0).lte(180))
+const diameter = num(z.number().gt(0).lte(50))
+const refractive = num(z.number().gte(1))
+
+/** Domain table D9 of plan 02; every field carries value, unit, source and status. */
+export const MaterialsSchema = z.strictObject({
+  tio2: z.strictObject({ diameter_um: diameter }),
+  baso4: z.strictObject({ diameter_um: diameter, n: refractive }),
+  binder: z.strictObject({ n: refractive }),
+  substrate: z.strictObject({
+    r_solar: unit01,
+    emissivity,
+    c_j_m2k: pos,
+  }),
+  coating: z.strictObject({ emissivity }),
+  topcoat: z.strictObject({ mu_per_um: nonNeg }),
+  wetting: z.strictObject({
+    theta_silica_deg: angle,
+    theta_mtes_deg: angle,
+    theta_binder_deg: angle,
+    r_max: num(z.number().gte(1)),
+    f_solid_min: emissivity,
+  }),
+  barrier: z
+    .strictObject({
+      eps_lo: num(z.number().gt(0).lt(1)),
+      eps_hi: num(z.number().gt(0).lt(1)),
+      h_c0_primer_um: pos,
+      h_c0_top_um: pos,
+      crack_exponent: pos,
+      t_ref_rel: pos,
+    })
+    .refine((b) => b.eps_lo.value < b.eps_hi.value, {
+      path: ["eps_lo"],
+      message: "eps_lo must be below eps_hi",
+    }),
+  sol_gel: z.strictObject({ k_h: pos, k_c: pos, t_end_s: pos }),
+  cost: z.strictObject({ rc_primer: nonNeg, rc_mid: nonNeg, rc_top: nonNeg }),
+  baseline_corrosion_risk: unit01,
+  unc: z.strictObject({
+    diameter_rel: nonNeg,
+    n_rel: nonNeg,
+    mu_rel: nonNeg,
+    eps_rel: nonNeg,
+    h_c0_rel: nonNeg,
+    substrate_r_abs: nonNeg,
+    theta_deg: nonNeg,
+  }),
+})
+
+export type Materials = z.infer<typeof MaterialsSchema>
 export type MaterialRanges = z.infer<typeof MaterialRangesSchema>
 export type WeatherConfig = z.infer<typeof WeatherSchema>
 
@@ -84,3 +140,6 @@ export const parseMaterialRanges = (raw: unknown): MaterialRanges =>
 
 export const parseWeather = (raw: unknown): WeatherConfig =>
   parseWith(WeatherSchema, raw)
+
+export const parseMaterials = (raw: unknown): Materials =>
+  parseWith(MaterialsSchema, raw)

@@ -4,7 +4,9 @@ import { basename } from "node:path"
 import { parse } from "yaml"
 import {
   type MaterialRanges,
+  type Materials,
   parseMaterialRanges,
+  parseMaterials,
   parseWeather,
   type WeatherConfig,
 } from "../core/config"
@@ -47,6 +49,9 @@ async function loadYaml<T>(
 
 export const loadMaterialRanges = (path: string): Promise<MaterialRanges> =>
   loadYaml(path, "material_ranges", parseMaterialRanges)
+
+export const loadMaterials = (path: string): Promise<Materials> =>
+  loadYaml(path, "materials", parseMaterials)
 
 export const loadWeather = (path: string): Promise<WeatherConfig> =>
   loadYaml(path, "weather", parseWeather)

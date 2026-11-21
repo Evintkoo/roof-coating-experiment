@@ -48,4 +48,4 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Plan 4 Ta
 
 - Reason: no citable value found for solar reflectance and emittance of bare mill-finish aluminium sheet.
 - Owner: Evint
-- Unblock condition: a blank-coupon measurement of solar reflectance and emittance is made.
+- Unblock condition: a blank-coupon measurement of solar reflectance (reflectometer) and emittance (emissometer) of the actual bare mill-finish sheet is made, or a citable CRRC/ASTM value for mill-finish aluminium roofing is found. Until then `substrate.r_solar` 0.65 (bounds 0.55-0.75) and `substrate.emissivity` 0.09 in `configs/materials.yaml` stay `scenario`; searches in plan 2 (CRRC, LBNL, ORNL, ATAS guide) found none.

@@ -2,7 +2,11 @@ import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { parse } from "yaml"
-import { parseMaterialRanges, parseWeather } from "../../src/core/config"
+import {
+  parseMaterialRanges,
+  parseMaterials,
+  parseWeather,
+} from "../../src/core/config"
 import { ConfigError } from "../../src/core/errors"
 import { listFiles, repoRoot } from "../helpers"
 
@@ -167,4 +171,143 @@ test("noNodeImportsInCore", () => {
     expect(code, f).not.toMatch(/\bdocument\./)
     expect(code, f).not.toMatch(/\bfetch\(/)
   }
+})
+
+const KEYS: Record<string, string[]> = {
+  tio2: ["diameter_um"],
+  baso4: ["diameter_um", "n"],
+  binder: ["n"],
+  substrate: ["r_solar", "emissivity", "c_j_m2k"],
+  coating: ["emissivity"],
+  topcoat: ["mu_per_um"],
+  wetting: [
+    "theta_silica_deg",
+    "theta_mtes_deg",
+    "theta_binder_deg",
+    "r_max",
+    "f_solid_min",
+  ],
+  barrier: [
+    "eps_lo",
+    "eps_hi",
+    "h_c0_primer_um",
+    "h_c0_top_um",
+    "crack_exponent",
+    "t_ref_rel",
+  ],
+  sol_gel: ["k_h", "k_c", "t_end_s"],
+  cost: ["rc_primer", "rc_mid", "rc_top"],
+  unc: [
+    "diameter_rel",
+    "n_rel",
+    "mu_rel",
+    "eps_rel",
+    "h_c0_rel",
+    "substrate_r_abs",
+    "theta_deg",
+  ],
+}
+const materials = () =>
+  load("materials.yaml") as Record<
+    string,
+    Record<string, Record<string, unknown>>
+  >
+
+test("materialsKeysExact", () => {
+  const m = materials()
+  const want = [...Object.keys(KEYS), "baseline_corrosion_risk"].sort()
+  expect(Object.keys(m).sort()).toEqual(want)
+  for (const [g, ks] of Object.entries(KEYS))
+    expect(Object.keys(m[g] as object).sort()).toEqual([...ks].sort())
+  expect(() => parseMaterials(m)).not.toThrow()
+})
+
+test("everyMaterialsFieldIsSourced", () => {
+  const m = materials()
+  const leaves: Record<string, unknown>[] = [m.baseline_corrosion_risk as never]
+  for (const g of Object.keys(KEYS))
+    for (const v of Object.values(m[g] as object)) leaves.push(v)
+  for (const l of leaves) {
+    expect(String(l.source).length).toBeGreaterThan(10)
+    expect(["literature", "vendor", "scenario"]).toContain(String(l.status))
+  }
+  const bad = materials()
+  ;(bad.binder?.n as Record<string, unknown>).source = " "
+  expect(keyOf(() => parseMaterials(bad))).toBe("binder.n.source")
+  const extra = materials()
+  ;(extra.binder as Record<string, unknown>).bogus = 1
+  expect(keyOf(() => parseMaterials(extra))).toBe("binder.bogus")
+})
+
+function withValue(path: string, v: number): string | undefined {
+  const m = materials()
+  const parts = path.split(".")
+  const leaf =
+    parts.length === 1
+      ? m[path]
+      : (m[parts[0] as string] as Record<string, unknown>)[parts[1] as string]
+  ;(leaf as Record<string, unknown>).value = v
+  try {
+    parseMaterials(m)
+  } catch (e) {
+    expect(e).toBeInstanceOf(ConfigError)
+    return (e as ConfigError).key
+  }
+  return undefined
+}
+
+test("negativeDiameterConfigError", () => {
+  expect(withValue("tio2.diameter_um", -1)).toBe("tio2.diameter_um.value")
+  expect(withValue("tio2.diameter_um", 0)).toBe("tio2.diameter_um.value")
+  expect(withValue("baso4.diameter_um", 50.1)).toBe("baso4.diameter_um.value")
+  expect(withValue("baso4.diameter_um", 50)).toBeUndefined()
+})
+
+test("domainTableD9", () => {
+  const cases: [string, number, boolean][] = [
+    ["binder.n", 0.99, false],
+    ["binder.n", 1, true],
+    ["substrate.r_solar", -0.01, false],
+    ["substrate.r_solar", 1.01, false],
+    ["substrate.r_solar", 1, true],
+    ["substrate.r_solar", 0, true],
+    ["substrate.emissivity", 0, false],
+    ["substrate.emissivity", 1, true],
+    ["coating.emissivity", 1.1, false],
+    ["topcoat.mu_per_um", -1, false],
+    ["topcoat.mu_per_um", 0, true],
+    ["wetting.theta_silica_deg", 181, false],
+    ["wetting.theta_mtes_deg", -1, false],
+    ["wetting.theta_binder_deg", 180, true],
+    ["wetting.r_max", 0.9, false],
+    ["wetting.f_solid_min", 0, false],
+    ["wetting.f_solid_min", 1, true],
+    ["barrier.eps_lo", 0, false],
+    ["barrier.eps_hi", 1, false],
+    ["barrier.h_c0_primer_um", 0, false],
+    ["barrier.h_c0_top_um", -1, false],
+    ["barrier.crack_exponent", 0, false],
+    ["barrier.t_ref_rel", 0, false],
+    ["sol_gel.k_h", 0, false],
+    ["sol_gel.k_c", -1, false],
+    ["sol_gel.t_end_s", 0, false],
+    ["cost.rc_primer", -1, false],
+    ["cost.rc_mid", 0, true],
+    ["baseline_corrosion_risk", 1.5, false],
+    ["baseline_corrosion_risk", 0, true],
+    ["unc.diameter_rel", -0.1, false],
+    ["unc.substrate_r_abs", -1, false],
+    ["unc.theta_deg", -1, false],
+    ["unc.theta_deg", 0, true],
+  ]
+  for (const [path, v, ok] of cases)
+    expect([path, v, withValue(path, v) === undefined]).toEqual([path, v, ok])
+})
+
+test("epsLoMustBeBelowEpsHi", () => {
+  const m = materials()
+  const b = m.barrier as Record<string, Record<string, unknown>>
+  ;(b.eps_lo as Record<string, unknown>).value = 0.5
+  ;(b.eps_hi as Record<string, unknown>).value = 0.4
+  expect(keyOf(() => parseMaterials(m))).toBe("barrier.eps_lo")
 })
