@@ -96,21 +96,32 @@ test("lookupIsLargestBudgetNotAbove", () => {
 })
 
 test("lookupNeverExceedsBudget", () => {
-  // H14: 1000 random budgets in [0, 1.1 c_max]
+  // H14: 1000 random budgets in [0, 1.1 c_max]. fc.double alone is biased toward 0 and special values and rarely lands
+  // between two levels (the mutant M4 survived it), so the budgets are drawn uniformly on a fine grid as well.
+  const check = (b: number) => {
+    const r = lookupBudget(good, b)
+    if (r.status === "ok") {
+      expect(r.entry.cost).toBeLessThanOrEqual(b + 1e-12)
+      expect(r.entry).toBe(bruteForce(good, b) as BudgetEntry)
+      expect(r.headroom).toBeGreaterThanOrEqual(-1e-12)
+    } else {
+      expect(b).toBeLessThan(good.c_min)
+      expect(r.c_min).toBe(good.c_min)
+    }
+  }
   fc.assert(
     fc.property(
       fc.double({ min: 0, max: 1.1 * good.c_max, noNaN: true }),
-      (b) => {
-        const r = lookupBudget(good, b)
-        if (r.status === "ok") {
-          expect(r.entry.cost).toBeLessThanOrEqual(b + 1e-12)
-          expect(r.entry).toBe(bruteForce(good, b) as BudgetEntry)
-          expect(r.headroom).toBeGreaterThanOrEqual(-1e-12)
-        } else {
-          expect(b).toBeLessThan(good.c_min)
-          expect(r.c_min).toBe(good.c_min)
-        }
-      },
+      check,
+    ),
+    { numRuns: 1000 },
+  )
+  fc.assert(
+    fc.property(
+      fc
+        .integer({ min: 0, max: 1_000_000 })
+        .map((i) => (1.1 * good.c_max * i) / 1e6),
+      check,
     ),
     { numRuns: 1000 },
   )

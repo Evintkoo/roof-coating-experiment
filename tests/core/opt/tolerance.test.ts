@@ -33,6 +33,28 @@ test("quadraticEdgesMatchTheClosedForm", () => {
   })
 })
 
+test("hessianEstimateIsTheFirstBracketProbe", () => {
+  // The Hessian estimate only brackets the edge, so the final answer cannot show a wrong estimate (the mutant M3, without
+  // the factor 2 of sqrt(2 tol f* / H), survived every test of the result). The probe sequence does: for an exact
+  // quadratic the first probe after the box-edge check must already sit on the 1 % edge.
+  const a = Array.from({ length: N }, (_, i) => 1 + i)
+  const u = centre()
+  const probes: number[] = []
+  const f = (x: Float64Array) => {
+    const moved = [...x].map((v, i) => [i, Math.abs(v - 0.5)] as const)
+    const only = moved.filter(([, d]) => d > 1e-3)
+    if (only.length === 1 && (only[0] as readonly [number, number])[0] === 0)
+      probes.push((only[0] as readonly [number, number])[1])
+    return quad(a, u)(x)
+  }
+  toleranceTable(f, u, H, 0.01)
+  // probes of variable 0, lower edge first: the room check (0.5), then the Hessian estimate, then the bisection
+  expect(probes[0]).toBeCloseTo(0.5, 12)
+  expect(Math.abs((probes[1] as number) - Math.sqrt(0.01 / 1))).toBeLessThan(
+    1e-6,
+  )
+})
+
 test("edgesAreFoundByDirectEvaluationNotTheHessianEstimate", () => {
   // quartic in coordinate 0: the Hessian is 0 there (the estimate is infinite) but the edge still lands on 1 %
   const u = centre()

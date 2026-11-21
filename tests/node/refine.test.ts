@@ -290,6 +290,34 @@ test("everyEventIsEmittedWithItsFields", () => {
   expect(by("refine.screened.best").length).toBe(2)
 })
 
+test(
+  "activeConstraintIsSolvedNotJustRespected",
+  async () => {
+    // Mutation M2 (penalty dropped) survived every pipeline test: with the shipped cpvc no constraint is active at the
+    // optimum, and the final feasibility restoration alone keeps outputs feasible. With cpvc = 0.2 the PVC constraint
+    // m1 <= cpvc is active (m1 wants its upper bound 0.35), so the penalty does real work. Measured once on this
+    // data (seed 20261121, 4 starts): m1 = 0.2 and balanced S = 0.11248; without the penalty S = 0.1360. The bound 0.12
+    // is that measurement plus about 7 %, frozen here.
+    const tight = structuredClone(ctx)
+    tight.ranges.cpvc.value = 0.2
+    const out = join(tmp("spandek-refcpvc-"), "out")
+    await runRefine(
+      tight,
+      shortlistFromPareto(loadPlan3(plan3).pareto),
+      SEED,
+      plan3,
+      { out, cfg, workers: 2, ...OPTS },
+    )
+    const balanced = rows(out, "refine_recipes.csv").find(
+      (r) => r.role === "balanced",
+    ) as Record<string, string>
+    expect(num(balanced, "m1")).toBeGreaterThan(0.2 - 1e-6)
+    expect(num(balanced, "m1")).toBeLessThanOrEqual(0.2 + 1e-9)
+    expect(num(balanced, "S")).toBeLessThan(0.12)
+  },
+  LONG,
+)
+
 test("gradcheckFailsOnAKinkWithExit4AndPassesOnASmoothFunction", () => {
   const h = VARS.map((v) => v.h)
   const ids = VARS.map((v) => v.id)
