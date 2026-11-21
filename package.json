@@ -7,8 +7,9 @@
   },
   "scripts": {
     "spandek": "bun run src/node/cli.ts",
-    "check": "biome check . && tsc --noEmit && bun test --timeout 30000",
-    "test": "bun test --timeout 30000"
+    "check": "biome check . && tsc --noEmit && bun run test",
+    "test": "bun test --parallel=3 --timeout 30000 --path-ignore-patterns '**/*.proof.test.ts'",
+    "proof": "bun test --timeout 3600000 .proof.test.ts"
   },
   "dependencies": {
     "yaml": "2.9.1",

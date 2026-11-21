@@ -34,8 +34,9 @@ const cfgDir = join(repoRoot, "configs")
 const dataDir = join(repoRoot, "data", "literature")
 const SEED = 20261121
 const LONG = 300_000
-const LEVELS = 12
-const DRAWS = 8
+// fast tier: a 3 x 3 table with 2 draws (the 100-level table is proved in budget.baseline.proof.test.ts)
+const LEVELS = 3
+const DRAWS = 2
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p))
 const sha = (p: string) =>
   new Bun.CryptoHasher("sha256").update(readFileSync(p)).digest("hex")
@@ -243,8 +244,8 @@ test(
     for (const p of PROFILES) {
       const t = f.tables.find((x) => x.profile === p)
       if (!t) throw new Error("no table")
-      const lo = t.entries[3]?.budget as number
-      const hi = t.entries[4]?.budget as number
+      const lo = t.entries[1]?.budget as number
+      const hi = t.entries[2]?.budget as number
       const b = lo + 0.5 * (hi - lo)
       const q = queryTable(f, p, b)
       const r = polish(ctx, cfg, f, q, b)

@@ -9,7 +9,8 @@
       "!bun.lock",
       "!tests/fixtures/oracle",
       "!oracle",
-      "!data"
+      "!data",
+      "!docs/spikes/plan-04"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2 },

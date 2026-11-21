@@ -63,6 +63,8 @@ const rows = (dir: string, name: string) =>
 const num = (r: Record<string, string>, k: string) => Number(r[k])
 
 const OPTS = { starts: 4 }
+/** Starts of the two-worker / one-worker pair (H10 byte equality and the event catalogue): the pair is the expensive part. */
+const PAIR = { starts: 2 }
 /** Critical topcoat thickness (um) of the delam-active case: small enough that the 0.5 delamination cap binds. */
 const DELAM_PROBE_H_C0 = 7
 /** |delam_proxy - cap| below which the cap counts as active at the optimum. */
@@ -88,14 +90,14 @@ beforeAll(async () => {
     out: outA,
     cfg,
     workers: 2,
-    ...OPTS,
+    ...PAIR,
   })
   outB = join(tmp("spandek-refB-"), "out")
   await runRefine(ctx, shortlist, SEED, plan3, {
     out: outB,
     cfg,
     workers: 1,
-    ...OPTS,
+    ...PAIR,
   })
 }, LONG)
 
@@ -147,7 +149,7 @@ test("multiStartSpreadReported", () => {
   )
   const meta = JSON.parse(readFileSync(join(outA, "refine_meta.json"), "utf8"))
   expect(meta.s_balanced.spread).toBe(ev.s_spread as number)
-  expect(meta.n_starts).toBe(OPTS.starts)
+  expect(meta.n_starts).toBe(PAIR.starts)
   for (const r of rows(outA, "refine_recipes.csv")) {
     expect(r.saddle === "true").toBe(num(r, "min_eig") < -T_KKT)
     if (r.status === "converged")
@@ -273,8 +275,8 @@ test("everyEventIsEmittedWithItsFields", () => {
     expect(e.rich_diff_rel as number).toBeLessThanOrEqual(cfg.t_grad_rel)
   }
   const starts = by("refine.start.done")
-  // 4 balanced + 4 corner vectors x 4 best starts, per run
-  expect(starts.length).toBe(2 * (4 + 4 * 4))
+  // 2 balanced + 4 corner vectors x 2 best starts, per run
+  expect(starts.length).toBe(2 * (2 + 4 * 2))
   for (const e of starts) {
     for (const k of [
       "start_id",

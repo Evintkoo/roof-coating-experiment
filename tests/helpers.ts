@@ -45,14 +45,30 @@ export function missingMirrors(
     .filter((f) => !testFiles.includes(mirrorOf(f)))
 }
 
-/** Test files that neither mirror a source file nor are whitelisted. */
+/** `X.proof.test.ts` is the full-size twin of `X.test.ts`; it is judged by the fast file it pairs with. */
+export const PROOF_SUFFIX = ".proof.test.ts"
+export const fastTwinOf = (t: string) =>
+  t.endsWith(PROOF_SUFFIX) ? `${t.slice(0, -PROOF_SUFFIX.length)}.test.ts` : t
+
+/** Test files that neither mirror a source file nor are whitelisted (a proof file is judged as its fast twin). */
 export function orphanTests(
   srcFiles: string[],
   testFiles: string[],
   nonMirror: Set<string>,
 ): string[] {
   const srcSet = new Set(srcFiles.map(mirrorOf))
-  return testFiles.filter((t) => !nonMirror.has(t) && !srcSet.has(t))
+  return testFiles.filter((t) => {
+    const f = fastTwinOf(t)
+    return !nonMirror.has(f) && !srcSet.has(f)
+  })
+}
+
+/** Proof files without a fast twin in the same directory. */
+export function proofWithoutFastTwin(testFiles: string[]): string[] {
+  const all = new Set(testFiles)
+  return testFiles.filter(
+    (t) => t.endsWith(PROOF_SUFFIX) && !all.has(fastTwinOf(t)),
+  )
 }
 
 // ---- CLI helpers (Task 8) ----

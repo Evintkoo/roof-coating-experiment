@@ -165,7 +165,10 @@ function isolationViolations(file: string, src: string): string[] {
       const ok =
         name === "ranges" ||
         name === "shared" ||
-        (name === "mie" && file === "optics.ts")
+        (name === "mie" && file === "optics.ts") ||
+        // plan 4: the hourly-driven series model is the same heat balance as thermal.ts on a driven input (the verified
+        // oracle shares the one flux function), so it reuses thermal's flux and types instead of copying them
+        (name === "thermal" && file === "thermalSeries.ts")
       if (!ok) bad.push(`${file} -> ${t}`)
     } else if (t.startsWith("../")) {
       if (/\/(node|web)\b/.test(t) || /models\//.test(t))
@@ -190,6 +193,13 @@ test("noModelImportsAnother", () => {
   ).toEqual(["thermal.ts -> ./optics", "thermal.ts -> ./mie"])
   expect(
     isolationViolations("optics.ts", 'import { a } from "./mie"\n'),
+  ).toEqual([])
+  // the thermalSeries exception is for that one file only
+  expect(
+    isolationViolations("optics.ts", 'import { a } from "./thermal"\n'),
+  ).toEqual(["optics.ts -> ./thermal"])
+  expect(
+    isolationViolations("thermalSeries.ts", 'import { a } from "./thermal"\n'),
   ).toEqual([])
 })
 

@@ -2,7 +2,13 @@ import { expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { listFiles, missingMirrors, orphanTests, repoRoot } from "./helpers"
+import {
+  listFiles,
+  missingMirrors,
+  orphanTests,
+  proofWithoutFastTwin,
+  repoRoot,
+} from "./helpers"
 
 const srcFiles = listFiles(join(repoRoot, "src")).filter((f) =>
   f.endsWith(".ts"),
@@ -114,4 +120,29 @@ test("guardAcceptsPlan4Files", () => {
   expect(orphanTests(planSrc, ["indonesia.stray.test.ts"], NON_MIRROR)).toEqual(
     ["indonesia.stray.test.ts"],
   )
+})
+
+test("proofFilesPairWithAFastTwin", () => {
+  // bun run proof runs X.proof.test.ts, bun run check runs X.test.ts: every proof file has its small twin beside it
+  expect(proofWithoutFastTwin(testFiles)).toEqual([])
+  expect(
+    testFiles.filter((f) => f.endsWith(".proof.test.ts")).length,
+  ).toBeGreaterThan(0)
+  // the guard can fail, and a proof file is judged as its fast twin
+  expect(proofWithoutFastTwin(["a.proof.test.ts", "b.test.ts"])).toEqual([
+    "a.proof.test.ts",
+  ])
+  expect(
+    proofWithoutFastTwin([
+      "a.proof.test.ts",
+      "a.test.ts",
+      "core/b.proof.test.ts",
+    ]),
+  ).toEqual(["core/b.proof.test.ts"])
+  expect(orphanTests(srcFiles, ["stray.proof.test.ts"], NON_MIRROR)).toEqual([
+    "stray.proof.test.ts",
+  ])
+  expect(
+    orphanTests(srcFiles, ["refine.e2e.proof.test.ts"], NON_MIRROR),
+  ).toEqual([])
 })
