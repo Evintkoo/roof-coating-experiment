@@ -35,6 +35,7 @@ Same schema, level rule, 2 KiB cap and redaction as plan 1. Info alone must diag
 | `resource.timeout` | error | node/resources | command, limit_s | 0–1 |
 | `pareto.computed` | info | pipeline/optimize | n_candidates, n_front | 1/run |
 | `shortlist.chosen` | info | pipeline/optimize | role, candidate_id | 3/run |
+| `shortlist.low_cost_fallback` | warn | pipeline/optimize | candidate_id, c1_r_solar | 0–1/run |
 | `sensitivity.done` | info | pipeline/sensitivity | method, output, n_evals | ≤ 8/run |
 | `card.written` | info | report/cards | candidate_id, role, decision | 3/run |
 | `manifest.written` | info | report/manifest | path, config_sha256 | 1/run |
