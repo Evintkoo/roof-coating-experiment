@@ -251,12 +251,23 @@ const live: ReportSection = {
   id: "live",
   title: "Live simulator",
   order: 20,
-  nav: false,
   render: (i) =>
-    `<section id="live" aria-labelledby="h-live" hidden>
+    `<section id="live" aria-labelledby="h-live">
 <h2 id="h-live">Live simulator</h2>
-<p>Move a slider and the models run again in your browser. Bands are p5 to p95 over 32 uncertainty draws (this run's batch used ${i.meta.n_mc}); controls C0 and C1 are nominal only.</p>
-<div id="live-root"></div>
+<p>Move a slider and the models run again in your browser. Bands are p5 to p95 over 32 uncertainty draws (this run's batch used ${i.meta.n_mc}); controls C0 and C1 are nominal only. Every index marked PROXY is a relative ranking, not a measurement.</p>
+<div id="live-root" class="live" data-requested="0" data-shown="0">
+<div id="live-controls" class="live-controls"></div>
+<div class="live-out">
+<p id="live-status" class="hint" role="status" aria-live="polite"></p>
+<div id="live-tiles" class="tiles"></div>
+<div id="fig-live-tofT" class="fig" role="img" aria-label="Live day-2 surface temperature with p5 to p95 band and controls"></div>
+<div id="fig-live-spectrum" class="fig" role="img" aria-label="Live reflectance spectrum with p5 to p95 band"></div>
+</div>
+</div>
+<details id="debug"><summary>Debug: last events and timings</summary>
+<p id="debug-timing" class="hint">No live update yet.</p>
+<pre id="debug-events"></pre>
+</details>
 </section>`,
 }
 
