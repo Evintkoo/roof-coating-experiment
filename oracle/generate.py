@@ -89,6 +89,7 @@ def build_fixtures() -> dict[str, str]:
         "xoshiro.json": json.dumps(doc, separators=(",", ":")) + "\n",
         "thermal.json": json.dumps(thermal_fixture(), separators=(",", ":")) + "\n",
         "thermalSeries.json": json.dumps(thermal_series_fixture(), separators=(",", ":")) + "\n",
+        "thermalSeriesReal.json": json.dumps(thermal_series_real_fixture(), separators=(",", ":")) + "\n",
         "mie.json": json.dumps(mie_fixture(), separators=(",", ":")) + "\n",
         "solgel.json": json.dumps(solgel_fixture(), separators=(",", ":")) + "\n",
         "sobol.json": json.dumps(sobol_fixture(), separators=(",", ":")) + "\n",
@@ -294,6 +295,51 @@ def thermal_series_fixture() -> dict:
     return {
         "seed": SERIES_SEED,
         "scipy": __import__("scipy").__version__,
+        "method": "DOP853 rtol=atol=1e-11, one segment per hour; linear interpolation of G, T_air, wind and T_sky",
+        "h_a": SERIES_H_A,
+        "h_b": SERIES_H_B,
+        "cases": cases,
+    }
+
+
+# ---- plan 04 Task 5 (H4 on real data): the first 20 representative days of the real NASA POWER cache ----
+REAL_SEED = 20261123
+REAL_INPUT = HERE / "real_days_input.json"  # frozen export, made once by oracle/exportRealDays.ts
+
+
+def thermal_series_real_fixture() -> dict:
+    """Real hourly days (committed input, not the weather cache) with seeded stack parameters, solved with the same
+    scipy DOP853 solver as thermalSeries.json (one segment per hour)."""
+    src = json.loads(REAL_INPUT.read_text())
+    rng = SplitMix64(REAL_SEED)
+    cases = []
+    for d in src["days"]:
+        params = {
+            "r_solar": 0.1 + 0.8 * rng.uniform(),
+            "emissivity": 0.1 + 0.85 * rng.uniform(),
+            "t_inside_k": 298.0 + 10.0 * rng.uniform(),
+            "r_total_m2k_w": 0.1 + 0.5 * rng.uniform(),
+            "c_a_j_m2k": 1.5e3 + 1.0e3 * rng.uniform(),
+        }
+        day = {"params": params, "series": d["series"]}
+        temp = solve_series_two_days(day)
+        nodes = [temp(24 * H + 60.0 * k) for k in range(1440)]
+        cases.append(
+            {
+                "site": d["site"],
+                "season": d["season"],
+                "bin": d["bin"],
+                "date": d["date"],
+                **day,
+                "t_max_c": max(nodes) - 273.15,
+                "q_in_mean_w_m2": float(np.mean([(t - params["t_inside_k"]) / params["r_total_m2k_w"] for t in nodes])),
+                "t_surface_k": nodes[::10],
+            }
+        )
+    return {
+        "seed": REAL_SEED,
+        "scipy": __import__("scipy").__version__,
+        "source": src["source"],
         "method": "DOP853 rtol=atol=1e-11, one segment per hour; linear interpolation of G, T_air, wind and T_sky",
         "h_a": SERIES_H_A,
         "h_b": SERIES_H_B,

@@ -68,6 +68,10 @@ jobs:
       - run: bun run proof
 ```
 
+## Plan 04 tests need the weather cache
+
+The Indonesia tests read the real NASA POWER cache and the TMYx files under `data/indonesia/` (git-ignored, not redistributed, listed in the committed `data/indonesia/SHA256SUMS`). Run `bun run spandek fetch-data --indonesia` once (about 3 minutes, network); without the cache these tests fail with a preflight message that names the command, they are never skipped. The fast tier uses one site and two years with 4 draws; the proof tier (`indonesia.e2e.proof.test.ts`) the five sites, ten years and 256 draws.
+
 ## Adding a slow test
 
 1. Write the suite body in `tests/suites/<name>.ts` taking a scale object.

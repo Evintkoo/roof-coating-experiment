@@ -315,7 +315,7 @@ export type SimulateOptions = {
 }
 
 /** candidates.csv (design command output) into validated, flagged rows. */
-function readDesign(dir: string): FlaggedDesignRow[] {
+export function readDesign(dir: string): FlaggedDesignRow[] {
   const path = join(dir, "candidates.csv")
   if (!existsSync(path))
     throw new DataError(

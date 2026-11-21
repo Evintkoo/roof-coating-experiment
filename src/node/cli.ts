@@ -24,6 +24,7 @@ import {
   SpandekError,
 } from "../core/errors"
 import type { Level } from "../core/events"
+import type { SiteConfig } from "../core/indonesia/series"
 import { safeJson } from "../core/json"
 import { buildControls } from "../core/pipeline/controls"
 import { buildPareto, candidateObjectives } from "../core/pipeline/optimize"
@@ -64,7 +65,10 @@ import {
 import { loadContext } from "./context"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
+import { fetchTmyx } from "./epw"
+import { runIndonesia } from "./indonesia"
 import { configureLogging, emit, newRunId } from "./logging"
+import { fetchIndonesiaData, POWER_URL, writeSums } from "./power"
 import { loadPlan3, runRefine, SCENARIO_SETS } from "./refine"
 import { writeCard } from "./report/cards"
 import { buildCurves, buildSpectra } from "./report/curves"
@@ -77,6 +81,7 @@ import {
 } from "./report/manifest"
 import { checkLoad, lowerPriority, runWithTimeout } from "./resources"
 import { effectiveWorkers, runSimulate } from "./simulate"
+import { loadIndonesiaConfig, loadSites } from "./siteConfig"
 
 const N_CANDIDATES = 96
 const LEVELS: readonly string[] = ["debug", "info", "warn", "error"]
@@ -695,10 +700,156 @@ async function budgetCommand(ctx: Ctx): Promise<void> {
   console.log(safeJson(result, 2))
 }
 
+const INDONESIA_DIR = "data/indonesia"
+
+/** Sites of configs/sites.yaml, or only --site (an unknown id is exit 2, F7). */
+async function selectSites(ctx: Ctx): Promise<SiteConfig[]> {
+  const all = await loadSites(join(ctx.configDir, "sites.yaml"))
+  const only = ctx.flags.get("--site")
+  if (typeof only !== "string") return all
+  const hit = all.filter((s) => s.id === only)
+  if (hit.length === 0)
+    throw new ConfigError("site", "unknown site (see configs/sites.yaml)")
+  return hit
+}
+
+/** NASA POWER site-years and the TMYx cross-check files into data/indonesia (resumable); the committed SHA256SUMS must still match. */
+async function fetchIndonesiaCommand(ctx: Ctx): Promise<void> {
+  const dir = strFlag(ctx.flags, "--weather-dir", INDONESIA_DIR)
+  const sites = await selectSites(ctx)
+  const cfg = await loadIndonesiaConfig(join(ctx.configDir, "indonesia.yaml"))
+  const sumsPath = join(dir, "SHA256SUMS")
+  const before = existsSync(sumsPath) ? readFileSync(sumsPath, "utf8") : null
+  let n = 0
+  try {
+    n = await fetchIndonesiaData(
+      sites,
+      cfg.first_year,
+      cfg.last_year,
+      dir,
+      strFlag(ctx.flags, "--base-url", POWER_URL),
+      Number(strFlag(ctx.flags, "--sleep-ms", "1000")),
+    )
+    n += await fetchTmyx(
+      sites,
+      dir,
+      ctx.flags.has("--tmyx-url")
+        ? strFlag(ctx.flags, "--tmyx-url")
+        : undefined,
+      Number(strFlag(ctx.flags, "--sleep-ms", "2000")),
+    )
+  } catch (e) {
+    if (e instanceof ResourceError)
+      throw new SpandekError(6, "indonesia.fetch", undefined, e.message)
+    throw e
+  }
+  const sums = writeSums(dir)
+  if (before !== null && readFileSync(sumsPath, "utf8") !== before) {
+    // downloaded bytes differ from the committed hashes: keep the committed list and refuse
+    writeFileSync(sumsPath, before)
+    throw new SpandekError(
+      5,
+      "indonesia.verify",
+      "SHA256SUMS",
+      "downloaded data differs from the committed SHA256SUMS",
+    )
+  }
+  console.log(
+    `fetch-data --indonesia: ${n} files downloaded, ${sums} files listed in ${sumsPath}`,
+  )
+}
+
 async function fetchDataCommand(ctx: Ctx): Promise<void> {
+  if (ctx.flags.has("--indonesia")) return fetchIndonesiaCommand(ctx)
   await fetchData(ctx.dataDir)
   await verifyData(ctx.dataDir)
   console.log(`fetch-data: wrote and verified ${ctx.dataDir}`)
+}
+
+const INDONESIA_HELP =
+  "indonesia --in DIR --out DIR [--site ID] [--n-mc N] [--workers N] [--time-limit-s S] [--weather-dir DIR]: the five-site Indonesian climate batch (plan 04). Reads the plan-3 DIR (candidates.csv, pareto.csv, run_meta.json), the NASA POWER cache and the TMYx files of --weather-dir (default data/indonesia, verified against SHA256SUMS: exit 5), picks three representative days per site and season, and runs C0, C1, the three shortlisted cards (each its C4 system) with uncertainty draws and the 96 candidates nominal, initial and aged, on aluminium. Writes indonesia_days.json, indonesia_results.csv, indonesia_summary.csv and indonesia_crosscheck.csv into the output DIR (registered in DIR/run_manifest.json when --out lies inside --in). Weather is modelled (reanalysis and satellite), aged values are a scenario (loss range in configs/indonesia.yaml), not an Indonesian measurement (PROXY). Exit 2 config (unknown site), 5 data, 6 time limit (default 600 s)."
+
+async function indonesiaCommand(ctx: Ctx): Promise<void> {
+  const { flags } = ctx
+  const dir = strFlag(flags, "--in")
+  const out = strFlag(flags, "--out")
+  const weatherDir = strFlag(flags, "--weather-dir", INDONESIA_DIR)
+  const workers = effectiveWorkers(intFlag(flags, "--workers", false) ?? 2)
+  const t = strFlag(flags, "--time-limit-s", "600")
+  const limitS = Number(t)
+  if (t.trim() === "" || !Number.isFinite(limitS) || limitS <= 0)
+    throw new ConfigError("time-limit-s", "must be a number above 0")
+  const nMcFlag = intFlag(flags, "--n-mc", false)
+  if (nMcFlag !== undefined && nMcFlag < 1)
+    throw new ConfigError("n-mc", "must be at least 1")
+  const sites = await selectSites(ctx)
+  const cfg = await loadIndonesiaConfig(join(ctx.configDir, "indonesia.yaml"))
+  const load = (name: string): string => {
+    const p = join(dir, name)
+    if (!existsSync(p))
+      throw new SpandekError(
+        5,
+        "indonesia.load",
+        name,
+        `${name} not found in the input directory`,
+      )
+    return readFileSync(p, "utf8")
+  }
+  let meta: { seed?: unknown; n_mc?: unknown }
+  try {
+    meta = JSON.parse(load("run_meta.json")) as typeof meta
+  } catch (e) {
+    if (e instanceof SpandekError) throw e
+    throw new SpandekError(
+      5,
+      "indonesia.load",
+      "run_meta.json",
+      "not valid JSON",
+    )
+  }
+  if (typeof meta.seed !== "number" || !Number.isInteger(meta.seed))
+    throw new SpandekError(
+      5,
+      "indonesia.load",
+      "run_meta.json",
+      "needs an integer seed",
+    )
+  const nMc = nMcFlag ?? (typeof meta.n_mc === "number" ? meta.n_mc : 256)
+  let shortlist: Record<string, string>
+  try {
+    shortlist = shortlistFromPareto(parseParetoCsv(load("pareto.csv")))
+  } catch (e) {
+    if (e instanceof SpandekError && e.phase === "indonesia.load") throw e
+    throw new SpandekError(
+      5,
+      "indonesia.load",
+      "pareto.csv",
+      (e as Error).message,
+    )
+  }
+  lowerPriority()
+  try {
+    await runWithTimeout(
+      async (signal) => {
+        const mctx = await loadContext(ctx.configDir, ctx.dataDir)
+        await runIndonesia(mctx, shortlist, meta.seed as number, nMc, dir, {
+          out,
+          weatherDir,
+          sites,
+          cfg,
+          workers,
+          signal,
+        })
+      },
+      limitS,
+      "indonesia",
+    )
+  } catch (e) {
+    if (e instanceof ResourceError)
+      throw new SpandekError(6, "indonesia.run", "time_limit", e.message)
+    throw e
+  }
+  reportHint(dir, "indonesia")
 }
 
 async function verifyDataCommand(ctx: Ctx): Promise<void> {
@@ -779,10 +930,30 @@ const COMMANDS: Record<string, Command> = {
     run: budgetCommand,
   },
   "fetch-data": {
-    help: "fetch-data: download and verify the literature data.",
-    valueFlags: [],
-    switches: [],
+    help: "fetch-data [--indonesia [--site ID] [--weather-dir DIR]]: download and verify the literature data; with --indonesia the NASA POWER hourly site-years (UTC, one request per site-year) and the TMYx cross-check files of plan 04 into data/indonesia (resumable; the committed SHA256SUMS must still match: exit 5; refused connection: exit 6).",
+    valueFlags: [
+      "--site",
+      "--weather-dir",
+      "--base-url",
+      "--tmyx-url",
+      "--sleep-ms",
+    ],
+    switches: ["--indonesia"],
     run: fetchDataCommand,
+  },
+  indonesia: {
+    help: INDONESIA_HELP,
+    valueFlags: [
+      "--in",
+      "--out",
+      "--site",
+      "--n-mc",
+      "--workers",
+      "--time-limit-s",
+      "--weather-dir",
+    ],
+    switches: [],
+    run: indonesiaCommand,
   },
   "verify-data": {
     help: "verify-data: check the literature data against SHA256SUMS.",

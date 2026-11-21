@@ -1,6 +1,7 @@
 // Shared test helpers; later tasks add to this file.
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -287,4 +288,60 @@ export async function addRefineOutputs(dir: string): Promise<void> {
     bytes: bytes.length,
     kind: "budget_table",
   })
+}
+
+// ---- plan 04 helpers ----
+
+export const WEATHER_DIR = join(repoRoot, "data", "indonesia")
+
+/** Preflight (plan 04): the real NASA POWER cache and TMYx files must have been fetched; a missing cache fails, it is never skipped. */
+export function requireWeatherCache(): void {
+  const need = [
+    join(WEATHER_DIR, "raw", "jakarta_2015.json"),
+    join(WEATHER_DIR, "tmyx", "jakarta.epw"),
+    join(WEATHER_DIR, "SHA256SUMS"),
+  ]
+  for (const p of need)
+    if (!existsSync(p))
+      throw new Error(
+        `preflight: ${p} is missing; run \`bun run spandek fetch-data --indonesia\` first`,
+      )
+}
+
+/**
+ * A private weather directory with the real files of some sites and years (raw cache, TMYx, its own SHA256SUMS written by the
+ * real writeSums), so a test can edit exactly one input and still pass or fail the hash check on purpose.
+ */
+export async function weatherSubset(
+  sites: readonly string[],
+  first: number,
+  last: number,
+): Promise<string> {
+  requireWeatherCache()
+  const { writeSums } = await import("../src/node/power")
+  const dir = mkdtempSync(join(tmpdir(), "spandek-wx-"))
+  mkdirSync(join(dir, "raw"))
+  mkdirSync(join(dir, "tmyx"))
+  for (const s of sites) {
+    for (let y = first; y <= last; y++)
+      cpSync(
+        join(WEATHER_DIR, "raw", `${s}_${y}.json`),
+        join(dir, "raw", `${s}_${y}.json`),
+      )
+    cpSync(join(WEATHER_DIR, "tmyx", `${s}.epw`), join(dir, "tmyx", `${s}.epw`))
+  }
+  writeSums(dir)
+  return dir
+}
+
+/** A copy of configs/ whose indonesia.yaml covers only the years first..last . */
+export function indonesiaConfigCopy(first: number, last: number): string {
+  const dir = mkdtempSync(join(tmpdir(), "spandek-cfg-"))
+  cpSync(join(repoRoot, "configs"), dir, { recursive: true })
+  const p = join(dir, "indonesia.yaml")
+  const doc = parse(readFileSync(p, "utf8"))
+  doc.years.first.value = first
+  doc.years.last.value = last
+  writeFileSync(p, stringify(doc))
+  return dir
 }

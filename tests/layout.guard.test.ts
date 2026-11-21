@@ -41,6 +41,7 @@ const NO_MIRROR_NEEDED = new Set([
   "web/worker.ts",
   "web/budget.ts",
   "node/simWorker.ts",
+  "node/indonesiaWorker.ts",
   "node/refineWorker.ts",
   "node/budgetWorker.ts",
 ])
