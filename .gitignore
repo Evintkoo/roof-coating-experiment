@@ -2,3 +2,5 @@ reports/
 node_modules/
 oracle/.venv/
 .superpowers/
+data/indonesia/raw/
+data/indonesia/tmyx/
