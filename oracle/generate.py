@@ -88,6 +88,7 @@ def build_fixtures() -> dict[str, str]:
     return {
         "xoshiro.json": json.dumps(doc, separators=(",", ":")) + "\n",
         "thermal.json": json.dumps(thermal_fixture(), separators=(",", ":")) + "\n",
+        "thermalSeries.json": json.dumps(thermal_series_fixture(), separators=(",", ":")) + "\n",
         "mie.json": json.dumps(mie_fixture(), separators=(",", ":")) + "\n",
         "solgel.json": json.dumps(solgel_fixture(), separators=(",", ":")) + "\n",
         "sobol.json": json.dumps(sobol_fixture(), separators=(",", ":")) + "\n",
@@ -198,6 +199,104 @@ def thermal_fixture() -> dict:
         "seed": THERMAL_SEED,
         "scipy": __import__("scipy").__version__,
         "method": "DOP853 rtol=atol=1e-11, segmented at 06:00/18:00/30:00/42:00",
+        "cases": cases,
+    }
+
+
+# ---- hourly-driven thermal oracle: plan 04 Task 3 (H4) ---------------------------------------------
+SERIES_SEED = 20261122
+SERIES_DAYS = 20
+SERIES_H_A = 5.7  # McAdams h = a + b V (plan 01 D3)
+SERIES_H_B = 3.8
+
+
+def draw_series_day(rng: SplitMix64) -> dict:
+    """One physically plausible tropical day: 24 hourly points, a cloud factor per hour (own splitmix64)."""
+    peak = 650.0 + 450.0 * rng.uniform()
+    t_mean = 25.0 + 6.0 * rng.uniform()
+    t_amp = 2.5 + 2.5 * rng.uniform()
+    wind_base = 0.3 + 3.0 * rng.uniform()
+    lw_base = 380.0 + 50.0 * rng.uniform()
+    g, t_air, rh, wind, lw = [], [], [], [], []
+    for h in range(24):
+        cloud = 0.15 + 0.85 * rng.uniform()
+        g.append(peak * max(0.0, math.sin(math.pi * (h - 6) / 12)) * cloud)
+        t_air.append(t_mean + t_amp * math.sin(math.pi * (h - 9) / 12) + 0.8 * (rng.uniform() - 0.5))
+        rh.append(55.0 + 40.0 * rng.uniform())
+        wind.append(max(0.0, wind_base + 2.0 * (rng.uniform() - 0.5)))
+        lw.append(lw_base + 20.0 * (rng.uniform() - 0.5))
+    params = {
+        "r_solar": 0.1 + 0.8 * rng.uniform(),
+        "emissivity": 0.1 + 0.85 * rng.uniform(),
+        "t_inside_k": 298.0 + 10.0 * rng.uniform(),
+        "r_total_m2k_w": 0.1 + 0.5 * rng.uniform(),
+        "c_a_j_m2k": 1.5e3 + 1.0e3 * rng.uniform(),
+    }
+    return {
+        "params": params,
+        "series": {"g_w_m2": g, "t_air_c": t_air, "rh_pct": rh, "wind_m_s": wind, "lw_down_w_m2": lw},
+    }
+
+
+def solve_series_two_days(day: dict):
+    """DOP853 rtol = atol = 1e-11, one segment per hour of the 48 h (hourly inputs are piecewise linear, so every
+    kink is a segment boundary). Interpolated inputs: G, T_air, wind, and T_sky = (LW/sigma)^(1/4) from the hourly LW."""
+    p, s = day["params"], day["series"]
+    t_sky = [(lw / SIGMA) ** 0.25 for lw in s["lw_down_w_m2"]]
+    t_air_k = [t + 273.15 for t in s["t_air_c"]]
+    alpha = 1.0 - p["r_solar"]
+
+    def lerp(a: list[float], seg: int, t: float) -> float:
+        i, j = seg % 24, (seg + 1) % 24
+        f = (t - seg * H) / H
+        return a[i] + (a[j] - a[i]) * f
+
+    def rhs(t: float, y, seg: int) -> list[float]:
+        T = y[0]
+        wind = lerp(s["wind_m_s"], seg, t)
+        flux = (
+            alpha * lerp(s["g_w_m2"], seg, t)
+            - p["emissivity"] * SIGMA * (T**4 - lerp(t_sky, seg, t) ** 4)
+            - (SERIES_H_A + SERIES_H_B * wind) * (T - lerp(t_air_k, seg, t))
+            - (T - p["t_inside_k"]) / p["r_total_m2k_w"]
+        )
+        return [flux / p["c_a_j_m2k"]]
+
+    y = [t_air_k[0]]
+    sols = []
+    for seg in range(48):
+        sol = solve_ivp(
+            rhs, (seg * H, (seg + 1) * H), y, method="DOP853", rtol=1e-11, atol=1e-11,
+            dense_output=True, args=(seg,),
+        )
+        assert sol.success
+        sols.append(sol.sol)
+        y = [float(sol.y[0, -1])]
+    return lambda t: float(sols[min(int(t // H), 47)](t)[0])
+
+
+def thermal_series_fixture() -> dict:
+    rng = SplitMix64(SERIES_SEED)
+    cases = []
+    for _ in range(SERIES_DAYS):
+        day = draw_series_day(rng)
+        temp = solve_series_two_days(day)
+        nodes = [temp(24 * H + 60.0 * k) for k in range(1440)]  # day-2 step nodes, dt = 60 s
+        p = day["params"]
+        cases.append(
+            {
+                **day,
+                "t_max_c": max(nodes) - 273.15,
+                "q_in_mean_w_m2": float(np.mean([(t - p["t_inside_k"]) / p["r_total_m2k_w"] for t in nodes])),
+                "t_surface_k": nodes[::10],
+            }
+        )
+    return {
+        "seed": SERIES_SEED,
+        "scipy": __import__("scipy").__version__,
+        "method": "DOP853 rtol=atol=1e-11, one segment per hour; linear interpolation of G, T_air, wind and T_sky",
+        "h_a": SERIES_H_A,
+        "h_b": SERIES_H_B,
         "cases": cases,
     }
 
