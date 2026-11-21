@@ -5,7 +5,6 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
-import { loadavg } from "node:os"
 import { join } from "node:path"
 import { DESIGN_COLUMNS, DESIGN_FLAG_COLUMNS } from "../core/columns"
 import { toCsv } from "../core/csv"
@@ -15,13 +14,14 @@ import {
   requireMinFeasible,
   weatherL9,
 } from "../core/design"
-import { ConfigError, ResourceError, SpandekError } from "../core/errors"
+import { ConfigError, SpandekError } from "../core/errors"
 import type { Level } from "../core/events"
 import { validateDesign } from "../core/schema"
 import { configSha256, loadMaterialRanges, loadWeather } from "./config"
 import { verifyData } from "./data"
 import { fetchData } from "./dataFetch"
 import { configureLogging, emit, newRunId } from "./logging"
+import { checkLoad } from "./resources"
 
 const N_CANDIDATES = 96
 const LEVELS: readonly string[] = ["debug", "info", "warn", "error"]
@@ -94,15 +94,14 @@ function strFlag(flags: Flags, name: string, fallback?: string): string {
   throw new ConfigError(name.slice(2), "flag is required")
 }
 
-/** Refuse to start when the 1-minute load average exceeds --max-load. */
-function checkLoad(flags: Flags): void {
+/** --max-load value (any finite number), or undefined for the half-cores default. */
+function maxLoadFlag(flags: Flags): number | undefined {
   const v = flags.get("--max-load")
-  if (v === undefined) return
+  if (v === undefined) return undefined
   const max = Number(v)
-  if (typeof v !== "string" || !Number.isFinite(max))
+  if (typeof v !== "string" || v.trim() === "" || !Number.isFinite(max))
     throw new ConfigError("max-load", "must be a number")
-  if ((loadavg()[0] as number) > max)
-    throw new ResourceError("machine load above --max-load")
+  return max
 }
 
 const WEATHER_COLUMNS = [
@@ -242,7 +241,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       seed,
       config_sha256: sha,
     })
-    checkLoad(flags)
+    checkLoad(maxLoadFlag(flags))
     await cmd.run(ctx)
   } catch (e) {
     if (e instanceof SpandekError) {

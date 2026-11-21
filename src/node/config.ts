@@ -3,8 +3,10 @@ import { readFile } from "node:fs/promises"
 import { basename } from "node:path"
 import { parse } from "yaml"
 import {
+  type Controls,
   type MaterialRanges,
   type Materials,
+  parseControls,
   parseMaterialRanges,
   parseMaterials,
   parseWeather,
@@ -55,6 +57,9 @@ export const loadMaterials = (path: string): Promise<Materials> =>
 
 export const loadWeather = (path: string): Promise<WeatherConfig> =>
   loadYaml(path, "weather", parseWeather)
+
+export const loadControls = (path: string): Promise<Controls> =>
+  loadYaml(path, "controls", parseControls)
 
 /** SHA-256 (hex) over the raw bytes of the files, in the given order. */
 export async function configSha256(paths: readonly string[]): Promise<string> {

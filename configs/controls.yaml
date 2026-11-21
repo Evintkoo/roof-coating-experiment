@@ -1,0 +1,23 @@
+# Commercial control C1 (plan 03 D2): datasheet values only, no model run.
+# C1 is a US product, not an Indonesian datasheet; replace the values here to override.
+c1_name: "APOC 252 Sunwhite (CRRC brochure, US product, not an Indonesian datasheet)"
+c1_r_solar:
+  value: 0.90
+  unit: "1"
+  source: "APOC 252 Sunwhite Premium Elastomeric Roof Coating summary brochure, CRRC table: initial solar reflectance 90 %, thermal emittance 0.87; 3-year weathered 0.77 and 0.90 (brochure prints rated product id 0646-0005 for two products, so the id is not trusted)"
+  status: vendor
+c1_emissivity:
+  value: 0.87
+  unit: "1"
+  source: "APOC 252 Sunwhite Premium Elastomeric Roof Coating summary brochure, CRRC table: initial solar reflectance 90 %, thermal emittance 0.87; 3-year weathered 0.77 and 0.90 (brochure prints rated product id 0646-0005 for two products, so the id is not trusted)"
+  status: vendor
+c1_r_solar_aged:
+  value: 0.77
+  unit: "1"
+  source: "APOC 252 Sunwhite Premium Elastomeric Roof Coating summary brochure, CRRC table: 3-year weathered solar reflectance 0.77 (initial 0.90); the brochure prints rated product id 0646-0005 for two products, so the id is not trusted"
+  status: vendor
+c1_emissivity_aged:
+  value: 0.90
+  unit: "1"
+  source: "APOC 252 Sunwhite Premium Elastomeric Roof Coating summary brochure, CRRC table: 3-year weathered thermal emittance 0.90 (initial 0.87); the brochure prints rated product id 0646-0005 for two products, so the id is not trusted"
+  status: vendor

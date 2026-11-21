@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { ConfigError, DataError } from "../../src/core/errors"
 import {
   configSha256,
+  loadControls,
   loadMaterialRanges,
   loadMaterials,
   loadWeather,
@@ -79,4 +80,42 @@ test("loadMaterialsEmitsConfigLoaded", async () => {
   await expect(
     loadMaterials(join(tmpdir(), "nope-materials.yaml")),
   ).rejects.toBeInstanceOf(DataError)
+})
+
+test("loadsControlsWithAgedValues", async () => {
+  const c = await loadControls(join(repoRoot, "configs", "controls.yaml"))
+  expect(c.c1_name).toContain("APOC 252")
+  expect([c.c1_r_solar.value, c.c1_emissivity.value]).toEqual([0.9, 0.87])
+  expect([c.c1_r_solar_aged.value, c.c1_emissivity_aged.value]).toEqual([
+    0.77, 0.9,
+  ])
+  expect(c.c1_r_solar.status).toBe("vendor")
+})
+
+test("missingControlsIsDataError", async () => {
+  let code = 0
+  try {
+    await loadControls(join(tmpdir(), "no-such-dir", "controls.yaml"))
+  } catch (e) {
+    code = (e as { code: number }).code
+  }
+  expect(code).toBe(5)
+})
+
+test("c1ReflectanceAboveOneRejected", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "spandek-ctl-"))
+  const text = readFileSync(
+    join(repoRoot, "configs", "controls.yaml"),
+    "utf8",
+  ).replace("value: 0.90", "value: 1.4")
+  const p = join(dir, "controls.yaml")
+  writeFileSync(p, text)
+  let err: { code?: number; key?: string } = {}
+  try {
+    await loadControls(p)
+  } catch (e) {
+    err = e as { code: number; key: string }
+  }
+  expect(err.code).toBe(2)
+  expect(err.key).toBe("c1_r_solar.value")
 })

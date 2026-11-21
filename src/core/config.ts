@@ -120,6 +120,16 @@ export const MaterialsSchema = z.strictObject({
   }),
 })
 
+/** Datasheet-only commercial control C1 (plan 03 D2): name plus initial and aged solar reflectance and emittance. */
+export const ControlsSchema = z.strictObject({
+  c1_name: z.string().trim().min(1),
+  c1_r_solar: unit01,
+  c1_emissivity: emissivity,
+  c1_r_solar_aged: unit01,
+  c1_emissivity_aged: emissivity,
+})
+
+export type Controls = z.infer<typeof ControlsSchema>
 export type Materials = z.infer<typeof MaterialsSchema>
 export type MaterialRanges = z.infer<typeof MaterialRangesSchema>
 export type WeatherConfig = z.infer<typeof WeatherSchema>
@@ -143,3 +153,6 @@ export const parseWeather = (raw: unknown): WeatherConfig =>
 
 export const parseMaterials = (raw: unknown): Materials =>
   parseWith(MaterialsSchema, raw)
+
+export const parseControls = (raw: unknown): Controls =>
+  parseWith(ControlsSchema, raw)
