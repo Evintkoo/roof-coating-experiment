@@ -33,7 +33,7 @@ export type SimulateOpts = {
   gProfile?: (tS: number) => number
   /** Label for the `thermal.solved` debug event. */
   scenarioId?: string
-  /** Called with (t, T) at every step node of the 48 h run, including t = 0. */
+  /** Test-only hook: called with (t, T) at every step node of the 48 h run, including t = 0. */
   onStep?: (tS: number, tK: number) => void
 }
 
@@ -68,6 +68,11 @@ export function steadyStateTempK(p: ThermalInputs, gWM2: number): number {
   requireIn("thermal", "gWM2", gWM2, 0, 2000)
   let lo = 100
   let hi = 600
+  if (!(netFluxWM2(lo, gWM2, p) > 0 && netFluxWM2(hi, gWM2, p) < 0))
+    throw new PhysicsRangeError(
+      "steadyState",
+      "thermal: no steady state inside the 100-600 K bracket",
+    )
   for (let i = 0; i < 200; i++) {
     const mid = 0.5 * (lo + hi)
     if (mid === lo || mid === hi) break

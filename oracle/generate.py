@@ -126,7 +126,7 @@ class SplitMix64:
 def draw_thermal_params(rng: SplitMix64) -> dict[str, float]:
     p = {name: lo + (hi - lo) * rng.uniform() for name, lo, hi in RANGES}
     p["t_sky_k"] = 0.0552 * p["t_air_k"] ** 1.5  # Swinbank, passed explicitly like plan 1
-    p["t_inside_k"] = p["t_air_k"]
+    p["t_inside_k"] = 298.0 + 10.0 * rng.uniform()  # independent of t_air_k, 298-308 K
     return p
 
 

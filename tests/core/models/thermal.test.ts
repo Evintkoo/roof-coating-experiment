@@ -48,6 +48,7 @@ test("linearCaseMatchesClosedForm", () => {
   const p: ThermalInputs = {
     ...base,
     r_solar: 0.1,
+    t_inside_k: 298.15,
     emissivity: 1e-300, // D9 domain is (0, 1]; 1e-300 is exactly linear in double precision
     g_peak_w_m2: 1000,
     h_conv_w_m2k: 28.5,
@@ -63,7 +64,24 @@ test("linearCaseMatchesClosedForm", () => {
     k
   const tau = p.c_a_j_m2k / k
   const exact = (tS: number) => tss + (p.t_air_k - tss) * Math.exp(-tS / tau)
-  const r = simulateDay(p, { dtS: 5, gProfile: () => g })
+  const early: { t: number; e: number; got: number }[] = []
+  const r = simulateDay(p, {
+    dtS: 5,
+    gProfile: () => g,
+    onStep: (tS, tK) => {
+      if (tS <= 600) early.push({ t: tS, e: exact(tS), got: tK })
+    },
+  })
+  // early transient (T0 = T_air, tau = 39 s): a wrong RK4 weight, dt or initial condition fails here
+  expect(early.length).toBe(121)
+  expect(early[0]?.got).toBe(p.t_air_k)
+  let worstEarly = 0
+  for (const x of early)
+    worstEarly = Math.max(worstEarly, Math.abs(x.got - x.e) / x.e)
+  expect(worstEarly).toBeLessThanOrEqual(T_THM_RTOL)
+  expect(Math.abs((early[20] as { e: number }).e - p.t_air_k)).toBeGreaterThan(
+    5,
+  )
   expect(r.t_surface_k.length).toBe(144)
   let worst = 0
   for (let i = 0; i < 144; i++) {
@@ -92,6 +110,15 @@ test("alphaIsOneMinusR", () => {
     15 * (t - 305.15) -
     (t - 305.15) / 0.3
   expect(netFluxWM2(t, 800, p)).toBeCloseTo(hand, 9)
+  // inside temperature distinct from air: hand-computed with T_inside = 298.15, T_air = 305.15
+  const q = { ...p, t_inside_k: 298.15 }
+  const hand2 =
+    0.2 * 800 -
+    0.9 * SIGMA * (t ** 4 - 290 ** 4) -
+    15 * (t - 305.15) -
+    (t - 298.15) / 0.3
+  expect(netFluxWM2(t, 800, q)).toBeCloseTo(hand2, 9)
+  expect(Math.abs(hand2 - hand)).toBeGreaterThan(10)
 })
 
 test("zeroForcingStaysConstant", () => {
@@ -119,6 +146,7 @@ test("energyClosure", () => {
       nodes.push(tK)
     },
   })
+  // Checks the integrator against the same flux function (not the coefficients; see alphaIsOneMinusR).
   // window 08:00 -> 12:00 on day 1 (strong transient), composite Simpson on the step nodes
   const i0 = Math.round((8 * 3600) / dt)
   const i1 = Math.round((12 * 3600) / dt)
@@ -223,6 +251,16 @@ test("thermalSolvedEventAtDebug", () => {
     t_max_c: r.t_max_c,
     n_steps: 2880,
   })
+})
+
+test("steadyStateBracketMustStraddleZero", () => {
+  // g far beyond the bracket's reach is rejected by the guard; a flux that stays positive at T = 600 K is not a root
+  expect(() =>
+    steadyStateTempK(
+      { ...base, h_conv_w_m2k: 0, emissivity: 1e-300, r_total_m2k_w: 1e12 },
+      1500,
+    ),
+  ).toThrow(PhysicsRangeError)
 })
 
 test("zeroRTotalRejected", () => {
