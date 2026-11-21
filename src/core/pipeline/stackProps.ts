@@ -59,8 +59,8 @@ const mid = (r: { min: number; max: number }): number => 0.5 * (r.min + r.max)
 /**
  * Everything about a candidate that does not depend on the weather scenario: optics, C_A, indices, cost.
  * Layer DFT domains are enforced here for present layers only (primer 2-12, midcoat 100-300, topcoat 3-20 um);
- * an absent layer's DFT is ignored. cost_proxy (D3) = sum rc_i DFT_i / sum rc_i DFT_i,max over the present layers
- * (0 for a bare substrate).
+ * an absent layer's DFT is ignored. cost_proxy (D3) = sum rc_i DFT_i over the PRESENT layers / sum rc_i DFT_i,max over ALL three layers (fixed
+ * denominator, so layer sets are comparable: C0 = 0, C2 and C3 < C4; full candidates reach at most 1).
  */
 export function stackProps(
   c: CandidateInput,
@@ -134,11 +134,10 @@ export function stackProps(
   ]
   let num = 0
   let den = 0
-  for (const [on, rc, d, dMax] of terms)
-    if (on) {
-      num += rc * d
-      den += rc * dMax
-    }
+  for (const [on, rc, d, dMax] of terms) {
+    if (on) num += rc * d
+    den += rc * dMax
+  }
 
   return {
     r_solar: rSolar,
@@ -153,7 +152,7 @@ export function stackProps(
     wetting_score_corners: w ? { lo: w.score_lo, hi: w.score_hi } : NAN_PAIR,
     wetting_theta_corners: w ? { lo: w.theta_lo, hi: w.theta_hi } : NAN_PAIR,
     delam_proxy: delam,
-    cost_proxy: den > 0 ? num / den : 0,
+    cost_proxy: num / den,
     gel_time_rel: gel,
     spectrum,
   }
@@ -212,6 +211,7 @@ export function evaluate(
 /**
  * C1 (D2): thermal from the datasheet reflectance and emissivity; every other field NaN
  * (see unmodelledColumns(_, true)). C_A is the bare substrate value: the datasheet gives no DFT.
+ * Immaterial: the substrate-only C_A changes day-2 T_max by about 7e-7 K at a 300 um coating.
  */
 export function evaluateC1(s: Weather, ctx: ModelContext): Outcome {
   const nan = Number.NaN

@@ -121,7 +121,7 @@ test("ablationPropertiesTenCandidates", () => {
     expect(c2.r_solar).toBeGreaterThan(c4.r_solar)
     // primer does not touch optics
     expect(c3.r_solar).toBe(c4.r_solar)
-    // C2: same barrier, no delamination index, binder wetting, cheaper than none
+    // C2: same barrier, no delamination index, binder wetting
     expect(c2.corrosion_risk).toBe(c4.corrosion_risk)
     expect(c2.delam_proxy).toBeNaN()
     expect(c2.wetting_theta_deg).toBe(ctx.mat.wetting.theta_binder_deg.value)
@@ -134,6 +134,10 @@ test("ablationPropertiesTenCandidates", () => {
     expect(c4.corrosion_risk).toBeLessThan(c3.corrosion_risk)
     // coated roof is cooler than the topcoat-free one only through R: sanity of ordering
     expect(c4.t_max_c).toBeGreaterThan(0)
+    // comparable cost across layer sets: fixed full-stack denominator
+    expect(c2.cost_proxy).toBeLessThan(c4.cost_proxy)
+    expect(c3.cost_proxy).toBeLessThan(c4.cost_proxy)
+    expect(evaluate(c, s, CONTROL_LAYERS.C0, ctx).cost_proxy).toBe(0)
     expect(c4.cost_proxy).toBeGreaterThan(0)
     expect(c4.cost_proxy).toBeLessThanOrEqual(1)
   }
@@ -174,10 +178,9 @@ test("c1UnmodelledListMatchesNaNColumns", () => {
   expect([...list].sort()).toEqual(nanColumns(o))
   for (const col of list) expect(RESULT_COLUMNS).toContain(col as never)
   // layered controls: list equals the NaN columns of the real outcome
-  for (const [name, layers] of Object.entries(CONTROL_LAYERS)) {
+  for (const layers of Object.values(CONTROL_LAYERS)) {
     const out = evaluate(cand(1), scen(), layers, ctx)
     expect([...unmodelledColumns(layers)].sort()).toEqual(nanColumns(out))
-    expect(name.length).toBe(2)
   }
   expect(unmodelledColumns(CONTROL_LAYERS.C4)).toEqual([])
 })
@@ -299,4 +302,28 @@ test("thermalOutcomesBatchAndSeries", () => {
   expect(
     thermalOutcomes([{ sp, s: scen() }], ctx)[0]?.t_surface_k,
   ).toBeUndefined()
+})
+
+test("candidateCostProxyUnchangedByFixedDenominator", () => {
+  // value recorded before the denominator change (all layers present)
+  expect(stackProps(cand(0), FULL, ctx).cost_proxy).toBeCloseTo(
+    0.9252496747471101,
+    12,
+  )
+})
+
+test("topcoatWithoutMidcoatIsAcceptedAndUsesSubstrateSpectrum", () => {
+  // not a D2 set; pinned behaviour: accepted, topcoat attenuates a flat substrate spectrum
+  const l: Layers = { primer: false, midcoat: false, topcoat: true }
+  const c = cand(0)
+  const sp = stackProps(c, l, ctx)
+  expect(sp.spectrum).not.toBeNull()
+  const r0 = ctx.mat.substrate.r_solar.value
+  expect(sp.r_solar).toBeLessThan(r0)
+  expect(sp.r_solar).toBeGreaterThan(0)
+  expect(sp.delam_proxy).not.toBeNaN()
+  expect(sp.wetting_theta_deg).not.toBeNaN()
+  expect(sp.gel_time_rel).toBeNaN()
+  expect(sp.emissivity).toBe(ctx.mat.coating.emissivity.value)
+  expect(unmodelledColumns(l)).toEqual(["gel_time_rel"])
 })
