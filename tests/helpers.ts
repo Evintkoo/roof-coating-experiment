@@ -186,3 +186,83 @@ export async function buildPlan3(
     if (r.exitCode !== 0) throw new Error(`${args[0]} failed: ${r.stderr}`)
   }
 }
+
+// ---- report helpers (plan 00 Task 4) ----
+
+let testRun: Promise<string> | undefined
+
+/** A finished real `run` (4 draws) in a temp dir, built once per test file by the real CLI. Never mutate it: use copyRun. */
+export function buildTestRun(): Promise<string> {
+  testRun ??= (async () => {
+    const out = mkdtempSync(join(tmpdir(), "spandek-run-"))
+    const r = await run([
+      "run",
+      "--seed",
+      "20261121",
+      "--out",
+      out,
+      "--n-mc",
+      "4",
+      "--max-load",
+      "1000",
+    ])
+    if (r.exitCode !== 0) throw new Error(`run failed: ${r.stderr}`)
+    return out
+  })()
+  return testRun
+}
+
+/** A private copy of the test run, for tests that edit one input. */
+export async function copyRun(): Promise<string> {
+  const src = await buildTestRun()
+  const dst = mkdtempSync(join(tmpdir(), "spandek-run-copy-"))
+  cpSync(src, dst, { recursive: true })
+  return dst
+}
+
+export const reportOpts = () => ({
+  runId: "test-run",
+  configDir: join(repoRoot, "configs"),
+  dataDir: join(repoRoot, "data", "literature"),
+})
+
+let testReport: Promise<{ dir: string; path: string; html: string }> | undefined
+
+/** The report built from the shared test run (once per test file). */
+export function buildTestReport(): Promise<{
+  dir: string
+  path: string
+  html: string
+}> {
+  testReport ??= (async () => {
+    const { buildReport } = await import("../src/node/report/html")
+    const dir = await buildTestRun()
+    const path = join(
+      mkdtempSync(join(tmpdir(), "spandek-html-")),
+      "report.html",
+    )
+    await buildReport(dir, path, reportOpts())
+    return { dir, path, html: readFileSync(path, "utf8") }
+  })()
+  return testReport
+}
+
+/** The visible text of a page: scripts and styles removed, tags stripped, entities decoded. */
+export function visibleText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&amp;", "&")
+}
+
+/** The contents of the page's <script> blocks in order: [data, plotly, main]. */
+export function scriptBlocks(html: string): string[] {
+  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
+    (m) => m[1] as string,
+  )
+}

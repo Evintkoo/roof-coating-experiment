@@ -10,7 +10,8 @@
       "!tests/fixtures/oracle",
       "!oracle",
       "!data",
-      "!docs/spikes/plan-04"
+      "!docs/spikes/plan-04",
+      "!src/web/template.html"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2 },

@@ -143,3 +143,7 @@ export function sliderSpecs(
   }
   return out
 }
+
+/** N_LIVE draws in the browser (batch uses 256); the fixed seed keeps the bands from jittering while a slider moves. */
+export const N_LIVE = 32
+export const LIVE_SEED = 20261121
