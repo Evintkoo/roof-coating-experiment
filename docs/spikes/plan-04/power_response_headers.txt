@@ -1,0 +1,14 @@
+HTTP/2 200 
+content-type: application/json
+content-length: 6304
+x-process-time: 0.03
+content-disposition: inline; filename=POWER_Point_Hourly_20230101_20230102_006d20S_106d85E_LST.json
+x-data-sources: merra2,syn1deg,power
+content-language: en-US
+x-app-name: hourly
+x-archive-time: 0.591
+vary: Origin
+x-app-version: v2.10.5
+x-service-time: 0.62
+x-objects-time: -0.002
+

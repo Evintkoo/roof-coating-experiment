@@ -1,0 +1,64 @@
+{
+ "jakarta": {
+  "requested": {
+   "lat": -6.2,
+   "lon": 106.85
+  },
+  "returned_grid_point_lon_lat_elev": [
+   106.85,
+   -6.2,
+   12.32
+  ]
+ },
+ "surabaya": {
+  "requested": {
+   "lat": -7.25,
+   "lon": 112.75
+  },
+  "returned_grid_point_lon_lat_elev": [
+   112.75,
+   -7.25,
+   18.05
+  ]
+ },
+ "medan": {
+  "requested": {
+   "lat": 3.59,
+   "lon": 98.67
+  },
+  "returned_grid_point_lon_lat_elev": [
+   98.67,
+   3.59,
+   173.9
+  ]
+ },
+ "makassar": {
+  "requested": {
+   "lat": -5.15,
+   "lon": 119.43
+  },
+  "returned_grid_point_lon_lat_elev": [
+   119.43,
+   -5.15,
+   100.99
+  ]
+ },
+ "bandung": {
+  "requested": {
+   "lat": -6.91,
+   "lon": 107.61
+  },
+  "returned_grid_point_lon_lat_elev": [
+   107.61,
+   -6.91,
+   921.68
+  ]
+ },
+ "lst_minus_utc_hours_measured": {
+  "jakarta": 7,
+  "surabaya": 7,
+  "medan": 7,
+  "makassar": 8,
+  "bandung": 7
+ }
+}

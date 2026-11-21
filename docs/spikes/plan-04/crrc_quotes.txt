@@ -1,0 +1,3 @@
+# APOC brochure (buildsite.com 646630) CRRC table lines, pdftotext -layout, left column = APOC 248, right column = APOC 252
+Initial / Weathered: 248 SR 88% / 0.65, TE 0.87 / 0.88; 252 SR 90% / 0.77, TE 0.87 / 0.90; both print Rated Product ID 0646-0005
+# Sikalastic-515 AC datasheet: SR 0.83 initial / 0.69 3 Year (White) ASTM C-1549; TE 0.90 / 0.91 (ASTM C-1371); SRI 104 / 86
