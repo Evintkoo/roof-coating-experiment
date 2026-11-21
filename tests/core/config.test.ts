@@ -40,6 +40,10 @@ test("emptySourceRejected", () => {
   expect(keyOf(() => parseWeather(w))).toBe("wind_m_s.source")
   ;(r.cpvc as Record<string, unknown>).source = "   "
   expect(keyOf(() => parseMaterialRanges(r))).toBe("cpvc.source")
+  // range-shaped entries too (the mutant that dropped min(1) on RangeSchema.source survived)
+  const r2 = ranges()
+  ;(r2.primer_dft_um as Record<string, unknown>).source = ""
+  expect(keyOf(() => parseMaterialRanges(r2))).toBe("primer_dft_um.source")
 })
 
 test("unknownKeyInsideNestedObjectRejected", () => {
