@@ -525,6 +525,117 @@ export function figLiveSpectrum(r: LiveResult, g173: Spectrum): FigureSpec {
   }
 }
 
+// ---- Indonesia section (plan 04) ----
+
+/** One row of indonesia_summary.csv (numbers as read from the file). */
+export type IndonesiaSummaryRow = {
+  site: string
+  bin: string
+  subject: string
+  state: string
+  t_max_c: number
+  t_max_lo: number
+  t_max_hi: number
+  q_in_mean_w_m2: number
+  q_lo: number
+  q_hi: number
+  dq_w_m2: number
+  dq_lo: number
+  dq_hi: number
+}
+
+/** What the page script receives under window.__SPANDEK__.ext.indonesia. */
+export type IndonesiaData = {
+  n_mc: number
+  loss_lo: number
+  loss_hi: number
+  summary: IndonesiaSummaryRow[]
+}
+
+export const INDONESIA_SUBJECT_LABEL: Record<string, string> = {
+  C0: "C0 bare aluminium",
+  C1: "C1 commercial datasheet",
+  card_high: "High-performing card",
+  card_balanced: "Balanced card",
+  card_low: "Low-cost card",
+}
+export const INDONESIA_BIN_LABEL: Record<string, string> = {
+  hot: "hot day",
+  typical: "typical day",
+  overcast: "overcast day",
+  weighted: "weighted",
+}
+export const INDONESIA_STATE_LABEL: Record<string, string> = {
+  initial: "initial",
+  aged: "aged (scenario ageing)",
+}
+export const siteLabel = (id: string): string =>
+  id.charAt(0).toUpperCase() + id.slice(1)
+
+/**
+ * Heat-flux benefit against bare aluminium (C0 minus the subject, mean flux into the building) per site and day type,
+ * one bar per subject with p5-p95 whiskers, for one state. The weighted view is the last group of each site.
+ */
+export function figIndonesiaBars(
+  rows: readonly IndonesiaSummaryRow[],
+  state: "initial" | "aged",
+): FigureSpec {
+  const subjects = ["C1", "card_high", "card_balanced", "card_low"]
+  const colors = [OKABE_ITO[7], OKABE_ITO[4], OKABE_ITO[2], OKABE_ITO[5]]
+  const sites = [...new Set(rows.map((r) => r.site))]
+  const bins = ["hot", "typical", "overcast", "weighted"]
+  const cells = sites.flatMap((s) => bins.map((b) => [s, b] as const))
+  const data = subjects.map((subject, i) => {
+    const pick = cells.map(([s, b]) =>
+      rows.find(
+        (r) =>
+          r.site === s &&
+          r.bin === b &&
+          r.subject === subject &&
+          r.state === state,
+      ),
+    )
+    const y = pick.map((r) => r?.dq_w_m2 ?? Number.NaN)
+    return {
+      type: "bar",
+      name: INDONESIA_SUBJECT_LABEL[subject],
+      x: [
+        cells.map(([s]) => siteLabel(s)),
+        cells.map(([, b]) => INDONESIA_BIN_LABEL[b] ?? b),
+      ],
+      y,
+      error_y: {
+        type: "data",
+        symmetric: false,
+        array: pick.map((r, k) => (r ? r.dq_hi - (y[k] as number) : 0)),
+        arrayminus: pick.map((r, k) => (r ? (y[k] as number) - r.dq_lo : 0)),
+        thickness: 1.2,
+      },
+      marker: { color: colors[i] },
+      meta: { kind: "predicted", id: subject },
+    }
+  })
+  return {
+    data,
+    layout: baseLayout({
+      barmode: "group",
+      margin: { l: 64, r: 16, t: 24, b: 96 },
+      xaxis: {
+        title: {
+          text: `Site and day type; aluminium, scenario ageing: ${INDONESIA_STATE_LABEL[state]}`,
+        },
+      },
+      yaxis: {
+        title: {
+          text: "Heat-flux benefit against bare aluminium (W/m², PROXY), p5-p95 whiskers",
+        },
+      },
+      legend: { orientation: "h", y: -0.45 },
+    }),
+    config: CONFIG,
+  }
+}
+
 const isDark = (t: ThemeTokens): boolean => luminance(t.paper) < 0.4
 
 /**

@@ -17,6 +17,7 @@ import {
   axisLabel,
   axisThemeKeys,
   type FigureSpec,
+  figIndonesiaBars,
   figLiveSpectrum,
   figLiveTofT,
   figMorris,
@@ -25,6 +26,7 @@ import {
   figSpectrum,
   figSplom,
   figTofT,
+  type IndonesiaData,
   type ThemeTokens,
   themeKeys,
 } from "./figures"
@@ -357,8 +359,23 @@ function initOptimisation(raw: unknown, drawFig: Draw): void {
 
 /** Initialisers of optional sections (Indonesia, Optimisation): id of the section -> function of its embedded data. */
 type Draw = (id: string, spec: FigureSpec) => void
+/** Indonesia section: benefit bars with p5-p95 whiskers for the chosen state (the data is the summary CSV, no model runs). */
+function initIndonesia(raw: unknown, drawFig: Draw): void {
+  const d = raw as IndonesiaData | null
+  if (!d) return
+  const state = $("sel-indonesia-state") as HTMLSelectElement
+  const update = (): void =>
+    drawFig(
+      "fig-indonesia-bars",
+      figIndonesiaBars(d.summary, state.value === "aged" ? "aged" : "initial"),
+    )
+  state.addEventListener("change", update)
+  update()
+}
+
 const SECTION_INIT: Record<string, (data: unknown, draw: Draw) => void> = {
   optimisation: initOptimisation,
+  indonesia: initIndonesia,
 }
 
 // ---- live simulator (plan 00 D2, D3, D10): sliders -> worker -> tiles and charts ----

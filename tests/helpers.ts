@@ -345,3 +345,62 @@ export function indonesiaConfigCopy(first: number, last: number): string {
   writeFileSync(p, stringify(doc))
   return dir
 }
+
+let indonesiaReport:
+  | Promise<{ dir: string; path: string; html: string; weatherDir: string }>
+  | undefined
+
+/**
+ * A finished 4-draw plan-3 run plus the real `runIndonesia` (Jakarta, 2023-2024, 4 draws; outputs in <dir>/indonesia and registered
+ * in the manifest) and the report built from it. Built once per test file; never mutate dir, use cpSync for edits.
+ */
+export function buildIndonesiaReport(): Promise<{
+  dir: string
+  path: string
+  html: string
+  weatherDir: string
+}> {
+  indonesiaReport ??= (async () => {
+    const { runIndonesia } = await import("../src/node/indonesia")
+    const { loadContext } = await import("../src/node/context")
+    const { loadIndonesiaConfig, loadSites } = await import(
+      "../src/node/siteConfig"
+    )
+    const { parseParetoCsv, shortlistFromPareto } = await import(
+      "../src/core/pipeline/tables"
+    )
+    const { buildReport } = await import("../src/node/report/html")
+    const dir = await copyRun()
+    const cdir = indonesiaConfigCopy(2023, 2024)
+    const weatherDir = await weatherSubset(["jakarta"], 2023, 2024)
+    const sites = (await loadSites(join(cdir, "sites.yaml"))).filter(
+      (s) => s.id === "jakarta",
+    )
+    const ctx = await loadContext(
+      join(repoRoot, "configs"),
+      join(repoRoot, "data", "literature"),
+    )
+    await runIndonesia(
+      ctx,
+      shortlistFromPareto(
+        parseParetoCsv(readFileSync(join(dir, "pareto.csv"), "utf8")),
+      ),
+      20261121,
+      4,
+      dir,
+      {
+        out: join(dir, "indonesia"),
+        weatherDir,
+        sites,
+        cfg: await loadIndonesiaConfig(join(cdir, "indonesia.yaml")),
+      },
+    )
+    const path = join(
+      mkdtempSync(join(tmpdir(), "spandek-html-")),
+      "report.html",
+    )
+    await buildReport(dir, path, reportOpts())
+    return { dir, path, html: readFileSync(path, "utf8"), weatherDir }
+  })()
+  return indonesiaReport
+}

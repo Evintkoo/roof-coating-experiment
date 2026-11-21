@@ -12,7 +12,12 @@ import {
   figSplom,
 } from "../src/web/figures"
 import { defaultLiveState } from "../src/web/liveState"
-import { buildTestReport, repoRoot, visibleText } from "./helpers"
+import {
+  buildIndonesiaReport,
+  buildTestReport,
+  repoRoot,
+  visibleText,
+} from "./helpers"
 
 let ctx: ModelContext
 beforeAll(async () => {
@@ -102,4 +107,38 @@ test("pageStatesProxyAndIntervalsUpFront", async () => {
   expect(rows.length).toBe(3)
   for (const r of rows)
     expect((r[0].match(/\[[-\d.]+, [-\d.]+\]/g) ?? []).length).toBe(4)
+})
+
+// ---- Indonesia section (plan 04 Task 6): the forbidden phrases extend to claims the data cannot carry ----
+
+test("forbiddenPhrasesAbsentFromTheIndonesiaSection", async () => {
+  const { html } = await buildIndonesiaReport()
+  const forbidden =
+    /proven|safe|guaranteed|\d+\s*%\s*(safe|aman|self-clean)|validated|ground[- ]truth|station[- ]measured|measured in Indonesia|field[- ]tested|real[- ]world performance/i
+  const text = visibleText(html)
+  expect(text).not.toMatch(forbidden)
+  const section = visibleText(
+    /<section id="indonesia"[\s\S]*?<\/section>/.exec(html)?.[0] as string,
+  )
+  expect(section.length).toBeGreaterThan(2000)
+  // the scan can fail on the phrases it is meant to catch
+  for (const bad of [
+    "validated against stations",
+    "ground truth",
+    "measured in Indonesia",
+    "a safe roof",
+    "field tested",
+  ])
+    expect(forbidden.test(bad)).toBe(true)
+  // what the section must say up front
+  for (const must of ["PROXY", "scenario ageing", "modelled", "aluminium"])
+    expect(section).toContain(must)
+  // every benefit figure has an interval in brackets (the weighted table: 8 cells with value [p5, p95])
+  const table = /<table id="tbl-indonesia-benefit"[\s\S]*?<\/table>/.exec(
+    html,
+  )?.[0] as string
+  const cells = [...table.matchAll(/data-col="dq_w_m2">([^<]*)</g)]
+  expect(cells.length).toBe(8)
+  for (const c of cells)
+    expect(c[1]).toMatch(/^-?[\d.]+ \[-?[\d.]+, -?[\d.]+\]$/)
 })

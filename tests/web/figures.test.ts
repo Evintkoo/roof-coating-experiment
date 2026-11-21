@@ -15,6 +15,7 @@ import {
   axisLabel,
   axisThemeKeys,
   type FigureSpec,
+  figIndonesiaBars,
   figLiveSpectrum,
   figLiveTofT,
   figMorris,
@@ -23,6 +24,7 @@ import {
   figSpectrum,
   figSplom,
   figTofT,
+  type IndonesiaSummaryRow,
   type ThemeTokens,
   themeKeys,
 } from "../../src/web/figures"
@@ -372,4 +374,89 @@ test("splomDimsUnselected", () => {
 
 test("columnsMatchObjectives", () => {
   expect(OBJECTIVE_COLUMNS.length).toBe(5)
+})
+
+// ---- Indonesia bars (plan 04 Task 6) ----
+const iRow = (
+  site: string,
+  bin: string,
+  subject: string,
+  state: string,
+  dq: number,
+): IndonesiaSummaryRow => ({
+  site,
+  bin,
+  subject,
+  state,
+  t_max_c: 40,
+  t_max_lo: 39,
+  t_max_hi: 41,
+  q_in_mean_w_m2: 1,
+  q_lo: 0,
+  q_hi: 2,
+  dq_w_m2: dq,
+  dq_lo: dq - 1.5,
+  dq_hi: dq + 0.5,
+})
+
+test("figIndonesiaBarsCarryWhiskersLabelsAndTheChosenState", () => {
+  const subjects = ["C1", "card_high", "card_balanced", "card_low"]
+  const rows = ["jakarta", "medan"].flatMap((s, si) =>
+    ["hot", "typical", "overcast", "weighted"].flatMap((b, bi) =>
+      subjects.flatMap((u, ui) =>
+        ["initial", "aged"].map((st) =>
+          iRow(s, b, u, st, 10 * si + bi + ui + (st === "aged" ? -3 : 0)),
+        ),
+      ),
+    ),
+  )
+  const fig = figIndonesiaBars(rows, "aged")
+  const data = fig.data as {
+    name: string
+    y: number[]
+    x: string[][]
+    error_y: { array: number[]; arrayminus: number[]; symmetric: boolean }
+  }[]
+  expect(data.length).toBe(4)
+  const t = data[1] as (typeof data)[number]
+  expect(t.y.length).toBe(8) // 2 sites x 4 day types
+  expect(t.x[0]).toEqual([
+    "Jakarta",
+    "Jakarta",
+    "Jakarta",
+    "Jakarta",
+    "Medan",
+    "Medan",
+    "Medan",
+    "Medan",
+  ])
+  expect(t.x[1]?.[3]).toBe("weighted")
+  // aged values, with whiskers to the p5 and p95 of the row: y + array = hi, y - arrayminus = lo
+  expect(t.y[0]).toBe(0 + 1 - 3)
+  t.y.forEach((y, i) => {
+    expect(y + (t.error_y.array[i] as number)).toBeCloseTo(y + 0.5, 12)
+    expect(y - (t.error_y.arrayminus[i] as number)).toBeCloseTo(y - 1.5, 12)
+  })
+  expect(t.error_y.symmetric).toBe(false)
+  const lay = fig.layout as {
+    xaxis: { title: { text: string } }
+    yaxis: { title: { text: string } }
+  }
+  expect(lay.xaxis.title.text).toContain(
+    "aluminium, scenario ageing: aged (scenario ageing)",
+  )
+  expect(lay.yaxis.title.text).toContain("PROXY")
+  expect(lay.yaxis.title.text).toContain("p5-p95")
+  // the initial view says initial and shows the other numbers
+  const ini = figIndonesiaBars(rows, "initial")
+  expect((ini.layout as typeof lay).xaxis.title.text).toContain(": initial")
+  expect(((ini.data as typeof data)[1] as (typeof data)[number]).y[0]).toBe(1)
+  // a missing row is a gap (NaN), not a zero bar
+  const gap = figIndonesiaBars(
+    rows.filter((r) => !(r.site === "medan" && r.bin === "hot")),
+    "initial",
+  )
+  expect(
+    Number.isNaN(((gap.data as typeof data)[0] as (typeof data)[number]).y[4]),
+  ).toBe(true)
 })
