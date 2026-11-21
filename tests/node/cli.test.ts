@@ -455,3 +455,10 @@ test("sensitivityRequiresAllThreeInputFilesExit5", async () => {
   const dir = await simulated()
   expect((await sensitivity(dir, ["--n", "1"])).exitCode).toBe(2)
 })
+
+test("sensitivityAppliesGlobalLoadGuardExit6", async () => {
+  const dir = await simulated()
+  const r = await run(["sensitivity", "--in", dir, "--max-load", "-1"])
+  expect(r.exitCode).toBe(6)
+  expect(existsSync(join(dir, "sensitivity.csv"))).toBe(false)
+})

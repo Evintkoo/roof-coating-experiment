@@ -308,3 +308,23 @@ test("runSensitivityDeterministic", () => {
     runSensitivity(ctx, SEED, 8),
   )
 })
+
+test("roundingNoiseOutputIsZeroVarianceNotNoisyIndices", () => {
+  // constant to within one ulp of 1e8: the variance is rounding noise (~1e-16), far below 1e-24 x (mean^2 + 1)
+  const f = (x: Float64Array) => 1e8 * (1 + (x[0] as number) * 3e-16)
+  const r = sobolIndices(
+    f,
+    ["a", "b"],
+    [
+      [0, 1],
+      [0, 1],
+    ],
+    512,
+    SEED,
+    10,
+  )
+  for (const v of r) {
+    expect(v.S1).toBe(0)
+    expect(v.ST).toBe(0)
+  }
+})
