@@ -70,10 +70,13 @@ const section = (text: string, name: string): string => {
 
 /** Independent D6 (written from the plan text, not from controls.ts). */
 function d6(rows: ResultRow[], pf: number): string {
-  const mean = (k: "r_solar_hi" | "r_solar_pred" | "delam_proxy") =>
+  const mean = (k: "r_solar_pred" | "delam_proxy") =>
     rows.reduce((a, r) => a + r[k], 0) / rows.length
   if (rows.some((r) => !r.feasible)) return "reject"
-  if (mean("r_solar_hi") < ctx.mat.substrate.r_solar.value) return "reject"
+  if (
+    Math.min(...rows.map((r) => r.r_solar_hi)) < ctx.mat.substrate.r_solar.value
+  )
+    return "reject"
   if (
     pf >= 0.5 &&
     mean("r_solar_pred") > ctx.controls.c1_r_solar.value &&
@@ -170,6 +173,23 @@ test("decisionRederivedIndependently", async () => {
   }
   expect([...seen].sort()).toEqual(["go", "reject", "revise"])
   expect(rows.length).toBe(9)
+})
+
+test("rejectUsesMinimumUpperBoundOverScenarios", async () => {
+  const id = short.high_performing as string
+  const sub = ctx.mat.substrate.r_solar.value
+  let first = true
+  const res = results.map((r) => {
+    if (r.candidate_id !== id) return r
+    const hi = first ? sub - 0.05 : 0.97
+    first = false
+    return { ...r, r_solar_pred: 0.95, r_solar_lo: 0.9, r_solar_hi: hi }
+  })
+  const rows = res.filter((r) => r.candidate_id === id)
+  const meanHi = rows.reduce((a, r) => a + r.r_solar_hi, 0) / rows.length
+  expect(meanHi).toBeGreaterThan(sub) // the old mean rule would not reject
+  const text = await card(id, "high_performing", res, controls, 0.9)
+  expect(section(text, "Decision").trim().split(/\s/)[0]).toBe("reject")
 })
 
 test("limitsListScenarioConstantsAndStaticLimits", async () => {

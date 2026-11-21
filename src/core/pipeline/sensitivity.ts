@@ -92,7 +92,7 @@ function sobolEstimate(
   const S1 = new Array<number>(d).fill(0)
   const ST = new Array<number>(d).fill(0)
   // relative guard: a variance at rounding-noise level is zero variance (indices would be noise / noise)
-  if (v < 1e-24 * (m * m + 1)) return { S1, ST }
+  if (v <= 1e-24 * m * m || v <= 1e-300) return { S1, ST }
   for (let i = 0; i < d; i++) {
     const ab = fAB[i] as Float64Array
     let s1 = 0

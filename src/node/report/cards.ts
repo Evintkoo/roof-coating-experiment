@@ -118,7 +118,7 @@ export function cardDecision(i: CardInput): Decision {
   return decide(
     {
       feasible,
-      r_solar_hi: mean(rows.map((r) => r.r_solar_hi)),
+      r_solar_hi: Math.min(...rows.map((r) => r.r_solar_hi)),
       pareto_freq: i.paretoFreq,
       r_solar_pred_mean: mean(rows.map((r) => r.r_solar_pred)),
       delam_proxy: mean(rows.map((r) => r.delam_proxy)),

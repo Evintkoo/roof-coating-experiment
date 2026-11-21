@@ -328,3 +328,37 @@ test("roundingNoiseOutputIsZeroVarianceNotNoisyIndices", () => {
     expect(v.ST).toBe(0)
   }
 })
+
+test("zeroVarianceGuardIsScaleInvariant", () => {
+  // tiny-magnitude output: the old absolute "+1" term would call any variance below 1e-24 zero
+  const small = (x: Float64Array) => 1e-20 * (x[0] as number)
+  const rs = sobolIndices(
+    small,
+    ["a", "b"],
+    [
+      [0, 1],
+      [0, 1],
+    ],
+    512,
+    SEED,
+    10,
+  )
+  expect(rs[0]?.S1).toBeGreaterThan(0.9)
+  expect(rs[1]?.ST).toBeLessThan(0.1)
+  // exactly constant output at huge magnitude is zero variance
+  const flat = () => 1e30
+  for (const v of sobolIndices(
+    flat,
+    ["a", "b"],
+    [
+      [0, 1],
+      [0, 1],
+    ],
+    256,
+    SEED,
+    10,
+  )) {
+    expect(v.S1).toBe(0)
+    expect(v.ST).toBe(0)
+  }
+})
