@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
 import { readFile } from "node:fs/promises"
+import { basename } from "node:path"
 import { parse } from "yaml"
 import {
   type MaterialRanges,
@@ -31,7 +32,16 @@ async function loadYaml<T>(
     throw new ConfigError(path, "YAML syntax error")
   }
   const cfg = parseFn(raw)
-  emit("config.loaded", "info", { kind })
+  const n_constants =
+    typeof raw === "object" && raw !== null && !Array.isArray(raw)
+      ? Object.keys(raw).length
+      : 0
+  emit("config.loaded", "info", {
+    kind,
+    path: basename(path),
+    n_constants,
+    sha256: createHash("sha256").update(text).digest("hex"),
+  })
   return cfg
 }
 

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DESIGN_COLUMNS } from "../../src/core/columns"
@@ -18,7 +18,7 @@ const design = (out: string, extra: string[] = [], seed = "20261121") => [
   "1000",
   ...extra,
 ]
-const noTrace = (stderr: string) => expect(stderr).not.toMatch(/\n\s+at /)
+const noTrace = (stderr: string) => expect(stderr).not.toMatch(/(^|\n)\s+at \S/)
 
 test("happyPathExit0AndTwoFiles", async () => {
   const out = tmpOut()
@@ -42,9 +42,9 @@ test("runtimeUnder2s", async () => {
   const t0 = performance.now()
   const r = await run(design(tmpOut()))
   expect(r.exitCode).toBe(0)
-  // wall clock includes process start; the plan budget (T_runtime_ms) applies to the command
+  // T_runtime_ms: both the command's own clock and the wall time of the whole subprocess
   expect(Number(lastEvent(r, "run.complete").elapsed_ms)).toBeLessThan(2000)
-  expect(performance.now() - t0).toBeLessThan(5000)
+  expect(performance.now() - t0).toBeLessThan(2000)
 })
 
 test("sameSeedSameBytesDifferentSeedDiffers", async () => {
@@ -137,7 +137,8 @@ test("faultF5", async () => {
 })
 
 test("faultF6", async () => {
-  const dir = await copyConfigWith("irradiance_w_m2.unit", "x")
+  const dir = mkdtempSync(join(tmpdir(), "spandek-cfg-"))
+  cpSync(join(repoRoot, "configs"), dir, { recursive: true })
   rmSync(join(dir, "weather_scenarios.yaml"))
   await fault(await withCfg(dir), 5, "data")
 })
@@ -227,6 +228,17 @@ test("eventsEmitted", async () => {
   expect(String(seen.get("run.start")?.config_sha256)).toMatch(/^[0-9a-f]{64}$/)
   expect(seen.get("design.generated")).toMatchObject({ n: 96, seed: 20261121 })
   expect(seen.get("constraint.violated")).toMatchObject({ rule: "C-1" })
+  expect(String(seen.get("constraint.violated")?.candidate_id)).toMatch(
+    /^SP-\d{3}$/,
+  )
+  const loaded = events(r1).filter((e) => e.event === "config.loaded")
+  expect(loaded.map((e) => e.path)).toEqual([
+    "material_ranges.yaml",
+    "weather_scenarios.yaml",
+  ])
+  expect(loaded[0]?.n_constants).toBe(11)
+  expect(loaded[1]?.n_constants).toBe(6)
+  for (const e of loaded) expect(String(e.sha256)).toMatch(/^[0-9a-f]{64}$/)
   // info-level logs also reach stderr as JSON lines
   expect(r1.stderr).toContain('"event":"run.start"')
 })

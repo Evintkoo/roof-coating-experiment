@@ -58,3 +58,10 @@ Runs (real CLI, `--max-load 1000`, logs in `<reports>/<run_id>/run.jsonl`; elaps
 - `design.generated` is emitted by the CLI (plan names core/design as emitter, but only the CLI knows feasible counts).
 - `--max-load`: plan 01 defines no guard; implemented as 1-minute load average above the value gives ResourceError (exit 6); no default guard.
 - `--n` must equal 96 (F5); the plan has no config key for the required count.
+
+### Notes (review follow-up)
+
+- M4 as written in the plan (`Math.imul` replaced by `*` in `nextU32`) is an equivalent mutant: the products stay below 2^53, so the bits are identical. The meaningful mutant targets `fmix32`/`deriveSeed`; it is killed by `matchesCReferenceBitExact`.
+- `SPANDEK_REPORTS_DIR` sets the log root (default `reports`); the run log is `<root>/<run_id>/run.jsonl`.
+- `--max-load FLOAT`: if the 1-minute load average is above the value, the command exits 6 (`ResourceError`); without the flag there is no guard.
+- `config.loaded` carries `kind`, `path` (basename only), `n_constants` (top-level keys) and `sha256` (of the text read).
