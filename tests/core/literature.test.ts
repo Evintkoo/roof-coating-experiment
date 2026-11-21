@@ -67,7 +67,7 @@ test("g173IntegralIs1000p37", () => {
       (((s.irradiance_w_m2_um[i] as number) +
         (s.irradiance_w_m2_um[i + 1] as number)) /
         2)
-  expect(Math.abs(sum - 1000.37)).toBeLessThan(0.05)
+  expect(Math.abs(sum - 1000.37)).toBeLessThan(0.005)
 })
 
 test("convertG173ConvertsUnits", () => {

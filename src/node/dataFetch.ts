@@ -29,19 +29,56 @@ export const SOURCES: Sources = {
   siefke: `${RII}/Siefke.yml`,
 }
 
-/** GET url, require HTTP 200, write the bytes to dest, return their sha256. */
+export const MAX_BYTES = 5 * 1024 * 1024
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"])
+
+async function readCapped(res: Response, host: string): Promise<Uint8Array> {
+  const tooBig = () => new DataError(host, "response larger than 5 MB")
+  const cl = Number(res.headers.get("content-length"))
+  if (Number.isFinite(cl) && cl > MAX_BYTES) throw tooBig()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  if (res.body) {
+    for await (const c of res.body as unknown as AsyncIterable<Uint8Array>) {
+      total += c.length
+      if (total > MAX_BYTES) throw tooBig()
+      chunks.push(c)
+    }
+  }
+  const out = new Uint8Array(total)
+  let off = 0
+  for (const c of chunks) {
+    out.set(c, off)
+    off += c.length
+  }
+  return out
+}
+
+/**
+ * GET url, require HTTP 200, write the bytes to dest, return their sha256.
+ * https only (loopback http allowed for tests), no redirects, body capped at 5 MB.
+ */
 export async function fetchTo(url: string, dest: string): Promise<string> {
-  let host = "?"
+  let u: URL
   try {
-    host = new URL(url).host
+    u = new URL(url)
   } catch {
     throw new DataError("url", "invalid url")
   }
+  const host = u.host
+  if (
+    u.protocol !== "https:" &&
+    !(u.protocol === "http:" && LOOPBACK.has(u.hostname))
+  )
+    throw new DataError(host, "only https urls are allowed")
   let bytes: Uint8Array
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(60_000) })
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(60_000),
+      redirect: "manual",
+    })
     if (res.status !== 200) throw new DataError(host, `HTTP ${res.status}`)
-    bytes = new Uint8Array(await res.arrayBuffer())
+    bytes = await readCapped(res, host)
   } catch (e) {
     if (e instanceof DataError) throw e
     throw new DataError(host, "network error")

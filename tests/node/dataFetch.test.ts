@@ -1,5 +1,11 @@
 import { afterEach, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseG173, parseNk } from "../../src/core/literature"
@@ -112,6 +118,46 @@ test("fetchDataPipelineWritesCsvsAndVerifiableSums", async () => {
       fetchData(dir, { g173: "", bondO: "", bondE: "", siefke: "" }),
     ).rejects.toMatchObject({ code: 2 })
     writeFileSync(join(dir, "x"), "")
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("oversizedBodyAndInsecureUrlRejected", async () => {
+  const big = serve({ "/big": "x".repeat(5 * 1024 * 1024 + 1) })
+  const dir = mkdtempSync(join(tmpdir(), "spandek-fetch-"))
+  try {
+    await expect(fetchTo(`${big}/big`, join(dir, "b"))).rejects.toMatchObject({
+      code: 5,
+    })
+    expect(existsSync(join(dir, "b"))).toBe(false)
+    await expect(
+      fetchTo("http://example.com/x", join(dir, "c")),
+    ).rejects.toMatchObject({ code: 5 })
+    await expect(
+      fetchTo("ftp://127.0.0.1/x", join(dir, "c")),
+    ).rejects.toMatchObject({ code: 5 })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("redirectIsNotFollowed", async () => {
+  const s = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch: () =>
+      new Response("", {
+        status: 302,
+        headers: { location: "http://example.com/" },
+      }),
+  })
+  servers.push(s)
+  const dir = mkdtempSync(join(tmpdir(), "spandek-fetch-"))
+  try {
+    await expect(
+      fetchTo(`http://127.0.0.1:${s.port}/x`, join(dir, "r")),
+    ).rejects.toMatchObject({ code: 5 })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
