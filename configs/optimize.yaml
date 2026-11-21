@@ -1,0 +1,150 @@
+# Plan 05 (derivative-based formulation optimisation). Variable ranges follow configs/material_ranges.yaml (blueprint 5.1);
+# the two grade sizes are ingredient grades (D8) and carry their own provenance. Step sizes h are in SCALED coordinates
+# u = (x - lo)/(hi - lo), chosen at the centre of each variable's plateau in docs/spike-refine.md (Q1).
+# Order of `vars` is fixed: it is the coordinate order of every optimiser vector.
+vars:
+  - id: p1
+    label: primer GPTES mole fraction
+    lo: 0.20
+    hi: 0.80
+    h: 1.0e-5
+    unit: mol fraction
+    source: "configs/material_ranges.yaml primer_gptes_molfrac (blueprint 5.1, P1)"
+    status: scenario
+  - id: p2
+    label: primer DFT
+    lo: 2
+    hi: 12
+    h: 1.0e-5
+    unit: um
+    source: "configs/material_ranges.yaml primer_dft_um (blueprint 5.1, P2)"
+    status: scenario
+  - id: m1
+    label: midcoat PVC
+    lo: 0.10
+    hi: 0.35
+    h: 1.0e-4
+    unit: fraction of solids volume
+    source: "configs/material_ranges.yaml midcoat_pvc (blueprint 5.1, M1)"
+    status: scenario
+  - id: m2
+    label: TiO2 share of pigment volume
+    lo: 0.20
+    hi: 0.80
+    h: 1.0e-4
+    unit: fraction of total pigment volume
+    source: "configs/material_ranges.yaml midcoat_tio2_fraction (blueprint 5.1, M2)"
+    status: scenario
+  - id: m3
+    label: midcoat DFT
+    lo: 100
+    hi: 300
+    h: 1.0e-4
+    unit: um
+    source: "configs/material_ranges.yaml midcoat_dft_um (blueprint 5.1, M3)"
+    status: scenario
+  - id: t1
+    label: topcoat MTES mole fraction
+    lo: 0.20
+    hi: 0.80
+    h: 1.0e-5
+    unit: mol fraction
+    source: "configs/material_ranges.yaml topcoat_mtes_molfrac (blueprint 5.1, T1)"
+    status: scenario
+  - id: t2
+    label: topcoat DFT
+    lo: 3
+    hi: 20
+    h: 1.0e-4
+    unit: um
+    source: "configs/material_ranges.yaml topcoat_dft_um (blueprint 5.1, T2)"
+    status: scenario
+  - id: d_tio2_um
+    label: TiO2 grade (mean particle diameter)
+    lo: 0.15
+    hi: 0.40
+    h: 1.0e-5
+    unit: um
+    source: "Plan 05 D8: ingredient grade choice. Public rutile paint-grade sheets read in docs/spike-refine.md Q2 give 0.34-0.40 um (Ruichem RC-635, NTR-606, third-party reposts); 0.15-0.30 um is not confirmed by any sheet read; no manufacturer page with a size was reachable. Scenario bounds, not an availability claim"
+    status: scenario
+  - id: d_baso4_um
+    label: BaSO4 grade (mean particle diameter)
+    lo: 0.30
+    hi: 3.0
+    h: 1.0e-5
+    unit: um
+    source: "Plan 05 D8: ingredient grade choice. Solvay Blanc Fixe (solvay.com/en/brands/blanc-fixe) sells average sizes 0.7, 0.8, 1 (HD 80), 1.7 (N) and 4 um (G); 0.3 and 3.0 um not confirmed (docs/spike-refine.md Q2). Scenario bounds, not an availability claim"
+    status: scenario
+
+# FR-2: S = (1/beta) ln sum exp(beta w g) + rho sum w g over objectives normalised to [0,1] by the plan-3 results.csv range.
+scalarisation:
+  beta: 20
+  rho: 0.05
+
+# Weight vectors keyed by the plan-3 OBJECTIVES names (src/core/pipeline/optimize.ts); every vector sums to 1.
+# Plan D12 names "wetting" as the fourth objective, but plan 3's fourth objective is delam_proxy (wetting is not one of the
+# five), so delam_proxy takes that weight here. The cost objective has weight 0 in the profiles: the budget table replaces it
+# by a hard constraint.
+weights:
+  balanced:
+    r_solar_pred: 0.2
+    t_max_pred: 0.2
+    corrosion_proxy: 0.2
+    delam_proxy: 0.2
+    cost_proxy: 0.2
+  corner_r_solar_pred:
+    r_solar_pred: 0.7
+    t_max_pred: 0.075
+    corrosion_proxy: 0.075
+    delam_proxy: 0.075
+    cost_proxy: 0.075
+  corner_t_max_pred:
+    r_solar_pred: 0.075
+    t_max_pred: 0.7
+    corrosion_proxy: 0.075
+    delam_proxy: 0.075
+    cost_proxy: 0.075
+  corner_corrosion_proxy:
+    r_solar_pred: 0.075
+    t_max_pred: 0.075
+    corrosion_proxy: 0.7
+    delam_proxy: 0.075
+    cost_proxy: 0.075
+  corner_delam_proxy:
+    r_solar_pred: 0.075
+    t_max_pred: 0.075
+    corrosion_proxy: 0.075
+    delam_proxy: 0.7
+    cost_proxy: 0.075
+  corner_cost_proxy:
+    r_solar_pred: 0.075
+    t_max_pred: 0.075
+    corrosion_proxy: 0.075
+    delam_proxy: 0.075
+    cost_proxy: 0.7
+profiles:
+  cooling_first:
+    r_solar_pred: 0.4
+    t_max_pred: 0.4
+    corrosion_proxy: 0.1
+    delam_proxy: 0.1
+    cost_proxy: 0
+  balanced:
+    r_solar_pred: 0.25
+    t_max_pred: 0.25
+    corrosion_proxy: 0.25
+    delam_proxy: 0.25
+    cost_proxy: 0
+  durability_first:
+    r_solar_pred: 0.1
+    t_max_pred: 0.1
+    corrosion_proxy: 0.4
+    delam_proxy: 0.4
+    cost_proxy: 0
+
+tol_loss: 0.01 # FR-6: tolerated relative loss of the scalar objective
+robust_draws: 32 # FR-5: K uncertainty draws for robust re-optimisation
+interval_draws: 64 # FR-12: K_b draws for table-entry intervals
+budget_levels: 100 # FR-9: budget levels per profile
+starts: { pareto: 10, sobol: 10, corner: 5 } # FR-2/FR-3
+extra_starts: [] # optional extra start points, each a list of 9 values in VARS order (physical units); must lie inside the box

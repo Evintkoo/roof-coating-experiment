@@ -13,6 +13,7 @@ import {
   type WeatherConfig,
 } from "../core/config"
 import { ConfigError, DataError } from "../core/errors"
+import { type OptimizeConfig, parseOptimize } from "../core/opt/optConfig"
 import { emit } from "./logging"
 
 async function readText(path: string): Promise<string> {
@@ -60,6 +61,9 @@ export const loadWeather = (path: string): Promise<WeatherConfig> =>
 
 export const loadControls = (path: string): Promise<Controls> =>
   loadYaml(path, "controls", parseControls)
+
+export const loadOptimize = (path: string): Promise<OptimizeConfig> =>
+  loadYaml(path, "optimize", parseOptimize)
 
 /** SHA-256 (hex) over the raw bytes of the files, in the given order. */
 export async function configSha256(paths: readonly string[]): Promise<string> {

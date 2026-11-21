@@ -33,6 +33,7 @@ const NON_MIRROR = new Set(
 const NO_MIRROR_NEEDED = new Set([
   "web/main.ts",
   "web/worker.ts",
+  "web/budget.ts",
   "node/simWorker.ts",
 ])
 
@@ -63,4 +64,24 @@ test("guardCanFail", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test("guardAcceptsPlan5Files", () => {
+  // src/web/budget.ts is slider glue (covered by report.browser); the three plan-5 e2e/baseline tests are cross-cutting.
+  expect(
+    missingMirrors([...srcFiles, "web/budget.ts"], testFiles, NO_MIRROR_NEEDED),
+  ).toEqual([])
+  const planTests = ["refine.e2e", "refine.baseline", "budget.baseline"].map(
+    (n) => `${n}.test.ts`,
+  )
+  expect(
+    orphanTests(srcFiles, [...testFiles, ...planTests], NON_MIRROR),
+  ).toEqual([])
+  // the guard can still fail for an unlisted glue file and an unlisted cross-cutting test
+  expect(missingMirrors(["web/other.ts"], testFiles, NO_MIRROR_NEEDED)).toEqual(
+    ["web/other.ts"],
+  )
+  expect(orphanTests(srcFiles, ["plan5.stray.test.ts"], NON_MIRROR)).toEqual([
+    "plan5.stray.test.ts",
+  ])
 })

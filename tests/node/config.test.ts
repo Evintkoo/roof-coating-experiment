@@ -8,6 +8,7 @@ import {
   loadControls,
   loadMaterialRanges,
   loadMaterials,
+  loadOptimize,
   loadWeather,
 } from "../../src/node/config"
 import { configureLogging, newRunId } from "../../src/node/logging"
@@ -118,4 +119,16 @@ test("c1ReflectanceAboveOneRejected", async () => {
   }
   expect(err.code).toBe(2)
   expect(err.key).toBe("c1_r_solar.value")
+})
+
+test("loadOptimizeReadsTheRealFileAndRejectsABadOne", async () => {
+  const c = await loadOptimize(join(repoRoot, "configs", "optimize.yaml"))
+  expect(c.vars).toHaveLength(9)
+  const dir = mkdtempSync(join(tmpdir(), "spandek-cfg-"))
+  const p = join(dir, "optimize.yaml")
+  writeFileSync(p, "vars: []\n")
+  await expect(loadOptimize(p)).rejects.toMatchObject({ code: 2 })
+  await expect(loadOptimize(join(dir, "missing.yaml"))).rejects.toBeInstanceOf(
+    DataError,
+  )
 })
