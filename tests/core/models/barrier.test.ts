@@ -5,6 +5,7 @@ import fc from "fast-check"
 import type { Materials } from "../../../src/core/config"
 import { PhysicsRangeError } from "../../../src/core/errors"
 import { barrier } from "../../../src/core/models/barrier"
+import { delaminationProxy } from "../../../src/core/models/delamination"
 import { loadMaterials } from "../../../src/node/config"
 import { repoRoot } from "../../helpers"
 
@@ -51,48 +52,33 @@ test("permIncreasesWithGptes", () => {
 })
 
 test("crackIncreasesWithDft", () => {
-  // Spike constants saturate crack at 1.0 (see report); non-decreasing everywhere,
-  // strictly increasing while unsaturated.
   for (const x of [0.2, 0.5, 0.8]) {
     let prev = -1
     for (let d = 2; d <= 12; d++) {
       const c = barrier(x, d, mat).crack_index
-      expect(c).toBeGreaterThanOrEqual(prev)
-      if (prev > 0 && prev < 0.999) expect(c).toBeGreaterThan(prev)
+      expect(c).toBeGreaterThan(prev)
       prev = c
     }
   }
-  expect(barrier(0.8, 6, mat).crack_index).toBeGreaterThan(
-    barrier(0.8, 2, mat).crack_index,
-  )
-  expect(barrier(0.8, 12, mat).crack_index).toBeGreaterThan(
-    barrier(0.8, 6, mat).crack_index,
-  )
 })
 
-const withHc = (hc: number): Materials => {
-  const m = structuredClone(mat)
-  m.barrier.h_c0_primer_um.value = hc
-  return m
-}
-
-const argminX = (m: Materials, dft: number): number => {
+const argminX = (dft: number): number => {
   const r = Array.from(
     { length: 61 },
-    (_, i) => barrier(0.2 + (0.6 * i) / 60, dft, m).corrosion_risk,
+    (_, i) => barrier(0.2 + (0.6 * i) / 60, dft, mat).corrosion_risk,
   )
   return r.indexOf(Math.min(...r))
 }
 
 test("interiorOptimumExistsInX", () => {
-  // Documents the by-construction shape (D5): perm rises and crack falls with x,
-  // so corrosion_risk CAN have an interior minimum. Not evidence for blueprint H1.
-  // With the spike h_c0 = 1 um the crack term dominates and the minimum sits on the x = 0.8 edge
-  // (reported as a concern); the interior optimum appears only for a narrow window of constants (h_c0 = 3 um at 2 um DFT: minimum near x = 0.62).
-  for (const dft of [2, 6, 12]) expect(argminX(mat, dft)).toBe(60)
-  const k = argminX(withHc(3), 2)
+  // By construction (D5, Ruling R4): perm rises and crack falls with x, constants tuned so the
+  // minimum is interior. Assumed blueprint-H1 shape, not evidence for it.
+  const k = argminX(6)
+  const x = 0.2 + (0.6 * k) / 60
   expect(k).toBeGreaterThan(0)
   expect(k).toBeLessThan(60)
+  expect(x).toBeGreaterThanOrEqual(0.35)
+  expect(x).toBeLessThanOrEqual(0.65)
   expect(barrier(0.5, 6, mat).proxy).toBe(true)
   const src = readFileSync(join(repoRoot, "src/core/models/barrier.ts"), "utf8")
   expect(src).toMatch(
@@ -100,13 +86,40 @@ test("interiorOptimumExistsInX", () => {
   )
 })
 
+test("shapeConstantsKeepProxiesInformative", () => {
+  // (a) crack unsaturated over primer DFT 2-12 x GPTES 0.2-0.8
+  const c: number[] = []
+  for (let i = 0; i <= 12; i++)
+    for (let d = 2; d <= 12; d++)
+      c.push(barrier(0.2 + (0.6 * i) / 12, d, mat).crack_index)
+  expect(c.filter((v) => v < 0.9).length / c.length).toBeGreaterThanOrEqual(0.3)
+  expect(c.filter((v) => v > 0.1).length / c.length).toBeGreaterThanOrEqual(0.3)
+  // (c) delam spans 0.5, non-decreasing in MTES and in topcoat DFT
+  const all: number[] = []
+  for (let L = 3; L <= 20; L++) {
+    let prevY = -1
+    for (let i = 0; i <= 12; i++) {
+      const y = 0.2 + (0.6 * i) / 12
+      const v = delaminationProxy(y, L, mat)
+      expect(v).toBeGreaterThanOrEqual(prevY)
+      if (L > 3) {
+        expect(v).toBeGreaterThanOrEqual(delaminationProxy(y, L - 1, mat))
+      }
+      prevY = v
+      all.push(v)
+    }
+  }
+  expect(Math.min(...all)).toBeLessThan(0.5)
+  expect(Math.max(...all)).toBeGreaterThan(0.5)
+})
+
 test("closedFormPinned", () => {
   const x = 0.5
   const L = 6
   const eps = 0.05 + 0.35 * x
   const tIng = (L * L) / (6 * eps ** 1.5)
-  const perm = 1 / (1 + tIng / 1)
-  const ratio = L / (1 / (1 - x))
+  const perm = 1 / (1 + tIng / 100)
+  const ratio = L / (5 / (1 - x))
   const crack = 1 - Math.exp(-(ratio * ratio))
   const b = barrier(x, L, mat)
   expect(b.perm_index).toBeCloseTo(perm, 12)

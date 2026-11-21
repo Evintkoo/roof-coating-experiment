@@ -92,25 +92,25 @@ barrier:
     status: scenario
     source: "scenario shape constant of the network porosity-like index, not a measured porosity; no source"
   h_c0_primer_um:
-    value: 1.0
+    value: 5.0
     unit: "um"
     status: scenario
-    source: "scenario, deliberately conservative: organosilica films crack-free to at least 1.25 um (secondary, search summary of a koreascience.kr paper, not opened)"
+    source: "scenario: tuned so the proxy is informative; encodes the assumed interior optimum, not evidence for it (plan 02 Ruling R4). Spike value 1.0 saturated crack at 1; literature anchor (crack-free to at least 1.25 um, secondary) is a lower bound only"
   h_c0_top_um:
-    value: 0.3
+    value: 50.0
     unit: "um"
     status: scenario
-    source: "scenario: Lei et al., J. Am. Ceram. Soc. 103, 70 (2019), PMC7316397, 'critical thickness of sol-gel derived thin films is about a few hundred nanometers' (read); 0.3 um is the scenario pick"
+    source: "scenario: tuned so the proxy is informative; encodes the assumed interior optimum, not evidence for it (plan 02 Ruling R4). Spike value 0.3 (Lei et al. 2019 critical thickness, a few hundred nm) saturated delamination at 1; kept as shape constant so delam is not flat"
   crack_exponent:
     value: 1.0
     unit: "1"
     status: scenario
     source: "scenario, sensitivity 0.5-2, encodes denser network cracking at lower thickness; not measurable"
   t_ref_rel:
-    value: 1.0
+    value: 100.0
     unit: "1"
     status: scenario
-    source: "scenario normalisation of the ingress time, frozen once and never tuned; no source"
+    source: "scenario: tuned so the proxy is informative; encodes the assumed interior optimum, not evidence for it (plan 02 Ruling R4). Normalisation of the ingress time; sets where perm overtakes crack"
 sol_gel:
   k_h:
     value: 0.15

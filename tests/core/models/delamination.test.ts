@@ -11,27 +11,15 @@ const mat: Materials = await loadMaterials(
   join(repoRoot, "configs", "materials.yaml"),
 )
 
-const withHc = (hc: number): Materials => {
-  const m = structuredClone(mat)
-  m.barrier.h_c0_top_um.value = hc
-  return m
-}
-
 test("delamIncreasesWithMtes", () => {
-  // Blueprint H3 direction. With the spike h_c0_top = 0.3 um, crack_top saturates at 1 over the whole
-  // 3-20 um range, so delam is ~1 and flat (reported as a concern); the direction is asserted
-  // where crack_top is unsaturated (h_c0_top = 300 um).
-  const m = withHc(300)
+  // Blueprint H3 direction (assumed by D7, not evidence).
   for (const dft of [3, 10, 20]) {
     let prev = -1
     for (let i = 0; i <= 12; i++) {
-      const d = delaminationProxy(0.2 + (0.6 * i) / 12, dft, m)
+      const d = delaminationProxy(0.2 + (0.6 * i) / 12, dft, mat)
       expect(d).toBeGreaterThan(prev)
       prev = d
     }
-  }
-  for (const dft of [3, 10, 20]) {
-    expect(delaminationProxy(0.5, dft, mat)).toBeGreaterThan(0.99)
   }
 })
 
@@ -48,9 +36,9 @@ test("delamBounds", () => {
   expect(delaminationProxy(1, 10, mat)).toBe(1)
   const y = 0.5
   const L = 10
-  const ratio = L / (300 / (1 - y))
+  const ratio = L / (50 / (1 - y))
   const crack = 1 - Math.exp(-(ratio * ratio))
-  expect(delaminationProxy(y, L, withHc(300))).toBeCloseTo(
+  expect(delaminationProxy(y, L, mat)).toBeCloseTo(
     1 - (1 - y * y) * (1 - crack),
     12,
   )
