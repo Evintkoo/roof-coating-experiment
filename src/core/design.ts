@@ -70,12 +70,13 @@ export function scenarioFrom(
   wind_m_s: number,
   w: WeatherConfig,
 ): Omit<Scenario, "scenario_id"> {
+  const T = t_air_c + 273.15
   return {
     irradiance_w_m2,
     t_air_c,
     wind_m_s,
     h_conv_w_m2k: w.h_conv_a.value + w.h_conv_b.value * wind_m_s,
-    t_sky_k: 0.0552 * (t_air_c + 273.15) ** 1.5,
+    t_sky_k: 0.0552 * T * Math.sqrt(T),
   }
 }
 

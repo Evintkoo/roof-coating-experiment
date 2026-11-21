@@ -98,6 +98,9 @@ test("jitterStaysInsideStratum", () => {
           shuffleInPlace(rng, perm)
           for (let i = 0; i < n; i++) {
             const x = (u[i] as number[])[j] as number
+            expect(x).toBe(
+              ((perm[i] as number) + 0.001 + 0.998 * rng.next()) / n,
+            )
             expect(Math.floor(x * n)).toBe(perm[i] as number)
             const frac = x * n - (perm[i] as number)
             expect(frac).toBeGreaterThanOrEqual(0.001 - 1e-9)
@@ -158,6 +161,7 @@ test("skyTemperatureMatchesSwinbank", () => {
   expect(w1?.t_air_c).toBe(28)
   const hand = 0.0552 * 301.15 * Math.sqrt(301.15)
   const got = w1?.t_sky_k as number
+  expect(got).toBe(hand)
   expect(Math.abs(got - hand) / hand).toBeLessThan(1e-12)
   expect(Math.abs(got - 0.0552 * 301.15 ** 1.5) / got).toBeLessThan(1e-12)
 })
