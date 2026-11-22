@@ -1,5 +1,6 @@
 // Plan 06 Task 5: the controlled term list and the glossary, as data. A translation is another table of the same shape
-// (BLOCKED-12), not a code change. Browser-safe and Node-safe: no imports.
+// (BLOCKED-12), not a code change. Browser-safe and Node-safe: its only import is the pure escape helper.
+import { esc } from "./html"
 
 export type GlossaryEntry = {
   /** Stable id; the anchor is `glossary-<id>`. */
@@ -203,4 +204,28 @@ export function glossaryAnchor(term: string): string {
 /** The in-page link to a term's glossary entry. */
 export function glossaryLink(term: string): string {
   return `#${glossaryAnchor(term)}`
+}
+
+/**
+ * `text` as escaped HTML in which the first use of each controlled term not yet in `seen` is an anchor to its glossary entry
+ * (FR-8, H14). `seen` is updated, so one set shared across a page links each term once.
+ */
+export function linkTerms(text: string, seen: Set<string>): string {
+  const spans: { start: number; end: number; id: string }[] = []
+  for (const p of PATTERNS) {
+    if (seen.has(p.id)) continue
+    const m = p.re.exec(text)
+    if (m) spans.push({ start: m.index, end: m.index + m[0].length, id: p.id })
+  }
+  spans.sort((a, b) => a.start - b.start || b.end - a.end)
+  let out = ""
+  let at = 0
+  for (const s of spans) {
+    if (s.start < at) continue // overlaps an earlier link: it stays plain text
+    out += esc(text.slice(at, s.start))
+    out += `<a class="tv-term" href="${glossaryLink(s.id)}">${esc(text.slice(s.start, s.end))}</a>`
+    seen.add(s.id)
+    at = s.end
+  }
+  return out + esc(text.slice(at))
 }

@@ -226,6 +226,14 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-recipe__layers dd{margin:0;color:${t("text-primary")};overflow-wrap:anywhere}
 @media print{.tv-recipe{background:none;border-color:${t("text-primary")};break-inside:avoid}}
 `,
+  findingList: `
+.tv-findings{display:grid;gap:${t("space-3")};margin:${t("space-4")} 0;padding-inline-start:${t("space-6")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-body")}}
+.tv-finding{max-width:70ch;padding-inline-start:${t("space-2")}}
+.tv-finding__label{font-weight:${t("weight-semibold")}}
+.tv-finding__src{display:block;margin-top:${t("space-1")};color:${t("text-muted")};font-family:${t("font-mono")};font-size:${t("size-small")};overflow-wrap:anywhere}
+.tv-term{color:${t("link")}}
+.tv-term:hover{color:${t("link-hover")}}
+`,
 }
 
 /** The CSS of every atom, in a fixed order, one rule per line. */

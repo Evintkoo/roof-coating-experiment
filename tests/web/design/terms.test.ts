@@ -9,6 +9,7 @@ import {
   glossaryAnchor,
   glossaryEntry,
   glossaryLink,
+  linkTerms,
   termsIn,
 } from "../../../src/web/design/terms"
 import { repoRoot } from "../../helpers"
@@ -102,4 +103,20 @@ test("blockedEntriesPresent", () => {
   }
   expect(text).toMatch(/BLOCKED-12: Indonesian-language/)
   expect(text).toMatch(/BLOCKED-13: Light theme/)
+})
+
+test("linkTermsLinksTheFirstUseOfEachTermOnceAndEscapesTheRest", () => {
+  const seen = new Set<string>()
+  const html = linkTerms(
+    'A <b> "proxy index" & the proxy index again; peak surface temperature.',
+    seen,
+  )
+  expect(html.match(/<a /g)?.length).toBe(2)
+  expect(html).toContain(`href="${glossaryLink("proxy-index")}"`)
+  expect(html).toContain("&lt;b&gt;")
+  expect(html).toContain("&amp;")
+  expect([...seen].sort()).toEqual(["peak-surface-temperature", "proxy-index"])
+  expect(linkTerms("proxy index", seen)).toBe("proxy index")
+  expect(linkTerms("", new Set())).toBe("")
+  expect(linkTerms("no terms here", new Set())).toBe("no terms here")
 })
