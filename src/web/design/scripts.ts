@@ -6,6 +6,7 @@ import { DISCLOSURE_SCRIPT } from "./molecules/disclosure"
 import { SLIDER_SCRIPT } from "./molecules/sliderField"
 import { TABS_SCRIPT } from "./molecules/tabs"
 import { TABLE_SORT_SCRIPT } from "./organisms/dataTable"
+import { NAV_SPY_SCRIPT } from "./organisms/navRail"
 import { THEME_TOGGLE_SCRIPT } from "./theme"
 
 export const COMPONENT_SCRIPT = [
@@ -14,4 +15,5 @@ export const COMPONENT_SCRIPT = [
   SLIDER_SCRIPT,
   DISCLOSURE_SCRIPT,
   THEME_TOGGLE_SCRIPT,
+  NAV_SPY_SCRIPT,
 ].join("\n")
