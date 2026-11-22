@@ -17,6 +17,8 @@ import {
   type FrontRow,
   type OptData,
   PROFILE_LABEL,
+  profileSpread,
+  singleFrontier,
   varLabel,
 } from "../../web/optimisation"
 import { type BudgetPage, budgetLookup, coolingAxis } from "../../web/recipe"
@@ -192,20 +194,20 @@ ${fresh.length ? `<ul>${fresh.map((r) => `<li>${esc(FRESH_LABEL[r.name ?? ""] ??
 /** Budget panel and its lookup page data: the exact table lookup, the bare-aluminium peak (nominal) and the shared cooling scale. */
 function budgetPage(input: ReportInput, d: OptData): BudgetPage {
   const c0 = derive(input).c0Mean
+  const one = singleFrontier(d)
   return {
-    opt: d,
+    opt: one,
     c0_mean_c: c0,
-    axis: coolingAxis(d.tables, d.objectives, c0),
+    axis: coolingAxis(one.tables, one.objectives, c0),
   }
 }
 
 function budgetPanelHtml(input: ReportInput, d: OptData): string {
   const page = budgetPage(input, d)
-  const [lo, hi] = budgetRange(d.tables)
-  const profile = d.tables.some((t) => t.profile === "balanced")
-    ? "balanced"
-    : (d.tables[0] as OptData["tables"][number]).profile
-  const start = d.tables.find((t) => t.profile === profile)
+  const tables = page.opt.tables
+  const [lo, hi] = budgetRange(tables)
+  const profile = (tables[0] as OptData["tables"][number]).profile
+  const start = tables[0]
   // rounded up to six places so the number box is readable and the lookup still lands on the knee entry
   const value = Math.min(
     hi,
@@ -213,7 +215,7 @@ function budgetPanelHtml(input: ReportInput, d: OptData): string {
   )
   return budgetPanel({
     id: "budget-panel",
-    profiles: d.tables.map((t) => ({
+    profiles: tables.map((t) => ({
       id: t.profile,
       label: PROFILE_LABEL[t.profile] ?? t.profile,
     })),
@@ -251,14 +253,19 @@ export const optimisationSection: ReportSection = {
           seen: d.seen,
         }),
       )
-    if (o.data && o.data.tables.length > 0)
+    if (o.data && o.data.tables.length > 0) {
       parts.push(budgetPanelHtml(input, o.data))
+      if (singleFrontier(o.data).tables.length < o.data.tables.length)
+        parts.push(
+          `<p class="page-hint">One table, not three: the cooling-first, balanced and durability-first weightings select the same recipes at every budget to within the p5 to p95 uncertainty (the largest difference in any objective is ${Math.round(profileSpread(o.data) * 100)} % of that band's half-width), so a priority choice would change only where the weighted score stops improving.</p>`,
+        )
+    }
     if (o.data && o.data.tables.length > 0)
       parts.push(
         detail(
-          "Performance against cost for each priority",
+          "Performance against cost",
           `<div class="page-controls"><label for="opt-objective">Objective</label><select id="opt-objective">${o.data.objectives.map((ob, i) => `<option value="${i}"${ob === "t_max_pred" ? " selected" : ""}>${esc(axisLabel(ob))}</option>`).join("")}</select></div>
-${figureFrame({ message: "What each priority reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost for each priority with p5 to p95 bands", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--tall"></div>')}`,
+${figureFrame({ message: "What the modelled recipe reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost with a p5 to p95 band", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--tall"></div>')}`,
         ),
       )
     if (o.recipes)

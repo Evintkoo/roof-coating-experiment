@@ -109,12 +109,14 @@ export function budgetPanel(p: BudgetPanelProps): string {
       "data-profile": p.profile,
       "data-digits": digits,
     },
-    tag(
-      "fieldset",
-      { class: "tv-budget__profiles" },
-      tag("legend", {}, "Priority") +
-        tag("div", { class: "tv-budget__chips" }, chips),
-    ) +
+    (p.profiles.length > 1
+      ? tag(
+          "fieldset",
+          { class: "tv-budget__profiles" },
+          tag("legend", {}, "Priority") +
+            tag("div", { class: "tv-budget__chips" }, chips),
+        )
+      : "") +
       slider +
       tag(
         "div",
