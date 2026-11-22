@@ -3,6 +3,7 @@
 // primary. With an href it renders an anchor and owns the external-link attributes; without one a real <button>.
 // `error` adds a status-stop border (report addition; the vendor atom only sets data-state).
 import { cls, esc, linkAttrs, oneOf, safeHref, tag } from "../html"
+import { type IconName, icon } from "./icon"
 
 export const BUTTON_VARIANTS = ["primary", "ghost", "inverse"] as const
 export const BUTTON_STATES = ["idle", "loading", "error", "empty"] as const
@@ -13,6 +14,8 @@ export type ButtonProps = {
   label: string
   variant?: ButtonVariant
   state?: ButtonState
+  /** House rule 10: one decorative icon left of the label. */
+  icon?: IconName
   /** When set the control is a link to this destination (the state is not shown on a link). */
   href?: string
   /** The link leaves the site: new tab, no opener. */
@@ -23,7 +26,8 @@ export function button(p: ButtonProps): string {
   const variant = oneOf("Button", BUTTON_VARIANTS, p.variant ?? "primary")
   const state = oneOf("Button", BUTTON_STATES, p.state ?? "idle")
   const className = cls("tv-button", `tv-button--${variant}`)
-  const label = esc(p.label)
+  const label =
+    (p.icon === undefined ? "" : icon({ name: p.icon })) + esc(p.label)
   if (p.href !== undefined)
     return tag(
       "a",

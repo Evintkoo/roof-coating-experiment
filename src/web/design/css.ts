@@ -24,13 +24,21 @@ const BUTTON = `
 .tv-button--inverse:hover:not([aria-disabled="true"]){background:${t("surface-elevated")};box-shadow:0 16px 44px color-mix(in srgb,${t("color-canvas")} 55%,transparent)}
 .tv-button[aria-disabled="true"],.tv-button[data-state="loading"]{background:${t("surface-raised")};border-color:${t("border-glass")};color:${t("text-muted")};box-shadow:none}
 .tv-button[data-state="error"]{border-color:${t("status-stop")}}
-@media (prefers-reduced-motion:reduce){.tv-button{transition:none}.tv-button:active:not([aria-disabled="true"]){transform:none}}
+.tv-button .tv-icon{transition:transform ${t("motion-fast")} ease}
+.tv-button:hover .tv-icon,.tv-button:focus-visible .tv-icon{transform:translateX(${t("nudge")})}
+@media (prefers-reduced-motion:reduce){.tv-button .tv-icon{transition:none}.tv-button:hover .tv-icon,.tv-button:focus-visible .tv-icon{transform:none}.tv-button{transition:none}.tv-button:active:not([aria-disabled="true"]){transform:none}}
 @media print{.tv-button{background:none;box-shadow:none;color:${t("text-primary")};border-color:${t("border-control")};transition:none}}
+`
+
+const ICON = `
+.tv-icon{display:inline-flex;flex-shrink:0;width:${t("icon-size")};height:${t("icon-size")}}
+.tv-icon svg{width:100%;height:100%}
 `
 
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
+  icon: ICON,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
