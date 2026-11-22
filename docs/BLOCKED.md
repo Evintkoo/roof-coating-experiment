@@ -1,6 +1,6 @@
 # BLOCKED register
 
-Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11.
+Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11, plan 6 added BLOCKED-12 and BLOCKED-13.
 
 ## BLOCKED-1: Lab calibration
 
@@ -67,3 +67,15 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Entries a
 - Reason: the plan 5 recipes and budget tables are in layer thicknesses, volume fractions and a relative cost index; converting them to masses per square metre (the lab recipe sheet) and to a price in currency needs sourced densities and binder solids for every ingredient, and vendor prices (see BLOCKED-4).
 - Owner: Evint
 - Unblock condition: a datasheet density and binder solids content for each ingredient (TiO2, BaSO4, binder, sol-gel precursors) are supplied; then the table column `cost_unit` can change from `relative` to `idr_per_m2` and the table must be rebuilt (the manifest hash guards stale tables).
+
+## BLOCKED-12: Indonesian-language edition of the report
+
+- Reason: the report is English only. The glossary and the plain-language outline are data (`src/web/design/terms.ts`, `src/core/report/outline.ts`), so a translation is another table of the same shape, but a translation of the honesty and limits wording must be reviewed by an Indonesian speaker who knows the statistics, or an inexact translation could overstate certainty.
+- Owner: Evint
+- Unblock condition: a reviewed Indonesian translation of every glossary entry, section title, role name, layer text and the honesty statement is supplied; then it is added as data with a locale key and a test that it covers every id.
+
+## BLOCKED-13: Light theme of the dark-only Torviello brand
+
+- Reason: the vendored Torviello brand (`vendor/torviello-design`) defines a dark theme only. The report ships a derived light theme (contrast-tested, plan 06) so it stays readable in a light system setting and in print, but it is not an official brand theme.
+- Owner: Evint
+- Unblock condition: the brand owner approves the derived light theme, or supplies an official one; the tokens in `src/web/design/themes.ts` are then replaced or the derivation is recorded as approved.
