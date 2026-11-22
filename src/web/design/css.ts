@@ -169,6 +169,18 @@ export const MOLECULE_CSS = {
 .tv-tabs__panel{padding:${t("space-4")} 0}
 @media print{.tv-tabs__list{display:none}.tv-tabs__panel[hidden]{display:block}.tv-tabs__panel::before{content:attr(data-label);display:block;font-weight:${t("weight-semibold")}}}
 `,
+  sliderField: `
+.tv-slider{display:grid;gap:${t("space-1")};font-family:${t("font-sans")};color:${t("text-primary")}}
+.tv-slider__label{font-size:${t("size-label")};font-weight:${t("weight-semibold")}}
+.tv-slider__unit{color:${t("text-muted")};font-size:${t("size-small")}}
+.tv-slider__row{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-2")} ${t("space-4")}}
+.tv-slider__range{flex:1 1 ${t("space-16")};min-width:${t("space-16")};min-height:var(--tv-target-min);accent-color:${t("link")}}
+.tv-slider__number{width:${t("space-16")};min-height:var(--tv-target-min);padding:${t("space-2")} ${t("space-3")};border:${t("hairline")} solid ${t("border-control")};border-radius:${t("radius-control")};background:${t("surface-glass")};color:${t("text-primary")};font-family:${t("font-mono")};font-size:${t("size-label")}}
+.tv-slider__out{min-width:${t("space-12")};font-family:${t("font-mono")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-slider__msg{margin:0;color:${t("status-stop")};font-size:${t("size-small")}}
+.tv-slider[data-state="error"] .tv-slider__number{border-color:${t("status-stop")}}
+.tv-slider[data-state="disabled"]{opacity:0.6}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */
