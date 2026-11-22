@@ -46,7 +46,7 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
     path = join(dir, "atoms.html")
     writeFileSync(path, html)
     browser = await chromium.launch({ channel: "chrome", headless: true })
-  })
+  }, 120_000)
   afterAll(async () => {
     await browser?.close()
     if (dir) rmSync(dir, { recursive: true, force: true })
