@@ -15,6 +15,7 @@
       "!docs/spikes/plan-04",
       "!src/web/template.html",
       "!tests/fixtures/report",
+      "!tests/fixtures/report-run",
       "!tests/fixtures/comprehension.json",
       "!docs/spikes/plan-06/*.json",
       "!docs/spikes/plan-06/*.html"
