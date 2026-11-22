@@ -110,7 +110,7 @@ Saved in `reports/shots/` (gitignored, not committed): `page-{dark,light}-{390,7
 
 ## BLOCKED
 
-BLOCKED-13 (`docs/BLOCKED.md`): the Torviello brand is dark-only. The light theme is derived (warm-white surfaces, midnight text, hue-preserving darker inks; 144 pairs pass AA) and awaits the brand owner's approval (owner Evint). The page defaults to the system scheme; the dark theme is the brand. BLOCKED-12 (Indonesian-language edition) is also recorded.
+BLOCKED-13 (`docs/BLOCKED.md`): the Torviello brand is dark-only. The light theme is derived (warm-white surfaces, midnight text, hue-preserving darker inks; 144 pairs pass AA) and awaits the brand owner's approval (owner Evint). The page opens in the light theme whatever the system scheme says (D3 amended, see Theme below); the dark theme is the brand and one toggle switches to it. BLOCKED-12 (Indonesian-language edition) is also recorded.
 
 ## Test cost
 
@@ -121,3 +121,9 @@ Proof-tier files run once each, one at a time: `report.design.browser.proof` 12 
 ## Final comprehension runs (after the review fix wave, 2026-11-22)
 
 Two fresh readers given only the closed page text (`docs/proofs/plan-06-comprehension/final-page-closed.txt`) scored 8/8 and 8/8 (answers `final-run-a-answers.json`, `final-run-b-answers.json`, scored by `docs/spikes/plan-06/q6_score.ts`). `bun run check` on the final tree: 988 pass, 0 fail, 246.7 s at load 4 to 6 with another session active.
+
+## Theme: light default, dark toggle, mapping (D3 amended)
+
+D3 originally said the default follows `prefers-color-scheme`. It now reads: **the report and the gallery open LIGHT whatever the system says; one button ("Dark mode", `aria-pressed`, visible On/Off text, 44 px, keyboard operable, focus ring) switches to dark and back**. The choice is `data-theme` on `<html>` and is remembered under `localStorage["spandek:theme"]` (wrapped in try/catch: blocked or empty storage gives light and the toggle still works for the session). A tiny inline script in `<head>` applies the stored theme before the first paint. Print is always light with every disclosure open. `color-scheme` is set per theme so native controls and scrollbars follow.
+
+The mapping of every role to its token and its value in each theme is `docs/design/theme-mapping.md`, generated from `src/web/design/themeMapping.ts`; `tests/web/design/themeMapping.test.ts` fails when the file and the code differ, when a token exists in one theme only, or when a colour token has no role. Browser proofs (in `tests/suites/designThemeBrowser.ts`, run inside the design report suite): `defaultIsLightEvenWhenOsPrefersDark`, `toggleSwitchesAllRolesAndBack` (23 sampled elements of different roles and every figure's Plotly layout change to the other theme's values and back), `toggleRestoresFromStorage`, `storageBlockedStillWorks`, `storedDarkPaintsDarkFromTheFirstFrame`, `figuresRethemeOnToggleKeepBrushAndLiveState`, `nativeControlsFollowColorScheme`, `noStaleDarkInLightAndViceVersa` (every painted colour of every visible element), `everyFigureTraceColourIsTheShownThemesNotTheOther` (the colours inside the Plotly data, including the canvas figures), `printStaysLight`, `toggleKeyboardAndAria`, `galleryShowsBothThemesAndAToggle`.
