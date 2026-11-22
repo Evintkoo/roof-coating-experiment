@@ -24,6 +24,8 @@ export type WatchDayProps = {
   state?: PlayState
   speed?: Speed
   id?: string
+  /** Trusted markup shown beside the honesty label (the page's reduce-motion switch). */
+  labelExtra?: string
 }
 
 const READ = [
@@ -61,7 +63,7 @@ export function watchDay(p: WatchDayProps): string {
       "aria-label": "Watch it run: one day on the roof",
       "data-watch-day": true,
     },
-    `<div class="tv-watchday__label">${badge({ tone: "neutral", label: HONESTY_LABEL })}</div>` +
+    `<div class="tv-watchday__label">${badge({ tone: "neutral", label: HONESTY_LABEL })}${p.labelExtra ?? ""}</div>` +
       `<div class="tv-watchday__controls">${playButton({ state: p.state ?? "paused" })}${step("back")}${scrubber({ value: tH })}${timeReadout({ tH })}${step("fwd")}${speedSelect({ value: p.speed ?? 1 })}</div>` +
       `<div class="tv-watchday__stage">${dayChart({ name: p.name, data: p.data, tH })}${fluxSchematic({ name: p.name, ...(p.flux ? { flux: p.flux } : {}), ...(p.refs ? { refs: p.refs } : {}) })}</div>` +
       `<dl class="tv-watchday__readouts">${readouts}</dl>`,

@@ -132,13 +132,13 @@ const SAMPLES: Sample[] = [
   },
   {
     name: "select surface",
-    sel: "select",
+    sel: ".ctl select",
     prop: "backgroundColor",
     token: "surface-elevated",
   },
   {
     name: "select border",
-    sel: "select",
+    sel: ".ctl select",
     prop: "borderTopColor",
     token: "border-control",
   },

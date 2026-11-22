@@ -45,9 +45,9 @@ test("fourArrowsEachWithASourceAndItsScale", async () => {
 
 test("lengthScalesWithTheFluxAndNegativeFluxPointsTheOtherWay", () => {
   expect(arrowGeometry("incident", 800, 800)).toEqual({
-    x: 52,
-    y1: 22,
-    y2: 22 + L_MAX,
+    x: 62,
+    y1: 14,
+    y2: 14 + L_MAX,
   })
   const half = arrowGeometry("incident", 400, 800)
   expect(half.y2 - half.y1).toBeCloseTo(L_MAX / 2, 9)

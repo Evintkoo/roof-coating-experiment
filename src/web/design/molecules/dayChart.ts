@@ -11,7 +11,7 @@ export type DayChartData = {
   hiC: readonly number[]
 }
 export const DAY_W = 640
-export const DAY_H = 260
+export const DAY_H = 210
 const L = 52
 const R = 16
 const T = 12

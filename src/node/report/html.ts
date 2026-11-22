@@ -37,6 +37,7 @@ import { buildDesignAssets } from "./design"
 import { indonesiaSection } from "./indonesia"
 import { lintPage, registeredHooks } from "./lint"
 import { optimisationSection } from "./optimisation"
+import { watchSection } from "./watch"
 
 /** T_size_mb: the page must stay well under the 16 MB artifact limit. */
 export const T_SIZE_MB = 8
@@ -361,6 +362,7 @@ export async function buildReport(
 
   const sections = [
     ...BUILTIN_SECTIONS,
+    watchSection,
     optimisationSection,
     indonesiaSection,
     ...EXTRA_SECTIONS,

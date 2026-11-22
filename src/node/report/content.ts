@@ -462,7 +462,11 @@ export const whySection: ReportSection = {
       "How the layers work",
       `<p class="page-lead">A recipe is three thin layers on the aluminium sheet. In the models each layer has one job.</p>
 ${layers}
-<div class="page-grid page-grid--3">${schem}</div>
+${disclosure({
+  summary: "Layer thicknesses to scale for the three recipes",
+  level: "detail",
+  id: "details-layers",
+})(`<div class="page-grid page-grid--3">${schem}</div>`)}
 ${fig}`,
     )
   },

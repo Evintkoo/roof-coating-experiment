@@ -30,6 +30,13 @@ export const OUTLINE: readonly OutlineSection[] = [
     optional: false,
   },
   {
+    id: "watch",
+    title: "Watch it run",
+    question:
+      "What does a day on the roof look like, and can I run the screening myself?",
+    optional: false,
+  },
+  {
     id: "climate",
     title: "Indonesian climate",
     question: "How much does it help at five Indonesian sites?",

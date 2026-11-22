@@ -129,7 +129,7 @@ export const MOLECULE_CSS = {
 .tv-daychart__key--band::before{height:${t("space-2")};border-top:0;background:${t("viz-3")};opacity:0.35}
 `,
   fluxSchematic: `
-.tv-flux{display:block;width:100%;max-width:calc(${t("space-16")} * 5);height:auto;font-family:${t("font-sans")}}
+.tv-flux{display:block;width:100%;max-width:calc(${t("space-16")} * 4.75);justify-self:center;height:auto;font-family:${t("font-sans")}}
 .tv-flux__roof{fill:${t("viz-baseline")};fill-opacity:0.5;stroke:${t("text-muted")};stroke-width:1}
 .tv-flux__roof-label,.tv-flux__label{fill:${t("text-primary")};font-size:${t("size-small")}}
 .tv-flux__value{fill:${t("text-muted")};font-size:${t("size-small")}}
@@ -271,8 +271,9 @@ export const MOLECULE_CSS = {
 export const ORGANISM_CSS: Record<string, string> = {
   watchDay: `
 .tv-watchday,.tv-watchscreen{display:grid;gap:${t("space-3")};min-width:0;color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-watchday__label{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-4")}}
 .tv-watchday__controls,.tv-watchscreen__controls{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-2")}}
-.tv-watchday__stage{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:${t("space-4")};align-items:start}
+.tv-watchday__stage{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:${t("space-4")};align-items:start}
 .tv-watchday__readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 2),1fr));gap:${t("space-2")};margin:0}
 .tv-watchday__read dt{color:${t("text-muted")};font-size:${t("size-small")}}
 .tv-watchday__read dd{margin:0;font-family:${t("font-mono")}}
@@ -280,6 +281,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 `,
   watchScreening: `
 .tv-watchscreen__stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:${t("space-4")};align-items:start}
+.tv-watchscreen__draws input{width:${t("target-min")};height:${t("target-min")};margin:0;flex:none;accent-color:${t("action-primary")}}
 .tv-watchscreen__draws{display:inline-flex;align-items:center;gap:${t("space-2")};min-height:${t("target-min")};font-size:${t("size-small")};color:${t("text-muted")}}
 .tv-watchscreen__summary,.tv-watchscreen__check{max-width:92ch;margin:0;font-size:${t("size-small")}}
 .tv-watchscreen__check{color:${t("text-muted")}}

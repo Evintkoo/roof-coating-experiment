@@ -9,11 +9,11 @@ import {
 } from "../../anim/flux"
 import { buildError, finite, svgTag, tag } from "../html"
 
-export const FLUX_W = 260
-export const FLUX_H = 220
+export const FLUX_W = 340
+export const FLUX_H = 228
 /** The longest an arrow may be, in px. */
 export const L_MAX = 70
-const ROOF_Y = 118
+const ROOF_Y = 92
 const ROOF_H = 22
 
 const SPEC: Record<
@@ -21,31 +21,31 @@ const SPEC: Record<
   { x: number; y0: number; sign: 1 | -1; label: string; source: string }
 > = {
   incident: {
-    x: 52,
-    y0: 22,
+    x: 62,
+    y0: 14,
     sign: 1,
     label: "Sunlight",
     source: "flux:incident",
   },
   reflected: {
-    x: 112,
+    x: 140,
     y0: ROOF_Y,
     sign: -1,
     label: "Reflected",
     source: "flux:reflected",
   },
   absorbed: {
-    x: 172,
+    x: 220,
     y0: ROOF_Y,
     sign: 1,
     label: "Absorbed",
     source: "flux:absorbed",
   },
   conducted: {
-    x: 232,
+    x: 300,
     y0: ROOF_Y + ROOF_H,
     sign: 1,
-    label: "Conducted in",
+    label: "Conducted",
     source: "flux:conducted",
   },
 }
@@ -91,14 +91,14 @@ export function fluxSchematic(p: FluxSchematicProps): string {
     return (
       `<g class="tv-flux__arrow tv-flux__arrow--${k}" data-source="${s.source}" data-flux="${k}" data-w="${w}" data-wref="${ref}">` +
       `<line x1="${g.x}" x2="${g.x}" y1="${g.y1}" y2="${f(g.y2)}" marker-end="url(#tv-flux-head)"/>` +
-      `<text class="tv-flux__label" x="${g.x}" y="${FLUX_H + L_MAX - 26}" text-anchor="middle">${s.label}</text>` +
-      `<text class="tv-flux__value" x="${g.x}" y="${FLUX_H + L_MAX - 10}" text-anchor="middle" data-flux-text="${k}">${f(w)} W/m²</text></g>`
+      `<text class="tv-flux__label" x="${g.x}" y="${FLUX_H - 24}" text-anchor="middle">${s.label}</text>` +
+      `<text class="tv-flux__value" x="${g.x}" y="${FLUX_H - 8}" text-anchor="middle" data-flux-text="${k}">${f(w)} W/m²</text></g>`
     )
   }).join("")
   return svgTag(
     {
       class: "tv-flux",
-      viewBox: `0 0 ${FLUX_W} ${FLUX_H + L_MAX}`,
+      viewBox: `0 0 ${FLUX_W} ${FLUX_H}`,
       role: "img",
       "aria-label": `${p.name}: heat arrows for the coated roof. Sunlight arrives, part is reflected, part is absorbed, part is conducted into the building.`,
       "data-flux-schematic": true,

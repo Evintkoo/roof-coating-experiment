@@ -47,6 +47,7 @@ test("sectionsComeInTheReadingPathOrderAndOptionalOnesAreOmitted", () => {
     "verdict",
     "recipes",
     "why",
+    "watch",
     "explore",
     "limits",
     "provenance",

@@ -27,6 +27,8 @@ export type Panel = {
   /** Resolves when the run ends (done, cancelled or failed); never rejects. */
   start(): Promise<"done" | "cancelled" | "failed">
   cancel(): void
+  /** `#test` hook (H9, F6): terminate worker `id` as if it had died. */
+  killLane(id: number): void
   destroy(): void
 }
 
@@ -224,6 +226,9 @@ export function mountScreeningPanel(root: HTMLElement, deps: PanelDeps): Panel {
       summary.textContent =
         "Cancelled. Cells already shown belong to the cancelled run; nothing else is kept."
       check.textContent = "No check was made because the run was cancelled."
+    },
+    killLane(id) {
+      pool?.killLane(id)
     },
     destroy() {
       root.removeEventListener("click", onClick)

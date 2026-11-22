@@ -26,6 +26,7 @@ export type QaOpts = {
   height?: number
   scheme?: "light" | "dark"
   hash?: string
+  reducedMotion?: boolean
   /** A script run in every document before the page's own scripts. */
   init?: string
 }
@@ -48,6 +49,7 @@ export async function startQa(): Promise<QaBrowser> {
     const ctx = await browser.newContext({
       viewport: { width: o.width ?? 1280, height: o.height ?? 800 },
       colorScheme: o.scheme ?? "light",
+      reducedMotion: o.reducedMotion ? "reduce" : "no-preference",
     })
     if (o.init) await ctx.addInitScript(o.init)
     const page = (await ctx.newPage()) as Page & { errors: string[] }
