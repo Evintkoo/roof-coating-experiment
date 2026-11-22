@@ -272,6 +272,106 @@ export function animationBrowserSuite(S: AnimationScale): void {
     expect(page.errors).toEqual([])
   })
 
+  t("tilesGlideAndEndExactly", async () => {
+    const page = await qa.open({ hash: "#test" })
+    await mounted(page)
+    await page.evaluate(() => {
+      ;(document.getElementById("details-live") as HTMLDetailsElement).open =
+        true
+    })
+    await page.waitForFunction(() => {
+      const r = document.getElementById("live-root") as HTMLElement
+      return (
+        r.dataset.shown === r.dataset.requested && r.dataset.requested !== "0"
+      )
+    })
+    await page.waitForFunction(() => window.__anim?.tweening() === 0)
+    const seen = await page.evaluate(
+      () =>
+        new Promise<{
+          start: string
+          texts: string[]
+          end: string
+          nominal: string
+        }>((resolve) => {
+          const val = document.querySelector(
+            "#tile-t_max .tile-value",
+          ) as HTMLElement
+          const tile = document.getElementById("tile-t_max") as HTMLElement
+          const start = val.textContent ?? ""
+          const texts: string[] = []
+          const rg = document.getElementById(
+            "live-range-midcoat_tio2_fraction",
+          ) as HTMLInputElement
+          rg.value = rg.min
+          rg.dispatchEvent(new Event("input", { bubbles: true }))
+          const t0 = performance.now()
+          const sample = () => {
+            texts.push(val.textContent ?? "")
+            if (performance.now() - t0 < 1500) requestAnimationFrame(sample)
+            else
+              resolve({
+                start,
+                texts,
+                end: val.textContent ?? "",
+                nominal: tile.dataset.nominal ?? "",
+              })
+          }
+          requestAnimationFrame(sample)
+        }),
+    )
+    const nums = seen.texts.map(Number).filter(Number.isFinite)
+    const end = Number(seen.end)
+    const digits = 1
+    expect(seen.end).toBe(Number(seen.nominal).toFixed(digits))
+    expect(Number(seen.start)).not.toBe(end) // the move changed the value, so a glide is observable
+    console.log(
+      `tile glide: ${seen.start} -> ${seen.end}, ${new Set(seen.texts).size} distinct texts over ${seen.texts.length} frames`,
+    )
+    const lo = Math.min(Number(seen.start), end)
+    const hi = Math.max(Number(seen.start), end)
+    // never outside the two ends (no overshoot) and at least one value strictly between them (it glided)
+    for (const v of nums) {
+      expect(v).toBeGreaterThanOrEqual(lo - 0.051)
+      expect(v).toBeLessThanOrEqual(hi + 0.051)
+    }
+    if (hi - lo > 0.3)
+      expect(nums.some((v) => v > lo + 0.05 && v < hi - 0.05)).toBe(true)
+    expect(page.errors).toEqual([])
+  })
+
+  t("theComputingIndicatorShowsWhileTheLiveWorkerIsBusy", async () => {
+    const page = await qa.open({ hash: "#test" })
+    await mounted(page)
+    await page.evaluate(() => {
+      ;(document.getElementById("details-live") as HTMLDetailsElement).open =
+        true
+    })
+    const states = await page.evaluate(
+      () =>
+        new Promise<string[]>((resolve) => {
+          const el = document.getElementById("live-computing") as HTMLElement
+          const seen: string[] = []
+          const mo = new MutationObserver(() =>
+            seen.push(el.dataset.state ?? ""),
+          )
+          mo.observe(el, { attributes: true, attributeFilter: ["data-state"] })
+          const rg = document.getElementById(
+            "live-range-primer_dft_um",
+          ) as HTMLInputElement
+          rg.value = rg.max
+          rg.dispatchEvent(new Event("input", { bubbles: true }))
+          setTimeout(() => {
+            mo.disconnect()
+            resolve(seen)
+          }, 1500)
+        }),
+    )
+    expect(states).toContain("busy")
+    expect(states[states.length - 1]).toBe("idle")
+    expect(page.errors).toEqual([])
+  })
+
   t("bothThemesRedrawSvgAndThereIsNoCanvas", async () => {
     const page = await qa.open({ hash: "#test" })
     await mounted(page)

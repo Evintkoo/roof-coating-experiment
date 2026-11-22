@@ -26,6 +26,7 @@ import {
 } from "../../core/report/outline"
 import { tag } from "../../web/design/html"
 import { callout } from "../../web/design/molecules/callout"
+import { computingIndicator } from "../../web/design/molecules/computingIndicator"
 import { disclosure } from "../../web/design/molecules/disclosure"
 import { figureFrame } from "../../web/design/molecules/figureFrame"
 import { layerSchematic } from "../../web/design/molecules/layerSchematic"
@@ -607,6 +608,7 @@ ${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium"
 <div id="live-controls"></div>
 <div class="live-out">
 <p id="live-status" class="page-hint" role="status" aria-live="polite"></p>
+<div class="page-computing">${computingIndicator({ state: "idle" }).replace('data-anim="computing"', 'id="live-computing"')}</div>
 <div id="live-tiles" class="tiles"></div>
 ${figureFrame({ message: "Live surface temperature of the recipe you set", size: "medium", interactive: true, describe: "Live day-2 surface temperature with p5 to p95 band and controls", note: "Shaded band: p5 to p95 over the live uncertainty draws." })('<div id="fig-live-tofT" class="fig fig--wide"></div>')}
 ${figureFrame({ message: "Live reflectance of the recipe you set", size: "medium", interactive: true, describe: "Live reflectance spectrum with p5 to p95 band" })('<div id="fig-live-spectrum" class="fig fig--wide"></div>')}

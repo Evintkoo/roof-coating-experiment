@@ -591,6 +591,7 @@ function initLive(watch: Watch): LiveApi {
     worker = null
     inFlight = null
     pending = null
+    busy()
     status.textContent = text
     status.className = "live-status--fail"
     status.setAttribute("role", "alert")
@@ -613,11 +614,20 @@ function initLive(watch: Watch): LiveApi {
   const shownLog: number[] = []
   let worker: Worker | null = null
 
+  const busy = (): void => {
+    const el = document.getElementById("live-computing")
+    if (!el) return
+    const on = inFlight !== null || pending !== null
+    el.dataset.state = on ? "busy" : "idle"
+    const txt = el.querySelector(".tv-computing__text")
+    if (txt) txt.textContent = on ? "Computing in your browser" : "Idle"
+  }
   const pump = (): void => {
     if (worker === null || inFlight !== null || pending === null) return
     const p = pending
     pending = null
     inFlight = { id: p.id, t: p.t, inputs: p.inputs }
+    busy()
     worker.postMessage({ type: "run", id: p.id, inputs: p.inputs })
   }
   const schedule = (): void => {
@@ -632,6 +642,7 @@ function initLive(watch: Watch): LiveApi {
     lastInputs = structuredClone(inputs)
     pending = { id, inputs: lastInputs, t: performance.now() }
     root.dataset.requested = String(id)
+    busy()
     schedule()
   }
 
@@ -652,10 +663,13 @@ function initLive(watch: Watch): LiveApi {
     e.dataset.nominal = String(nom)
     e.dataset.lo = String(b ? b.lo : "")
     e.dataset.hi = String(b ? b.hi : "")
-    ;(e.querySelector(".tile-value") as HTMLElement).textContent = fmtValue(
-      nom,
-      t.digits,
-    )
+    const val = e.querySelector(".tile-value") as HTMLElement
+    val.dataset.tween = ""
+    if (Number.isFinite(nom))
+      watch.glide(`tile-${t.id}`, nom, (v) => {
+        val.textContent = fmtValue(v, t.digits)
+      })
+    else val.textContent = fmtValue(nom, t.digits)
     const rng = e.querySelector(".tile-range") as HTMLElement
     if (!b) rng.textContent = "nominal only, no interval"
     else if (Number.isNaN(nom))
@@ -707,9 +721,11 @@ function initLive(watch: Watch): LiveApi {
       const sent = inFlight
       inFlight = null
       if (m.id > shownId) show(m, sent?.t ?? performance.now(), sent?.inputs)
+      busy()
       schedule()
     } else {
       inFlight = null
+      busy()
       if (m.id > shownId) {
         shownId = m.id
         doneId = Math.max(doneId, m.id)
