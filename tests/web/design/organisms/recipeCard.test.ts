@@ -20,7 +20,7 @@ const base = {
   cost: { value: 0.59, digits: 2 },
 }
 const layers = {
-  primer: "GPTES:TEOS mole fraction 0.73:0.27",
+  primer: "GPTES:TEOS mole fraction 0.73:0.27, 12.0 µm",
   midcoat: "TiO2:BaSO4 volume ratio 0.76:0.24, total PVC 0.310",
   topcoat: "MTES:TEOS mole fraction 0.62:0.38",
 }
@@ -69,11 +69,18 @@ test("fullAddsMetricsBadgesAndLayersInOrderFromTheMetal", async () => {
   })
   expect(html.match(/data-proxy-badge="proxy"/g)?.length).toBe(3)
   expect(html).toContain(">ageing scenario<")
-  const dts = [...html.matchAll(/<dt[^>]*>([^<]*)<\/dt>/g)].map((m) => m[1])
-  expect(dts).toEqual(["Primer", "Midcoat", "Topcoat"])
+  const rows = [
+    ...html.matchAll(/<th[^>]*scope="row"[^>]*>([^<]*)<\/th>/g),
+  ].map((m) => m[1])
+  expect(rows).toEqual(["Primer", "Midcoat", "Topcoat"])
   expect(html).toContain("TiO2:BaSO4 volume ratio 0.76:0.24")
+  expect(html).toContain(">GPTES:TEOS mole fraction 0.73:0.27<")
+  expect(html).toContain(">12.0 µm<")
+  for (const h of ["Layer", "Composition", "Thickness"])
+    expect(html).toContain(`>${h}<`)
   const els = await elementsOf(html)
-  expect(els.some((e) => e.tag === "dl")).toBe(true)
+  expect(els.some((e) => e.tag === "dl")).toBe(false)
+  expect(els.some((e) => e.tag === "table")).toBe(true)
 })
 
 test("recommendedAndHeadingLevel", async () => {

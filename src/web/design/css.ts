@@ -317,9 +317,6 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-recipe__role{margin:0;font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tv-recipe__head .tv-code{margin-inline-start:auto}
 .tv-recipe__badges{display:flex;flex-wrap:wrap;gap:${t("space-2")};margin:0}
-.tv-recipe__layers{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:${t("space-1")} ${t("space-3")};margin:0;font-family:${t("font-sans")};font-size:${t("size-small")}}
-.tv-recipe__layers dt{color:${t("text-muted")}}
-.tv-recipe__layers dd{margin:0;color:${t("text-primary")};overflow-wrap:anywhere}
 @media print{.tv-recipe{background:none;border-color:${t("text-primary")};break-inside:avoid}}
 `,
   findingList: `
@@ -355,10 +352,6 @@ export const ORGANISM_CSS: Record<string, string> = {
 `,
   provenance: `
 .tv-provenance{color:${t("text-primary")};font-family:${t("font-sans")}}
-.tv-provenance__facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3),1fr));gap:${t("space-3")} ${t("space-6")};margin:0 0 ${t("space-4")}}
-.tv-provenance__fact{min-width:0}
-.tv-provenance dt{color:${t("text-muted")};font-size:${t("size-small")}}
-.tv-provenance dd{margin:0;overflow-wrap:anywhere}
 .tv-provenance__title{margin:${t("space-4")} 0 ${t("space-2")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tv-provenance__licence{margin:0 0 ${t("space-4")};white-space:pre-wrap;overflow-wrap:anywhere;font-family:${t("font-mono")};font-size:${t("size-small")};color:${t("text-muted")}}
 .tv-provenance__note,.tv-provenance__none{max-width:92ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")};overflow-wrap:anywhere}

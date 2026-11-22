@@ -1,6 +1,5 @@
 // Report sheet R20: where the numbers came from. Run, seed, draws, core hash, commit, build information, the extra files the
 // page embeds with their hashes (plan 00 finding S2), and the full manifest behind a closed disclosure.
-import { codeBlock } from "../atoms/codeBlock"
 import { buildError, esc, tag } from "../html"
 import { disclosure } from "../molecules/disclosure"
 import { dataTable } from "./dataTable"
@@ -52,21 +51,22 @@ export function provenance(p: ProvenanceProps): string {
   if (!HEX64.test(p.coreHash))
     return buildError(C, "the core hash is 64 lower-case hex characters")
   for (const f of [...p.extra, ...(p.files ?? [])]) checkFile(f)
-  const fact = (term: string, value: string) =>
-    tag(
-      "div",
-      { class: "tv-provenance__fact" },
-      tag("dt", {}, esc(term)) +
-        tag("dd", {}, codeBlock({ code: value, variant: "inline" })),
-    )
-  const facts = [
-    fact("Run", p.runId),
-    fact("Seed", String(p.seed)),
-    fact("Uncertainty draws", String(p.draws)),
-    fact("Core hash", p.coreHash),
-    ...(p.commit ? [fact("Commit", p.commit)] : []),
-    ...(p.build ?? []).map((b) => fact(b.label, b.value)),
-  ].join("")
+  const facts = dataTable({
+    id: `${id}-facts`,
+    caption: "Run facts",
+    columns: [
+      { key: "fact", label: "Fact", kind: "text", rowHeader: true },
+      { key: "value", label: "Value", kind: "text", mono: true },
+    ],
+    rows: [
+      { fact: "Run", value: p.runId },
+      { fact: "Seed", value: String(p.seed) },
+      { fact: "Uncertainty draws", value: String(p.draws) },
+      { fact: "Core hash", value: p.coreHash },
+      ...(p.commit ? [{ fact: "Commit", value: p.commit }] : []),
+      ...(p.build ?? []).map((b) => ({ fact: b.label, value: b.value })),
+    ],
+  })
   const columns = (kind: boolean) => [
     {
       key: "path",
@@ -157,9 +157,6 @@ export function provenance(p: ProvenanceProps): string {
   return tag(
     "section",
     { class: "tv-provenance", id, "data-provenance": true },
-    tag("dl", { class: "tv-provenance__facts" }, facts) +
-      extra +
-      manifest +
-      licences,
+    facts + extra + manifest + licences,
   )
 }
