@@ -60,6 +60,7 @@ const BADGE = `
 .tv-badge--stop{color:${t("status-stop")};background:color-mix(in srgb,${t("status-stop")} 14%,transparent)}
 .tv-badge--scenario{color:${t("accent-secondary")};border-color:${t("accent-secondary")}}
 .tv-badge--nominal{color:${t("text-muted")};border-color:${t("border-control")}}
+.tv-badge--neutral{color:${t("text-primary")};border-color:${t("border-control")}}
 @media print{.tv-badge{background:none;border-color:${t("text-primary")}}}
 `
 

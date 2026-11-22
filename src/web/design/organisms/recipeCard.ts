@@ -70,7 +70,7 @@ export function recipeCard(p: RecipeCardProps): string {
       esc(p.roleLabel ?? ROLE_LABELS[role]),
     ) +
       (p.recommended
-        ? badge({ tone: "go", label: "Shown in the climate section" })
+        ? badge({ tone: "neutral", label: "Shown in the climate section" })
         : "") +
       codeBlock({ code: p.name, variant: "inline", label: "Recipe" }),
   )

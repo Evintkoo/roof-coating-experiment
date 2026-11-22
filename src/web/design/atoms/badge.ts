@@ -7,6 +7,7 @@ export const BADGE_TONES = [
   "proxy",
   "scenario",
   "nominal",
+  "neutral",
   "go",
   "stop",
 ] as const

@@ -37,6 +37,7 @@ test("badgeRendersEveryToneAsAnInlineLabel", async () => {
     "proxy",
     "scenario",
     "nominal",
+    "neutral",
     "go",
     "stop",
   ])
@@ -99,6 +100,7 @@ test("everyBadgeInkIsContractTestedOnItsOwnBackground", () => {
     ["stop", "status-stop", true],
     ["scenario", "accent-secondary", false],
     ["nominal", "text-muted", false],
+    ["neutral", "text-primary", false],
   ] as const) {
     const rule = new RegExp(
       `\\.tv-badge--${tone}\\{[^}]*color:var\\(--tv-${ink}\\)`,

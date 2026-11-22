@@ -81,6 +81,9 @@ test("recommendedAndHeadingLevel", async () => {
   expect(html).toContain("tv-recipe--recommended")
   expect(html).toContain(">Shown in the climate section<")
   expect(html).toContain("<h2")
+  // a pointer, not an endorsement: neutral tone, never the teal go tone
+  expect(html).toMatch(/data-tone="neutral">Shown in the climate section</)
+  expect(html).not.toContain("tv-badge--go")
   expect(recipeCard(base)).not.toContain("Shown in the climate section")
 })
 
