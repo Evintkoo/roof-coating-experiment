@@ -1,4 +1,4 @@
-// Report sheet R32: the 96 x 9 screening grid, one SVG rect per candidate and scenario cell, filled as results arrive. The colour is
+// Report sheet R32: the 96 x 9 screening grid, one SVG rect per candidate and scenario cell (candidates across, scenarios down), filled as results arrive. The colour is
 // a bin of the cell's value on a sequential scale (class `tv-cell--b<k>`), plus a failed state; empty cells are outlined.
 import { buildError, finite, oneOf, svgTag, tag } from "../html"
 
@@ -36,18 +36,18 @@ export function cellGrid(p: {
   let rects = ""
   for (let c = 0; c < nc; c++)
     for (let s = 0; s < ns; s++)
-      rects += `<rect class="${cellClass("empty")}" data-cell="${c * ns + s}" x="${s * (CW + GAP)}" y="${c * (CH + GAP)}" width="${CW}" height="${CH}"/>`
+      rects += `<rect class="${cellClass("empty")}" data-cell="${c * ns + s}" x="${c * (CW + GAP)}" y="${s * (CH + GAP)}" width="${CW}" height="${CH}"/>`
   return svgTag(
     {
       class: "tv-cellgrid",
-      viewBox: `0 0 ${ns * (CW + GAP)} ${nc * (CH + GAP)}`,
+      viewBox: `0 0 ${nc * (CW + GAP)} ${ns * (CH + GAP)}`,
       role: "img",
       "aria-label":
         p.label ??
         `Screening grid: ${nc} candidates by ${ns} weather scenarios, filled as results arrive`,
       "data-anim": "grid",
       "data-source": "screening:t_max",
-      "data-cols": ns,
+      "data-rows": ns,
     },
     rects,
   )

@@ -105,7 +105,7 @@ export function fluxSchematic(p: FluxSchematicProps): string {
     },
     `<defs><marker id="tv-flux-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" class="tv-flux__head"/></marker></defs>` +
       `<rect class="tv-flux__roof" x="20" y="${ROOF_Y}" width="${FLUX_W - 40}" height="${ROOF_H}"/>` +
-      `<text class="tv-flux__roof-label" x="${FLUX_W / 2}" y="${ROOF_Y + 15}" text-anchor="middle">Coated aluminium roof</text>` +
+      `<text class="tv-flux__roof-label" x="28" y="${ROOF_Y + 15}" text-anchor="start">Coated aluminium roof</text>` +
       arrows,
   )
 }
