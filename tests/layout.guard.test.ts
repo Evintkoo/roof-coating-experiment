@@ -29,6 +29,7 @@ const NON_MIRROR = new Set(
     "pipeline.e2e",
     "report.browser",
     "design.atoms.browser",
+    "design.components.browser",
     "honesty",
     "indonesia.e2e",
     "indonesia.crosscheck",

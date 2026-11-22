@@ -234,6 +234,19 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-term{color:${t("link")}}
 .tv-term:hover{color:${t("link-hover")}}
 `,
+  dataTable: `
+.tv-table{max-width:100%;overflow-x:auto;margin:${t("space-4")} 0}
+.tv-datatable{width:100%;border-collapse:collapse;font-family:${t("font-sans")}}
+.tv-datatable__caption{padding:${t("space-2")} ${t("space-3")};color:${t("text-primary")};font-size:${t("size-body")};font-weight:${t("weight-semibold")};text-align:left}
+.tv-table__head{background:${t("surface-base")};color:${t("text-muted")};font-size:${t("size-label")};font-weight:${t("weight-semibold")};font-family:${t("font-sans")}}
+.tv-table__head.tv-cell--number{font-family:${t("font-sans")}}
+.tv-table__sort{display:inline-flex;align-items:center;gap:${t("space-2")};min-height:var(--tv-target-min);min-width:var(--tv-target-min);padding:${t("space-1")} ${t("space-2")};border:0;border-radius:${t("radius-control")};background:transparent;color:inherit;font:inherit;cursor:pointer}
+.tv-table__sort:hover{background:${t("surface-glass")}}
+.tv-table__sort::after{content:"";width:${t("space-2")};height:${t("space-2")};border-right:${t("ring-width")} solid ${t("text-muted")};border-bottom:${t("ring-width")} solid ${t("text-muted")};transform:rotate(45deg);opacity:0.5}
+[aria-sort="ascending"] .tv-table__sort::after{border-color:${t("link")};transform:rotate(-135deg);opacity:1}
+[aria-sort="descending"] .tv-table__sort::after{border-color:${t("link")};opacity:1}
+@media print{.tv-table{overflow:visible}.tv-table__sort::after{display:none}}
+`,
 }
 
 /** The CSS of every atom, in a fixed order, one rule per line. */
