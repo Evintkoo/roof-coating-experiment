@@ -63,6 +63,15 @@ const BADGE = `
 @media print{.tv-badge{background:none;border-color:${t("text-primary")}}}
 `
 
+const CHIP = `
+.tv-chip{display:inline-flex;align-items:center;justify-content:center;padding:${t("space-2")} ${t("space-3")};border:${t("hairline")} solid ${t("border-control")};border-radius:${t("radius-pill")};background:${t("surface-glass")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-label")};line-height:1.2}
+.tv-chip--toggle{min-height:${t("target-min")};min-width:${t("target-min")};cursor:pointer;transition:background-color ${t("motion-fast")} ease,border-color ${t("motion-fast")} ease}
+.tv-chip--toggle:hover{background:${t("surface-raised")}}
+.tv-chip[aria-pressed="true"]{background:${t("surface-raised")};border-color:${t("link")};font-weight:${t("weight-semibold")}}
+@media (prefers-reduced-motion:reduce){.tv-chip--toggle{transition:none}}
+@media print{.tv-chip{background:none;border-color:${t("text-primary")}}}
+`
+
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
@@ -71,6 +80,7 @@ export const ATOM_CSS = {
   navLink: NAVLINK,
   sectionLabel: SECTION_LABEL,
   badge: BADGE,
+  chip: CHIP,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
