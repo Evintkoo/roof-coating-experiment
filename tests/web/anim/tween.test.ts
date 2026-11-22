@@ -107,3 +107,22 @@ test("neverLeavesTheRangeBetweenStartAndTargetAnyScheduleH13", () => {
     ),
   )
 })
+
+test("stopForgetsTheKeySoARunningTweenNeverWritesAgain", () => {
+  const t = createTweens(() => false)
+  const seen: number[] = []
+  t.to("a", 0, (v) => seen.push(v), 100)
+  t.to("a", 10, (v) => seen.push(v), 100)
+  t.tick(0)
+  t.tick(50)
+  const n = seen.length
+  t.stop("a")
+  expect(t.active()).toBe(0)
+  t.tick(200)
+  expect(seen.length).toBe(n)
+  // after a stop the next value is applied at once (nothing is shown to glide from)
+  t.to("a", 3, (v) => seen.push(v), 100)
+  expect(seen[seen.length - 1]).toBe(3)
+  t.stop()
+  expect(t.current("a")).toBeUndefined()
+})

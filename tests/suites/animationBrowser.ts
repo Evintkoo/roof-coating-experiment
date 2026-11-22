@@ -440,6 +440,13 @@ export function animationBrowserSuite(S: AnimationScale): void {
       init: "delete window.Worker",
     })
     await page.waitForTimeout(500)
+    // the live simulator cannot start without Worker: it says so, and the indicator is not left on "computing" (review finding)
+    expect(await page.locator("#live-status").textContent()).toMatch(
+      /cannot start/i,
+    )
+    expect(
+      await page.locator("#live-computing").getAttribute("data-state"),
+    ).toBe("idle")
     await page.locator("#details-screening > summary").click()
     await page.locator('#watch [data-anim="screen-start"]').click()
     await page.waitForFunction(

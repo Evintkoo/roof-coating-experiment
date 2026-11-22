@@ -1,6 +1,6 @@
 # BLOCKED register
 
-Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11, plan 6 added BLOCKED-12 and BLOCKED-13.
+Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11, plan 6 added BLOCKED-12 and BLOCKED-13, plan 7 added BLOCKED-14 and BLOCKED-15.
 
 ## BLOCKED-1: Lab calibration
 
@@ -79,3 +79,15 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Entries a
 - Reason: the vendored Torviello brand (`vendor/torviello-design`) defines a dark theme only. The report ships a derived light theme (contrast-tested, plan 06) so it stays readable in a light system setting and in print, but it is not an official brand theme.
 - Owner: Evint
 - Unblock condition: the brand owner approves the derived light theme, or supplies an official one; the tokens in `src/web/design/themes.ts` are then replaced or the derivation is recorded as approved.
+
+## BLOCKED-14: Export of the animation as video or GIF
+
+- Reason: the day player and the screening panel are live SVG driven by one animation loop in the reader's browser; the report is one offline HTML file and plan 07 adds no encoder or runtime dependency. A recorded video or GIF needs a capture pipeline (headless Chrome frame capture plus an encoder such as ffmpeg) that is not part of the build and would ship a second, unlabelled copy of model output. The report offers still frames and a frame sequence strip (`reports/screenshots/`) instead, taken from the real page.
+- Owner: Evint
+- Unblock condition: a decision that a recorded animation is wanted for a named audience (slides, web) and which encoder may be used; then a capture script under `scripts/` renders the day at fixed frame times from the built report (the pure timeline already gives deterministic frames) and the file carries the "model output, not a measurement" label burned into every frame.
+
+## BLOCKED-15: The screening on a phone
+
+- Reason: the worker pool is sized `min(hardwareConcurrency - 1, 6)` with a floor of 1 (the spike measured 0.07 s for the 864 nominal cells on 4 desktop workers and 0.22 s on one, 4 workers over 1 at about 3x), but no phone or low-end tablet was measured: browsers cap or throttle workers on narrow-core devices, and thermal throttling is not under the page's control. The page reports the measured time of the run on the reader's own machine and labels it "this machine's measurement"; it does not promise a time, and the run with 32 uncertainty draws per cell (about 7 s on one desktop thread) may take much longer on a phone.
+- Owner: Evint
+- Unblock condition: the screening is timed on at least one phone and one low-end laptop (nominal and with draws, one run per device, device model and browser recorded); then the pool cap for narrow-core devices (2 workers) is confirmed or changed and the measured times are added to `docs/spikes/plan-07.md`.

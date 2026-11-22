@@ -338,6 +338,8 @@ type Watch = {
   onResult(r: LiveResult, inputs: LiveInputs, weather: WeatherConfig): void
   /** The live worker could not start or died: the day player says it is unavailable. */
   onFail(text: string): void
+  /** Drop the running glide of `key` (or all): a value written directly must not be overwritten by it. */
+  stopGlide(key?: string): void
   /** Glide a tile number to its new value (jumps under reduced motion); the last value is exactly the result. */
   glide(key: string, target: number, apply: (v: number) => void): void
   player(): DayPlayer | null
@@ -377,6 +379,7 @@ function initWatch(): Watch {
     tweens,
     panel: null,
     player: () => player,
+    stopGlide: (key) => tweens.stop(key),
     glide(key, target, apply) {
       tweens.to(key, target, apply, motionMs())
       if (tweens.active() > 0 && offTween === null)
@@ -588,6 +591,7 @@ function initLive(watch: Watch): LiveApi {
   // a worker that cannot start or has died: say so loudly, turn the controls off, and show no stale numbers
   const fail = (text: string): void => {
     watch.onFail(text)
+    watch.stopGlide()
     worker = null
     inFlight = null
     pending = null
@@ -617,7 +621,7 @@ function initLive(watch: Watch): LiveApi {
   const busy = (): void => {
     const el = document.getElementById("live-computing")
     if (!el) return
-    const on = inFlight !== null || pending !== null
+    const on = worker !== null && (inFlight !== null || pending !== null)
     el.dataset.state = on ? "busy" : "idle"
     const txt = el.querySelector(".tv-computing__text")
     if (txt) txt.textContent = on ? "Computing in your browser" : "Idle"
@@ -669,7 +673,10 @@ function initLive(watch: Watch): LiveApi {
       watch.glide(`tile-${t.id}`, nom, (v) => {
         val.textContent = fmtValue(v, t.digits)
       })
-    else val.textContent = fmtValue(nom, t.digits)
+    else {
+      watch.stopGlide(`tile-${t.id}`)
+      val.textContent = fmtValue(nom, t.digits)
+    }
     const rng = e.querySelector(".tile-range") as HTMLElement
     if (!b) rng.textContent = "nominal only, no interval"
     else if (Number.isNaN(nom))

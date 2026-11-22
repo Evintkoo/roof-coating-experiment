@@ -13,6 +13,8 @@ export type Tweens = {
   ): void
   /** The loop ticker: advance every tween to `nowMs`. */
   tick(nowMs: number): void
+  /** Forget `key` (or every key): its running tween never applies another value, and the next `to` applies at once. */
+  stop(key?: string): void
   current(key: string): number | undefined
   active(): number
 }
@@ -60,6 +62,15 @@ export function createTweens(reduced: () => boolean): Tweens {
         shown.set(key, v)
         r.apply(v)
         if (nowMs - r.start >= r.dur) running.delete(key)
+      }
+    },
+    stop(key) {
+      if (key === undefined) {
+        running.clear()
+        shown.clear()
+      } else {
+        running.delete(key)
+        shown.delete(key)
       }
     },
     current: (key) => shown.get(key),
