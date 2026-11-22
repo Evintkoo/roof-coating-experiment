@@ -150,6 +150,16 @@ export const MOLECULE_CSS = {
 .tv-figure__note{margin:0;color:${t("text-muted")};font-size:${t("size-small")}}
 @media print{.tv-figure{break-inside:avoid}}
 `,
+  legend: `
+.tv-legend{display:flex;flex-wrap:wrap;gap:${t("space-2")} ${t("space-4")};margin:${t("space-2")} 0;padding:0;list-style:none;color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-small")}}
+.tv-legend__item{display:inline-flex;align-items:center;gap:${t("space-2")}}
+.tv-legend__swatch{display:inline-block;flex-shrink:0;width:${t("space-6")};height:${t("space-2")};background:var(--swatch)}
+.tv-legend__swatch--line{height:${t("ring-width")}}
+.tv-legend__swatch--dash{height:0;background:none;border-top:${t("ring-width")} dashed var(--swatch)}
+.tv-legend__swatch--dot{width:${t("space-2")};height:${t("space-2")};border-radius:${t("radius-pill")}}
+.tv-legend__swatch--band{height:${t("space-3")};opacity:0.55}
+@media print{.tv-legend__swatch{print-color-adjust:exact}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */

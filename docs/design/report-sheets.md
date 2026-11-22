@@ -95,3 +95,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<figure class="tv-figure" data-figure>` with `<figcaption>` holding the message as the first child, a plot box with `role` and `aria-label` = the message plus the optional `describe` text, and an optional `<p class="tv-figure__note">`; the inner markup is trusted; an empty message is a build error (exit 4)
 - accessibility: a chart without its message as accessible name is a build error; interactive plots stay reachable by keyboard because the group does not hide them from assistive technology; the message is visible text, not only a label
 - do: write the title as the finding ("Aluminium primer runs 11 K hotter"), label series directly, name units on axes. don't: use a topic title ("Temperature"), or put two messages in one frame
+
+### R10 Legend
+
+- purpose: names the series of a chart that has more than three (R3: three or fewer are labelled directly on the plot). Each entry pairs a swatch colour with a swatch shape and a label, so a colour-blind reader can tell entries apart (R5).
+- tokens: swatch colours `viz-recommended` (the recommended recipe), `viz-baseline` (bare aluminium) and `viz-1` to `viz-6` (the validated categorical set, D6); labels `text-primary` at `size-small`; `space-2`/`space-4` gaps
+- states (closed unions): `swatch` is `recommended`, `baseline`, `series-1`, `series-2`, `series-3`, `series-4`, `series-5`, `series-6`; `shape` is `line`, `dash`, `dot`, `band`
+- contract: `<ul class="tv-legend" aria-label="<title>">` with one `<li>` per entry holding an `aria-hidden` swatch (`--swatch` set to the token) and the label text; at least one entry; labels must be distinct (two entries with the same label are a build error, exit 4)
+- accessibility: the label is text, the swatch is decorative and repeated by shape, never colour alone; the swatches are graphic pairs of the validated set (3:1 on both plot backgrounds, Q4); not interactive, so no target size applies
+- do: keep the order of the plot's series, put the recommended entry first. don't: use a legend for three or fewer series, or the brand orange for anything but the recommended recipe
