@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs"
@@ -217,6 +218,30 @@ export function buildTestRun(): Promise<string> {
     return out
   })()
   return testRun
+}
+
+let bareFixture: Promise<string> | undefined
+
+/**
+ * The committed fixture run (tests/fixtures/report-run) with refine/ and indonesia/ removed and extra[] emptied (core hash rewritten),
+ * i.e. a finished run with no later outputs, built without executing the pipeline. Never mutate it: copy it.
+ */
+export function bareFixtureRun(): Promise<string> {
+  bareFixture ??= (async () => {
+    const dst = mkdtempSync(join(tmpdir(), "spandek-bare-"))
+    cpSync(REPORT_FIXTURE, dst, { recursive: true })
+    const m = JSON.parse(
+      readFileSync(join(dst, "run_manifest.json"), "utf8"),
+    ) as { extra: { path: string }[] }
+    await unregisterExtra(
+      dst,
+      m.extra.map((e) => e.path),
+    )
+    rmSync(join(dst, "refine"), { recursive: true, force: true })
+    rmSync(join(dst, "indonesia"), { recursive: true, force: true })
+    return dst
+  })()
+  return bareFixture
 }
 
 /** A private copy of the test run, for tests that edit one input. */
