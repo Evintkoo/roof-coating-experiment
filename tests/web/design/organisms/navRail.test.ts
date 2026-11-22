@@ -84,5 +84,5 @@ test("cssSwitchesRailAndBarAtTheWideBreakpointAndIsTokenOnly", () => {
   expectTokenOnly(css)
   expect(css).toContain("@media (min-width:64em)")
   expect(css).toContain(".tv-skip")
-  expect(css).toMatch(/@media print\{[^]*display:none/)
+  expect(css).toMatch(/@media print\{[\s\S]*display:none/)
 })

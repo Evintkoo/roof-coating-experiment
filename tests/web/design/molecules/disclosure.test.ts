@@ -69,5 +69,5 @@ test("cssIsTokenOnlyWith44pxSummaryAndPrintOpen", () => {
   const css = MOLECULE_CSS.disclosure
   expectTokenOnly(css)
   expect(css).toContain("min-height:var(--tv-target-min)")
-  expect(css).toMatch(/@media print\{[^]*details-content/)
+  expect(css).toMatch(/@media print\{[\s\S]*details-content/)
 })

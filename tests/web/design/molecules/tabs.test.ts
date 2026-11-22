@@ -97,6 +97,6 @@ test("cssIsTokenOnlyWith44pxTabsAndPrintShowsEveryPanel", () => {
   expectTokenOnly(css)
   expect(css).toContain("min-height:var(--tv-target-min)")
   expect(css).toMatch(
-    /@media print\{[^]*\.tv-tabs__panel\[hidden\]\{display:block/,
+    /@media print\{[\s\S]*\.tv-tabs__panel\[hidden\]\{display:block/,
   )
 })
