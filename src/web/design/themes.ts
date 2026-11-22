@@ -104,6 +104,9 @@ const SHARED = {
   "ring-offset": "2px",
   hairline: "1px",
   "radius-pill": "999px",
+  "icon-size": "20px",
+  "mark-size": "32px",
+  "motion-fast": "120ms",
 } as const
 
 export const THEMES = {

@@ -170,6 +170,8 @@ export function compileTokens(
     `@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){${lightBlock}}}`,
     `:root[data-theme="light"]{${lightBlock}}`,
     `:root[data-theme="dark"]{color-scheme:dark;${decls(Object.entries(dark))}}`,
+    // paper is white: print always uses the light theme, whatever the screen theme is
+    `@media print{:root,:root[data-theme="dark"]{${lightBlock}}}`,
   ].join("\n")
   return { css: `${css}\n`, names: darkEntries.map(([k]) => k) }
 }

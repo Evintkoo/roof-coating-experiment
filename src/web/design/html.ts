@@ -18,13 +18,13 @@ export function esc(s: string): string {
 export type AttrValue = string | number | boolean | undefined
 const NAME = /^[a-z][a-z0-9-]*$/
 
-/** ` k="v"` pairs, values escaped. `undefined` drops the attribute, `true` is a bare attribute, `false` is dropped except on aria-*. */
+/** ` k="v"` pairs, values escaped. `undefined` drops the attribute, `true` is a bare attribute (`="true"` on aria-*), `false` is dropped except on aria-* (`="false"`). */
 export function attrs(a: Record<string, AttrValue>): string {
   let out = ""
   for (const [k, v] of Object.entries(a)) {
     if (!NAME.test(k)) throw new Error("design: invalid attribute name")
     if (v === undefined) continue
-    if (v === true) out += ` ${k}`
+    if (v === true) out += k.startsWith("aria-") ? ` ${k}="true"` : ` ${k}`
     else if (v === false) {
       if (k.startsWith("aria-")) out += ` ${k}="false"`
     } else out += ` ${k}="${esc(String(v))}"`
@@ -57,4 +57,49 @@ export function failState(component: string, _state: never): never {
     component,
     `unknown state for component ${component}`,
   )
+}
+
+/** A value of a closed union: anything else is a build error (F7). Returns the value typed. */
+export function oneOf<T extends string>(
+  component: string,
+  allowed: readonly T[],
+  value: unknown,
+): T {
+  if (
+    typeof value === "string" &&
+    (allowed as readonly string[]).includes(value)
+  )
+    return value as T
+  return failState(component, value as never)
+}
+
+/** A link target that cannot run script: a fragment, a relative path, http(s) or mailto. Anything else is a build error. */
+export function safeHref(component: string, href: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters hide a scheme
+  if (/[\u0000-\u001f\u007f\s]/.test(href))
+    throw new SpandekError(
+      4,
+      "design.component",
+      component,
+      "unsafe link target",
+    )
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(href)
+  if (
+    scheme &&
+    !["http", "https", "mailto"].includes((scheme[1] as string).toLowerCase())
+  )
+    throw new SpandekError(
+      4,
+      "design.component",
+      component,
+      "unsafe link target",
+    )
+  return href
+}
+
+/** The one owner of external-link attributes (vendor lib/link.ts): new tab, no opener (F-03). */
+export function linkAttrs(
+  external: boolean | undefined,
+): Record<string, string> {
+  return external ? { target: "_blank", rel: "noopener noreferrer" } : {}
 }

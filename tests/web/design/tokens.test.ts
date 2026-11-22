@@ -6,6 +6,7 @@ import { setEventSink } from "../../../src/core/events"
 import { THEMES } from "../../../src/web/design/themes"
 import { compileTokens, tv } from "../../../src/web/design/tokens"
 import { repoRoot } from "../../helpers"
+import { literalsIn } from "../../support/designAtoms"
 
 const contract = JSON.parse(
   readFileSync(
@@ -133,25 +134,6 @@ const walk = (dir: string): string[] =>
     const p = join(dir, n)
     return statSync(p).isDirectory() ? walk(p) : [p]
   })
-export const LITERAL_PATTERNS: [string, RegExp][] = [
-  ["hex colour", /#[0-9a-fA-F]{3,8}\b/],
-  ["rgb/hsl/oklch colour", /\b(rgba?|hsla?|oklch|oklab|lab|lch)\(/],
-  [
-    "named font family",
-    /\b(Inter|JetBrains|Arial|Helvetica|Consolas|monospace|sans-serif|serif|SFMono)\b/,
-  ],
-  [
-    "spacing literal",
-    /\b(padding|margin|gap)[a-z-]*\s*:[^;{}]*\d(px|rem|em)\b/,
-  ],
-]
-export function literalsIn(source: string): string[] {
-  // strip comments
-  const s = source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1")
-  return LITERAL_PATTERNS.filter(([, re]) => re.test(s)).map(([n]) => n)
-}
 test("noRawLiteralsOutsideCompiler", () => {
   const root = join(repoRoot, "src/web/design")
   const files = walk(root).filter(
@@ -183,4 +165,26 @@ test("theLiteralScanCanFail", () => {
   expect(
     literalsIn("a{padding:var(--tv-space-2);color:var(--tv-text-primary)}"),
   ).toEqual([])
+})
+
+test("printAlwaysUsesTheLightTheme", () => {
+  const { css } = compileTokens(contract, THEMES)
+  const print = css.slice(css.indexOf("@media print"))
+  expect(print).toContain(`:root[data-theme="dark"]`)
+  expect(print).toContain("color-scheme:light")
+  expect(print).toContain("--tv-surface-base:#f7f8fa;")
+  expect(print).toContain("--tv-text-primary:#0b1020;")
+})
+
+test("sharedTokensAreCompiled", () => {
+  const { css, names } = compileTokens(contract, THEMES)
+  for (const n of [
+    "target-min",
+    "ring-width",
+    "hairline",
+    "motion-fast",
+    "icon-size",
+  ])
+    expect(names).toContain(n)
+  expect(css).toContain("--tv-target-min:44px;")
 })

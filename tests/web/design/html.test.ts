@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test"
-import { attrs, esc, failState, tag } from "../../../src/web/design/html"
+import {
+  attrs,
+  esc,
+  failState,
+  linkAttrs,
+  oneOf,
+  safeHref,
+  tag,
+} from "../../../src/web/design/html"
 
 test("escEscapesAllFive", () => {
   expect(esc(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;")
@@ -15,6 +23,7 @@ test("attrsEscapeValuesAndDropUndefined", () => {
   expect(attrs({ disabled: true, "aria-busy": false })).toBe(
     ` disabled aria-busy="false"`,
   )
+  expect(attrs({ "aria-busy": true })).toBe(` aria-busy="true"`)
 })
 
 test("tagEscapesTextAndRefusesBadNames", () => {
@@ -34,4 +43,42 @@ test("failStateThrowsExit4AtBuild", () => {
     expect((e as { phase?: string }).phase).toBe("design.component")
     expect((e as { key?: string }).key).toBe("Button")
   }
+})
+
+test("oneOfReturnsAMemberAndThrowsOtherwise", () => {
+  expect(oneOf("X", ["a", "b"] as const, "b")).toBe("b")
+  for (const bad of ["c", "", undefined, 3, null, "A"])
+    expect(() => oneOf("X", ["a", "b"] as const, bad)).toThrow()
+})
+
+test("safeHrefRefusesScriptAndHiddenSchemes", () => {
+  for (const ok of [
+    "#top",
+    "/a/b",
+    "./x.html",
+    "report.html#limits",
+    "https://example.org/a?b=c",
+    "http://example.org",
+    "mailto:a@b.c",
+  ])
+    expect(safeHref("X", ok)).toBe(ok)
+  for (const bad of [
+    "javascript:alert(1)",
+    "JaVaScRiPt:alert(1)",
+    "java\tscript:alert(1)",
+    " javascript:alert(1)",
+    "data:text/html,<script>",
+    "vbscript:x",
+    "file:///etc/passwd",
+  ])
+    expect(() => safeHref("X", bad), bad).toThrow()
+})
+
+test("linkAttrsOwnsExternalLinks", () => {
+  expect(linkAttrs(true)).toEqual({
+    target: "_blank",
+    rel: "noopener noreferrer",
+  })
+  expect(linkAttrs(false)).toEqual({})
+  expect(linkAttrs(undefined)).toEqual({})
 })
