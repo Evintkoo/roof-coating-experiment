@@ -12,6 +12,7 @@ import { buildReport } from "../../src/node/report/html"
 import {
   addRefineOutputs,
   buildTestRun,
+  claimText,
   repoRoot,
   reportOpts,
   visibleText,
@@ -187,7 +188,7 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     })
     expect(bareStats.n).toBeGreaterThan(5)
     expect(bareStats.out).toEqual([])
-    const text = visibleText(html)
+    const text = claimText(html)
     expect(text).not.toMatch(OVERCLAIM_PATTERN)
     // the scan can fail: the same text with a claim added is caught, and a label that is not allowed is not let through
     expect(`${text} This coating is proven.`).toMatch(OVERCLAIM_PATTERN)
@@ -259,16 +260,20 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
   reg("tapTargetsAreAtLeast44px", false, async () => {
     for (const w of [390, 1280]) {
       const page = await open({ width: w, height: 900 })
+      // every disclosure is opened first: a control inside a closed one is still a control (the live simulator's sliders and boxes)
+      await page.evaluate(() =>
+        document.querySelectorAll("details").forEach((d) => {
+          d.open = true
+        }),
+      )
       const small = await page.evaluate((min) => {
         const out: string[] = []
         const sel =
           "main a[href], main button, main summary, main input, main select"
         for (const e of document.querySelectorAll(sel)) {
-          if (e.closest("details:not([open])") && e.tagName !== "SUMMARY")
-            continue
           if (
             e.closest(
-              ".tv-glossary,.tv-finding__text,.tv-hero__lead,.tv-callout p",
+              ".tv-glossary,.tv-finding__text,.tv-hero__lead,.tv-hero__note,.tv-callout p",
             )
           )
             continue

@@ -265,6 +265,13 @@ export function visibleText(html: string): string {
     .replaceAll("&amp;", "&")
 }
 
+/** The visible text a reader could take as the report's own claims: everything except the third-party licence notices (OFL text says "derivative works"). */
+export function claimText(html: string): string {
+  return visibleText(
+    html.replace(/<details[^>]*id="[^"]*-licences"[\s\S]*?<\/details>/, ""),
+  )
+}
+
 /** The contents of the page's <script> blocks in order: [data, plotly, main]. */
 export function scriptBlocks(html: string): string[] {
   return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(

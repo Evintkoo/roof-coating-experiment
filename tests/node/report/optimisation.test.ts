@@ -16,6 +16,7 @@ import { buildReport, EXTRA_SECTIONS } from "../../../src/node/report/html"
 import {
   addRefineOutputs,
   buildTestReport,
+  claimText,
   copyRun,
   repoRoot,
   reportOpts,
@@ -71,7 +72,7 @@ test("presentRefineOutputsAddTheSectionBetweenWhyItWorksAndExplore", () => {
     at('<section id="explore"'),
   )
   expect(h).toContain('href="#budget"')
-  const text = visibleText(h)
+  const text = claimText(h)
   expect(text).toContain("not a measured optimum (PROXY)")
   expect(text).toContain("relative cost units (not IDR)")
   expect(text).toContain("exact lookup, no interpolation")

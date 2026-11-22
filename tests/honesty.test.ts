@@ -16,6 +16,7 @@ import { defaultLiveState } from "../src/web/liveState"
 import {
   buildIndonesiaReport,
   buildTestReport,
+  claimText,
   repoRoot,
   visibleText,
 } from "./helpers"
@@ -90,7 +91,7 @@ test("limitsSectionAndNavLinkPresent", async () => {
 test("forbiddenPhrasesAbsent", async () => {
   const { html } = await buildTestReport()
   // plan 06: "proven" is word-bounded (the section "Provenance" is not a claim); no label is allow-listed any more
-  const text = visibleText(html)
+  const text = claimText(html)
   expect(text).not.toMatch(OVERCLAIM_PATTERN)
   expect(OVERCLAIM_PATTERN.test("a safe coating")).toBe(true) // the scan can fail
   expect(OVERCLAIM_PATTERN.test("this recipe is proven")).toBe(true)
@@ -103,7 +104,7 @@ test("forbiddenPhrasesAbsent", async () => {
 
 test("pageStatesProxyAndIntervalsUpFront", async () => {
   const { html } = await buildTestReport()
-  const text = visibleText(html)
+  const text = claimText(html)
   expect(text).toContain("PROXY")
   expect(text).toContain("parameter uncertainty only")
   expect(text).toContain("not a laboratory result")
@@ -128,7 +129,7 @@ test("pageStatesProxyAndIntervalsUpFront", async () => {
 test("forbiddenPhrasesAbsentFromTheIndonesiaSection", async () => {
   const { html } = await buildIndonesiaReport()
   const forbidden = OVERCLAIM_PATTERN
-  const text = visibleText(html)
+  const text = claimText(html)
   expect(text).not.toMatch(forbidden)
   const section = visibleText(
     /<section id="climate"[\s\S]*<section id="limits"/.exec(
