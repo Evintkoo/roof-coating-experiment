@@ -101,5 +101,5 @@ test("badInputIsABuildErrorF7", () => {
 test("cssIsTokenOnlyAndLinesAreCapped", () => {
   const css = ORGANISM_CSS.findingList as string
   expectTokenOnly(css)
-  expect(css).toContain("max-width:70ch")
+  expect(css).toContain("max-width:92ch")
 })

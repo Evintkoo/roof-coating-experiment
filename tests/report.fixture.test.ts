@@ -13,7 +13,7 @@ const copy = (): string => {
 
 test("fixtureRunBuildsTheReportWithExitZero", async () => {
   const dir = copy()
-  const r = await run(["report", "--in", dir])
+  const r = await run(["report", "--in", dir, "--max-load", "1000"])
   expect(r.exitCode).toBe(0)
   const html = readFileSync(join(dir, "report.html"), "utf8")
   expect(html).toContain("refine_recipes.csv")
@@ -29,6 +29,6 @@ test("tamperingOneRefineCellExitsFive", async () => {
   )
   expect(changed).not.toBe(text)
   writeFileSync(p, changed)
-  const r = await run(["report", "--in", dir])
+  const r = await run(["report", "--in", dir, "--max-load", "1000"])
   expect(r.exitCode).toBe(5)
 }, 120000)
