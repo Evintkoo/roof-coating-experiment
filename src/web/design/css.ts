@@ -72,6 +72,13 @@ const CHIP = `
 @media print{.tv-chip{background:none;border-color:${t("text-primary")}}}
 `
 
+const CODE_BLOCK = `
+.tv-code{margin:0;padding:${t("space-3")} ${t("space-4")};overflow-x:auto;white-space:pre;border:${t("hairline")} solid ${t("border-panel")};border-radius:${t("radius-panel")};background:${t("surface-card")};color:${t("text-primary")};font-family:${t("font-mono")};font-size:${t("size-label")};line-height:1.5}
+.tv-code code{font:inherit}
+.tv-code--inline{display:inline;padding:${t("space-1")} ${t("space-2")};overflow:visible;white-space:normal;overflow-wrap:anywhere;border:0;border-radius:${t("radius-control")};background:${t("surface-glass")}}
+@media print{.tv-code{overflow:visible;white-space:pre-wrap;overflow-wrap:anywhere;background:none}}
+`
+
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
@@ -81,6 +88,7 @@ export const ATOM_CSS = {
   sectionLabel: SECTION_LABEL,
   badge: BADGE,
   chip: CHIP,
+  codeBlock: CODE_BLOCK,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
