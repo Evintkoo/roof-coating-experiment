@@ -120,6 +120,17 @@ function audit(): {
   return { anchors, controls, found }
 }
 
+/** Rejects after `ms` so a step that never settles (a lost live update) is a defect, not a hang. */
+function within<T>(ms: number, p: Promise<T>): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    p,
+    new Promise<never>((_, rej) => {
+      t = setTimeout(() => rej(new Error(`no result within ${ms} ms`)), ms)
+    }),
+  ]).finally(() => clearTimeout(t))
+}
+
 export async function runQa(
   htmlPath: string,
   opts: QaOpts = {},
@@ -134,7 +145,15 @@ export async function runQa(
   }
   const w: Watch = { defects, add }
   const checked = { controls: 0, anchors: 0, widths: 0, burst: 0 }
-  const browser = await chromium.launch({ channel: "chrome", headless: true })
+  const launch = () =>
+    chromium.launch({
+      channel: "chrome",
+      headless: true,
+      timeout: 30_000,
+      args: ["--disable-gpu"],
+    })
+  // a Chrome that does not come up within 30 s is retried once rather than holding the run for Playwright's default 180 s
+  const browser = await launch().catch(() => launch())
   try {
     const url = `file://${resolve(htmlPath)}`
     const ctx = await browser.newContext({
@@ -225,24 +244,34 @@ export async function runQa(
       add(f.id, f.id === "bad_text" ? "minor" : "major", f.repro)
 
     // 50-event burst: the newest request is the one shown, and the tile equals the nominal of the last inputs
-    const burst = await page.evaluate(async () => {
-      const b = await (
-        window as unknown as {
-          __burst: (
-            n: number,
-            ms: number,
-          ) => Promise<{ shown: number[]; requested: number }>
+    const burst = await within(
+      60_000,
+      page.evaluate(async () => {
+        const b = await (
+          window as unknown as {
+            __burst: (
+              n: number,
+              ms: number,
+            ) => Promise<{ shown: number[]; requested: number }>
+          }
+        ).__burst(50, 20)
+        const root = document.getElementById("live-root") as HTMLElement
+        return {
+          last: b.shown[b.shown.length - 1],
+          requested: b.requested,
+          shown: root.dataset.shown,
+          ascending: b.shown.every(
+            (v, i, all) => i === 0 || (all[i - 1] as number) < v,
+          ),
         }
-      ).__burst(50, 20)
-      const root = document.getElementById("live-root") as HTMLElement
-      return {
-        last: b.shown[b.shown.length - 1],
-        requested: b.requested,
-        shown: root.dataset.shown,
-        ascending: b.shown.every(
-          (v, i, all) => i === 0 || (all[i - 1] as number) < v,
-        ),
-      }
+      }),
+    ).catch((e: Error) => {
+      add(
+        "burst_timeout",
+        "major",
+        `the 50-event burst did not settle: ${e.message}`,
+      )
+      return { last: -1, requested: -2, shown: "-1", ascending: true }
     })
     checked.burst = 50
     if (
