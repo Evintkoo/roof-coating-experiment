@@ -160,6 +160,15 @@ export const MOLECULE_CSS = {
 .tv-legend__swatch--band{height:${t("space-3")};opacity:0.55}
 @media print{.tv-legend__swatch{print-color-adjust:exact}}
 `,
+  tabs: `
+.tv-tabs{font-family:${t("font-sans")};color:${t("text-primary")}}
+.tv-tabs__list{display:flex;flex-wrap:wrap;gap:${t("space-1")};border-bottom:${t("hairline")} solid ${t("border-panel")}}
+.tv-tabs__tab{min-height:var(--tv-target-min);min-width:var(--tv-target-min);padding:${t("space-2")} ${t("space-4")};border:0;border-bottom:${t("ring-width")} solid transparent;background:transparent;color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-label")};cursor:pointer}
+.tv-tabs__tab:hover{background:${t("surface-glass")}}
+.tv-tabs__tab[aria-selected="true"]{border-bottom-color:${t("link")};color:${t("text-primary")};font-weight:${t("weight-semibold")}}
+.tv-tabs__panel{padding:${t("space-4")} 0}
+@media print{.tv-tabs__list{display:none}.tv-tabs__panel[hidden]{display:block}.tv-tabs__panel::before{content:attr(data-label);display:block;font-weight:${t("weight-semibold")}}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */

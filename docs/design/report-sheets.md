@@ -104,3 +104,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<ul class="tv-legend" aria-label="<title>">` with one `<li>` per entry holding an `aria-hidden` swatch (`--swatch` set to the token) and the label text; at least one entry; labels must be distinct (two entries with the same label are a build error, exit 4)
 - accessibility: the label is text, the swatch is decorative and repeated by shape, never colour alone; the swatches are graphic pairs of the validated set (3:1 on both plot backgrounds, Q4); not interactive, so no target size applies
 - do: keep the order of the plot's series, put the recommended entry first. don't: use a legend for three or fewer series, or the brand orange for anything but the recommended recipe
+
+### R11 Tabs
+
+- purpose: switch between parallel views of one thing (the three recipes' layers, initial against aged state) when showing all of them at once would break the page budget. The tab labels are always visible, so what is hidden is announced.
+- tokens: tab `text-muted` at `size-label`, selected tab `text-primary` with a `link` underline of `ring-width`, `border-panel` hairline under the list, panel `space-4` padding, hover `surface-glass`; 44 px targets (`target-min`)
+- states: per tab `selected` (`aria-selected="true"`, roving `tabindex` 0) and `unselected` (`aria-selected="false"`, `tabindex` -1); exactly one is selected, `selected` names it (default the first)
+- contract: `tabs({ id, label, tabs, selected? })` returns `(panels) => string` with one panel per tab; `<div class="tv-tabs" data-tabs>` with a `role="tablist"` of `<button role="tab">` (`aria-controls`, ids `<id>-tab-<tab>`) and `role="tabpanel"` panels (`aria-labelledby`, `tabindex="0"`, `hidden` unless selected); panels are trusted markup; at least two tabs, distinct plain-identifier ids, as many panels as tabs, else a build error (exit 4). `TABS_SCRIPT` (inline, no dependency) selects on click and on Arrow Left and Right (wrapping), Home and End, moving focus and the roving tabindex, and fires `tabs-change`
+- accessibility: the WAI-ARIA tabs pattern with automatic activation; the selected state is shown by weight and underline as well as colour; print shows every panel under its tab name and hides the list
+- do: use two to four tabs of the same kind. don't: hide a caveat or the only copy of an answer in an unselected panel (H9), or nest tabs
