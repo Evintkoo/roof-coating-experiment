@@ -11,6 +11,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type Browser, chromium } from "playwright"
 import type { BudgetTable } from "../../../src/core/opt/budgetTable"
+import {
+  OVERCLAIM_PATTERN,
+  withoutAllowedLabels,
+} from "../../../src/core/report/outline"
 import { buildReport, EXTRA_SECTIONS } from "../../../src/node/report/html"
 import {
   addRefineOutputs,
@@ -54,32 +58,31 @@ beforeAll(async () => {
 })
 
 test("absentRefineOutputsOmitTheSectionWithoutError", () => {
-  expect(plain.html).not.toContain('id="optimisation"')
-  expect(plain.html).not.toContain('href="#optimisation"')
+  expect(plain.html).not.toContain('id="budget"')
+  expect(plain.html).not.toContain('href="#budget"')
 })
 
-test("presentRefineOutputsAddTheSectionBetweenSensitivityAndLimits", () => {
+test("presentRefineOutputsAddTheSectionBetweenWhyItWorksAndExplore", () => {
   const h = withOpt.html
   const at = (s: string) => h.indexOf(s)
-  expect(at('<section id="sensitivity"')).toBeGreaterThan(0)
-  expect(at('<section id="optimisation"')).toBeGreaterThan(
-    at('<section id="sensitivity"'),
+  expect(at('<section id="why"')).toBeGreaterThan(0)
+  expect(at('<section id="budget"')).toBeGreaterThan(at('<section id="why"'))
+  expect(at('<section id="explore"')).toBeGreaterThan(
+    at('<section id="budget"'),
   )
   expect(at('<section id="limits"')).toBeGreaterThan(
-    at('<section id="optimisation"'),
+    at('<section id="explore"'),
   )
-  expect(h).toContain('href="#optimisation"')
+  expect(h).toContain('href="#budget"')
   const text = visibleText(h)
   expect(text).toContain("not a measured optimum (PROXY)")
   expect(text).toContain("relative cost units (not IDR)")
   expect(text).toContain("exact lookup, no interpolation")
-  expect(text).not.toMatch(
-    /proven|safe|guaranteed|\d+\s*%\s*(safe|aman|self-clean)/i,
-  )
+  expect(withoutAllowedLabels(text)).not.toMatch(OVERCLAIM_PATTERN)
 })
 
 test("recipeToleranceAndRobustTablesMatchTheCsv", () => {
-  const sec = /<section id="optimisation"[\s\S]*?<\/section>/.exec(
+  const sec = /<section id="budget"[\s\S]*<section id="explore"/.exec(
     withOpt.html,
   )?.[0] as string
   const rows = (name: string) =>
@@ -88,10 +91,12 @@ test("recipeToleranceAndRobustTablesMatchTheCsv", () => {
       .split("\n").length - 1
   const trCount = (title: string) => {
     const part =
-      new RegExp(`<h3>${title}</h3>[\\s\\S]*?</table>`).exec(sec)?.[0] ?? ""
+      new RegExp(`${title}</summary>[\\s\\S]*?</table>`).exec(sec)?.[0] ?? ""
     return (part.match(/<tr>/g) ?? []).length - 1 // minus the header row
   }
-  expect(trCount("Three refined recipes")).toBe(rows("refine_recipes.csv"))
+  expect(trCount("Three refined recipes \\(model optima\\)")).toBe(
+    rows("refine_recipes.csv"),
+  )
   expect(trCount("Dosing tolerance")).toBe(rows("refine_tolerance.csv"))
   expect(trCount("Robust optimum")).toBe(
     readFileSync(join(withOpt.dir, "refine", "refine_robust.csv"), "utf8")
@@ -100,11 +105,11 @@ test("recipeToleranceAndRobustTablesMatchTheCsv", () => {
   )
   // headers of the objective columns that are PROXY say so
   const head =
-    /<h3>Three refined recipes<\/h3>[\s\S]*?(<thead>[\s\S]*?<\/thead>)/.exec(
+    /Three refined recipes \(model optima\)<\/summary>[\s\S]*?(<thead>[\s\S]*?<\/thead>)/.exec(
       sec,
     )?.[1] as string
   expect((head.match(/\(PROXY\)/g) ?? []).length).toBe(3)
-  expect(sec).toContain('id="opt-budget"')
+  expect(sec).toContain('id="budget-panel"')
   expect(sec).toContain('id="fig-frontier"')
 })
 
@@ -115,9 +120,13 @@ test("embeddedTablesCarryAllProfiles", () => {
       "",
     ),
   )
-  expect(data.ext.optimisation.tables.length).toBe(3)
-  expect(data.ext.optimisation.cost_unit).toBe("relative")
-  expect(data.ext.optimisation.tables[0].entries.length).toBe(3)
+  const b = data.ext.budget
+  expect(b.opt.tables.length).toBe(3)
+  expect(b.opt.cost_unit).toBe("relative")
+  expect(b.opt.tables[0].entries.length).toBe(3)
+  // the bare-aluminium peak the budget recipes are compared with, and the shared cooling scale
+  expect(Number.isFinite(b.c0_mean_c)).toBe(true)
+  expect(b.axis.max).toBeGreaterThan(b.axis.min)
 })
 
 test("partialOutputsStillBuild", async () => {
@@ -140,9 +149,9 @@ test("partialOutputsStillBuild", async () => {
   const out = outPath()
   await buildReport(dir, out, reportOpts())
   const h = readFileSync(out, "utf8")
-  expect(h).toContain('id="optimisation"')
+  expect(h).toContain('id="budget"')
   expect(h).toContain("Three refined recipes")
-  expect(h).not.toContain('id="opt-budget"')
+  expect(h).not.toContain('id="budget-panel"')
   expect(h).not.toContain("Dosing tolerance")
 })
 
@@ -199,7 +208,9 @@ test("unlistedOrMissingRefineCsvIsRefused", async () => {
 test("manifestTableListsTheEmbeddedExtraFilesWithHashes", () => {
   const h = withOpt.html
   const tbl =
-    /<table id="tbl-manifest-extra"[\s\S]*?<\/table>/.exec(h)?.[0] ?? ""
+    /<table class="tv-datatable" id="provenance-run-extra">[\s\S]*?<\/table>/.exec(
+      h,
+    )?.[0] ?? ""
   const m = JSON.parse(
     readFileSync(join(withOpt.dir, "run_manifest.json"), "utf8"),
   ) as { extra: { path: string; sha256: string }[]; core_sha256: string }
@@ -213,14 +224,14 @@ test("manifestTableListsTheEmbeddedExtraFilesWithHashes", () => {
     `<meta name="spandek-core-sha256" content="${m.core_sha256}">`,
   )
   // a run without later outputs shows no such table
-  expect(plain.html).not.toContain("tbl-manifest-extra")
+  expect(plain.html).not.toContain("provenance-run-extra")
 })
 
 test("laterPlansAddSectionsThroughTheRegistry", async () => {
   EXTRA_SECTIONS.push({
     id: "indonesia",
     title: "Indonesia",
-    order: 75,
+    order: 65,
     render: () => '<section id="indonesia"><h2>Indonesia</h2></section>',
     data: () => ({ days: 3 }),
   })
@@ -229,7 +240,7 @@ test("laterPlansAddSectionsThroughTheRegistry", async () => {
     await buildReport(withOpt.dir, out, reportOpts())
     const h = readFileSync(out, "utf8")
     expect(h.indexOf('<section id="indonesia"')).toBeGreaterThan(
-      h.indexOf('<section id="optimisation"'),
+      h.indexOf('<section id="budget"'),
     )
     expect(h.indexOf('<section id="limits"')).toBeGreaterThan(
       h.indexOf('<section id="indonesia"'),
@@ -263,35 +274,51 @@ test("budgetLookupInChromeEqualsATablePlainScan", async () => {
     page.on("pageerror", (e) => errors.push(String(e)))
     page.on("requestfailed", (r) => failed.push(r.url()))
     await page.goto(`file://${withOpt.path}`)
+    await page.evaluate(() =>
+      document.querySelectorAll("details").forEach((d) => {
+        d.open = true
+      }),
+    )
     await page.waitForSelector("#fig-frontier .main-svg")
     expect(
       await page.locator("#fig-refine-front .main-svg").count(),
     ).toBeGreaterThan(0)
     const t = tables.find((x) => x.profile === "balanced") as BudgetTable
-    await page.selectOption("#opt-profile", "balanced")
-    const cost4 = (b: number): string => {
+    const lo = Math.min(...tables.map((x) => x.c_min))
+    await page.click('#budget-panel .tv-chip--toggle[data-value="balanced"]')
+    const cost2 = (b: number): string => {
       let best = t.entries[0]
       for (const e of t.entries)
         if (e.budget <= b && e.budget > (best?.budget ?? -1)) best = e
-      return (best as { cost: number }).cost.toFixed(4)
+      return (best as { cost: number }).cost.toFixed(2)
     }
+    const num = "#budget-panel-budget-num"
+    const result = "#budget-panel [data-budget-result]"
     for (const b of [
       t.entries[1]?.budget as number,
       (t.entries[1]?.budget as number) + 0.05,
-      t.c_max + 1,
     ]) {
-      await page.fill("#opt-budget", String(b))
-      const text = await page.locator("#opt-result").innerText()
-      expect(text).toContain(`cost ${cost4(b)} relative cost units (not IDR)`)
-      expect(text).toContain("Value [p5, p95]")
+      await page.fill(num, String(b))
+      const text = await page.locator(result).innerText()
+      expect(text).toContain(`cost ${cost2(b)} relative cost units (not IDR)`)
+      expect(text).toContain("parameter uncertainty only")
     }
-    await page.fill("#opt-budget", String(t.c_min - 0.01))
-    expect(await page.locator("#opt-result").innerText()).toContain(
-      `minimum feasible cost for this profile is ${t.c_min.toFixed(4)}`,
+    // above the range the box is clamped to the largest budget and the last entry shows
+    await page.fill(num, String(t.c_max + 1))
+    await page.locator(num).blur()
+    expect(await page.locator(result).innerText()).toContain(
+      `cost ${cost2(t.c_max)} relative cost units (not IDR)`,
     )
-    // the slider and the number input stay in step
-    await page.locator("#opt-budget-range").fill(String(t.c_max))
-    expect(Number(await page.inputValue("#opt-budget"))).toBeCloseTo(t.c_max, 6)
+    // below the cheapest feasible recipe of the profile the panel says so (when the slider can still reach that budget)
+    if (t.c_min > lo) {
+      await page.fill(num, String(t.c_min - 0.001))
+      expect(await page.locator(result).innerText()).toContain(
+        `The cheapest tabulated recipe costs ${t.c_min.toFixed(2)} relative cost units (not IDR)`,
+      )
+    }
+    // the slider and the number box stay in step
+    await page.locator("#budget-panel-budget").fill(String(t.c_max))
+    expect(Number(await page.inputValue(num))).toBeCloseTo(t.c_max, 6)
     expect(errors).toEqual([])
     expect(failed).toEqual([])
   } finally {

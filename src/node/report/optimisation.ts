@@ -3,17 +3,25 @@ import { join } from "node:path"
 import { coerceCell, parseCsv } from "../../core/csv"
 import { ConfigError, DataError } from "../../core/errors"
 import { OBJECTIVE_COLUMNS } from "../../core/pipeline/tables"
+import { callout } from "../../web/design/molecules/callout"
+import { disclosure } from "../../web/design/molecules/disclosure"
+import { figureFrame } from "../../web/design/molecules/figureFrame"
+import { budgetPanel } from "../../web/design/organisms/budgetPanel"
+import { findingList } from "../../web/design/organisms/findingList"
 import { axisLabel } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
 import {
+  budgetRange,
   costUnitText,
   type FrontRow,
   type OptData,
   PROFILE_LABEL,
   varLabel,
 } from "../../web/optimisation"
+import { type BudgetPage, budgetLookup, coolingAxis } from "../../web/recipe"
 import { BUDGET_FILE, readVerifiedTable } from "../budget"
 import { emit } from "../logging"
+import { derive } from "./content"
 import { esc, type ReportInput, type ReportSection } from "./html"
 import { extraEntries, readListed } from "./manifest"
 
@@ -141,16 +149,14 @@ const th = (labels: readonly string[]): string =>
 
 function recipesTable(rows: Rec[]): string {
   const cols = [...OBJECTIVE_COLUMNS]
-  return `<h3>Three refined recipes</h3>
-<p class="hint">Best recipes of the models for three priorities, found by derivative-based search from the screened candidates. Model optima, not measured optima (PROXY).</p>
+  return `<p class="page-hint">Recipes the models rank highest for three priorities, found by derivative-based search from the screened candidates. Model optima, not measured optima (PROXY).</p>
 <div class="scroll"><table>${th(["Role", "Refined from", "Scalar S (lower is better)", ...cols.map(axisLabel), "Solver status"])}<tbody>
 ${rows.map((r) => `<tr><td class="txt">${esc(r.role ?? "")}</td><td class="txt">${esc(r.screened_id ?? "")}</td><td>${cell(r.S)}</td>${cols.map((c) => `<td>${cell(r[c])}</td>`).join("")}<td class="txt">${esc(r.status ?? "")}</td></tr>`).join("\n")}
 </tbody></table></div>`
 }
 
 function toleranceTable(rows: Rec[]): string {
-  return `<h3>Dosing tolerance</h3>
-<p class="hint">How far each ingredient may move below (lower) or above (upper) the recipe before the scalar objective worsens by the tolerance (relative loss at the edge shown). "Limited by the box" means the allowed range ended first.</p>
+  return `<p class="page-hint">How far each ingredient may move below (lower) or above (upper) the recipe before the scalar objective worsens by the tolerance (relative loss at the edge shown). "Limited by the box" means the allowed range ended first.</p>
 <div class="scroll"><table>${th(["Role", "Ingredient", "Recipe value", "Lower tolerance", "Upper tolerance", "Relative loss at the edge", "Limited by the box"])}<tbody>
 ${rows.map((r) => `<tr><td class="txt">${esc(r.role ?? "")}</td><td class="txt">${esc(varLabel(r.variable ?? ""))}</td><td>${cell(r.x_star)}</td><td>${cell(r.tol_lo)}</td><td>${cell(r.tol_hi)}</td><td>${cell(r.loss_edge, 5)}</td><td class="txt">${r.clipped === "true" ? "yes" : "no"}</td></tr>`).join("\n")}
 </tbody></table></div>`
@@ -161,54 +167,108 @@ function robustTable(rows: Rec[]): string {
   const byName = (kind: string, name: string) =>
     rows.find((r) => r.kind === kind && r.name === name)
   const fresh = rows.filter((r) => r.kind === "fresh")
-  return `<h3>Robust optimum</h3>
-<p class="hint">The recipe that stays best across the uncertainty draws, next to the nominal one, and how the optimal level of each ingredient is spread over the draws (p5, median, p95).</p>
+  return `<p class="page-hint">The recipe that holds up across the uncertainty draws, next to the nominal one, and how the optimal level of each ingredient is spread over the draws (p5, median, p95).</p>
 <div class="scroll"><table>${th(["Ingredient", "Nominal optimum", "Robust optimum", "p5 over draws", "Median", "p95 over draws"])}<tbody>
 ${dist.map((r) => `<tr><td class="txt">${esc(varLabel(r.name ?? ""))}</td><td>${cell(byName("nominal", r.name ?? "")?.value)}</td><td>${cell(byName("robust", r.name ?? "")?.value)}</td><td>${cell(r.p05)}</td><td>${cell(r.p50)}</td><td>${cell(r.p95)}</td></tr>`).join("\n")}
 </tbody></table></div>
 ${fresh.length ? `<ul>${fresh.map((r) => `<li>${esc((r.name ?? "").replaceAll("_", " "))}: ${cell(r.value, 5)}</li>`).join("")}</ul>` : ""}`
 }
 
-function budgetControls(d: OptData): string {
-  const unit = costUnitText(d.cost_unit)
-  return `<h3>Recipe for a cost budget</h3>
-<p>Pick a profile and a budget in ${esc(unit)}. The recipe shown is the tabulated one with the largest cost at or below the budget (exact lookup, no interpolation); cost is the relative cost index of the model (PROXY), not a price.</p>
-<div class="controls">
-<label for="opt-profile">Priority profile</label>
-<select id="opt-profile">${d.tables.map((t) => `<option value="${esc(t.profile)}">${esc(PROFILE_LABEL[t.profile] ?? t.profile)}</option>`).join("")}</select>
-<label for="opt-budget">Budget (${esc(unit)})</label>
-<input id="opt-budget" type="number" step="any" inputmode="decimal">
-<input id="opt-budget-range" type="range" aria-label="Budget slider (${esc(unit)})">
-<label for="opt-objective">Chart objective</label>
-<select id="opt-objective">${d.objectives.map((o, i) => `<option value="${i}">${esc(axisLabel(o))}</option>`).join("")}</select>
-</div>
-<div id="opt-result" aria-live="polite"></div>
-<div id="fig-frontier" class="fig tall" role="img" aria-label="Performance against cost for each priority profile with p5 to p95 bands"></div>`
+/** Budget panel and its lookup page data: the exact table lookup, the bare-aluminium peak (nominal) and the shared cooling scale. */
+function budgetPage(input: ReportInput, d: OptData): BudgetPage {
+  const c0 = derive(input).c0Mean
+  return {
+    opt: d,
+    c0_mean_c: c0,
+    axis: coolingAxis(d.tables, d.objectives, c0),
+  }
+}
+
+function budgetPanelHtml(input: ReportInput, d: OptData): string {
+  const page = budgetPage(input, d)
+  const [lo, hi] = budgetRange(d.tables)
+  const profile = d.tables.some((t) => t.profile === "balanced")
+    ? "balanced"
+    : (d.tables[0] as OptData["tables"][number]).profile
+  const start = d.tables.find((t) => t.profile === profile)
+  // rounded up to six places so the number box is readable and the lookup still lands on the knee entry
+  const value = Math.min(
+    hi,
+    Math.max(lo, Math.ceil((start?.knee_budget ?? lo) * 1e6) / 1e6),
+  )
+  return budgetPanel({
+    id: "budget-panel",
+    profiles: d.tables.map((t) => ({
+      id: t.profile,
+      label: PROFILE_LABEL[t.profile] ?? t.profile,
+    })),
+    profile,
+    budget: { min: lo, max: hi, step: (hi - lo) / 1000, value },
+    lookup: budgetLookup(page),
+    unit: costUnitText(d.cost_unit),
+    digits: 2,
+  })
 }
 
 export const optimisationSection: ReportSection = {
-  id: "optimisation",
-  title: "Optimisation",
-  order: 70,
+  id: "budget",
+  title: "Budget",
+  order: 50,
   render: (input) => {
     const o = loadOptimisation(input)
     if (o === null) return null
+    const d = derive(input)
+    const detail = (summary: string, inner: string) =>
+      disclosure({ summary, level: "detail" })(inner)
     const parts: string[] = []
     parts.push(
-      `<p><strong>Optimum of the models, not a measured optimum (PROXY).</strong> Costs are ${esc(costUnitText(o.data?.cost_unit ?? "relative"))}. Intervals are parameter uncertainty only.</p>`,
+      callout({
+        tone: "caution",
+        title: "An optimum of the models, not a measured optimum (PROXY)",
+        body: `Costs are ${costUnitText(o.data?.cost_unit ?? "relative")}, a relative index and not a price. The recipe shown for a budget is the tabulated one with the largest cost at or below it (exact lookup, no interpolation). Intervals are parameter uncertainty only.`,
+      }),
     )
-    if (o.recipes) parts.push(recipesTable(o.recipes))
+    const sentence = d.findings.find((f) => f.id === "budget")
+    if (sentence)
+      parts.push(
+        findingList({
+          items: [{ id: sentence.id, sentence: sentence.sentence }],
+          seen: d.seen,
+        }),
+      )
+    if (o.data && o.data.tables.length > 0)
+      parts.push(budgetPanelHtml(input, o.data))
+    if (o.data && o.data.tables.length > 0)
+      parts.push(
+        detail(
+          "Performance against cost for each priority",
+          `<div class="page-controls"><label for="opt-objective">Objective</label><select id="opt-objective">${o.data.objectives.map((ob, i) => `<option value="${i}"${ob === "t_max_pred" ? " selected" : ""}>${esc(axisLabel(ob))}</option>`).join("")}</select></div>
+${figureFrame({ message: "What each priority reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost for each priority with p5 to p95 bands", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--tall"></div>')}`,
+        ),
+      )
+    if (o.recipes)
+      parts.push(
+        detail("Three refined recipes (model optima)", recipesTable(o.recipes)),
+      )
     if (o.data && o.data.front.length > 0)
       parts.push(
-        `<h3>Refined Pareto front</h3>\n<div id="fig-refine-front" class="fig" role="img" aria-label="Refined Pareto front: cost against solar reflectance"></div>`,
+        detail(
+          "Refined Pareto front",
+          figureFrame({
+            message: "Reflectance rises with cost along the refined front",
+            size: "medium",
+            describe: "Refined Pareto front: cost against solar reflectance",
+            note: "Model optima, nominal only (PROXY).",
+          })('<div id="fig-refine-front" class="fig"></div>'),
+        ),
       )
-    if (o.tolerance) parts.push(toleranceTable(o.tolerance))
-    if (o.robust) parts.push(robustTable(o.robust))
-    if (o.data && o.data.tables.length > 0) parts.push(budgetControls(o.data))
-    return `<section id="optimisation" aria-labelledby="h-optimisation">\n<h2 id="h-optimisation">Optimisation</h2>\n${parts.join("\n")}\n</section>`
+    if (o.tolerance)
+      parts.push(detail("Dosing tolerance", toleranceTable(o.tolerance)))
+    if (o.robust) parts.push(detail("Robust optimum", robustTable(o.robust)))
+    return `<section id="budget" class="page-section" aria-labelledby="h-budget">\n<h2 id="h-budget">Budget</h2>\n${parts.join("\n")}\n</section>`
   },
   data: (input) => {
     const d = loadOptimisation(input)?.data
-    return d ?? null
+    return d ? budgetPage(input, d) : null
   },
 }

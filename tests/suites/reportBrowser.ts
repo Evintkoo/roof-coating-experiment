@@ -82,6 +82,12 @@ export function reportBrowserSuite(S: BrowserScale): void {
     page.on("pageerror", (e) => w.errors.push(String(e)))
     page.on("requestfailed", (r) => w.failed.push(r.url()))
     await page.goto(`file://${path}${opts.hooks === false ? "" : "#test"}`)
+    // the explorer, the curves and the live simulator sit in closed disclosures (plan 06 D5); their figures are drawn when one opens
+    await page.evaluate(() =>
+      document.querySelectorAll("details.tv-disclosure").forEach((d) => {
+        ;(d as HTMLDetailsElement).open = true
+      }),
+    )
     await page.waitForSelector("#fig-parcoords .axis-brush rect.background")
     await page.waitForFunction(
       () =>
@@ -392,7 +398,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
     const state = () =>
       page.evaluate(() => {
         const css = getComputedStyle(document.documentElement)
-          .getPropertyValue("--bg")
+          .getPropertyValue("--tv-surface-base")
           .trim()
         const paper = (id: string) =>
           (
@@ -419,7 +425,8 @@ export function reportBrowserSuite(S: BrowserScale): void {
       })
     const dark = await state()
     expect(lum(dark.body)).toBeLessThan(0.2)
-    for (const p of dark.papers) expect(p).toBe(dark.css)
+    for (const p of dark.papers)
+      expect(p.toLowerCase()).toBe(dark.css.toLowerCase())
     expect(dark.stroke).not.toBe("rgb(0, 0, 0)")
     // the toggle flips to light: background, Plotly paper and the axis stroke follow
     await page.click("#theme-toggle")
@@ -427,7 +434,8 @@ export function reportBrowserSuite(S: BrowserScale): void {
     const light = await state()
     expect(lum(light.body)).toBeGreaterThan(0.8)
     expect(light.css).not.toBe(dark.css)
-    for (const p of light.papers) expect(p).toBe(light.css)
+    for (const p of light.papers)
+      expect(p.toLowerCase()).toBe(light.css.toLowerCase())
     expect(watch(page).errors).toEqual([])
   })
 
@@ -790,7 +798,15 @@ export function reportBrowserSuite(S: BrowserScale): void {
       number,
     ]
     expect(Math.min(r, g, b)).toBeGreaterThan(240)
-    expect(await page.isHidden(".bar")).toBe(true)
+    expect(await page.isHidden(".tv-rail")).toBe(true)
+    const lightPaper = await page.evaluate(
+      () =>
+        (
+          window as never as {
+            __SPANDEK__: { plotThemes: { light: { paper: string } } }
+          }
+        ).__SPANDEK__.plotThemes.light.paper,
+    )
     // the figures are redrawn with the print palette when the browser prepares a print
     await page.evaluate(() => window.dispatchEvent(new Event("beforeprint")))
     await page.waitForTimeout(500)
@@ -804,7 +820,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
           )._fullLayout.paper_bgcolor,
       ),
     )
-    expect(papers).toEqual(["#ffffff", "#ffffff", "#ffffff"])
+    expect(papers).toEqual([lightPaper, lightPaper, lightPaper])
     await page.emulateMedia({ media: "screen", colorScheme: "dark" })
     await page.evaluate(() => window.dispatchEvent(new Event("afterprint")))
     await page.waitForTimeout(500)
@@ -817,7 +833,7 @@ export function reportBrowserSuite(S: BrowserScale): void {
             }
           )._fullLayout.paper_bgcolor,
       ),
-    ).not.toBe("#ffffff")
+    ).not.toBe(lightPaper)
   })
 
   reg("noConsoleErrorsDuringLiveUse", false, async () => {

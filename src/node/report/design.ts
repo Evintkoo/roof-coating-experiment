@@ -13,13 +13,18 @@ import { DataError, SpandekError } from "../../core/errors"
 import { emitEvent } from "../../core/events"
 import { componentsCss } from "../../web/design/css"
 import { fontFaceCss } from "../../web/design/fonts"
+import { type PlotTheme, plotTheme } from "../../web/design/plotTheme"
 import {
   evaluatePairs,
   type PairRow,
   THEMES,
   type Themes,
 } from "../../web/design/themes"
-import { compileTokens, resolveTheme } from "../../web/design/tokens"
+import {
+  compileTokens,
+  resolveFixed,
+  resolveTheme,
+} from "../../web/design/tokens"
 
 // ---- vendor drift check ------------------------------------------------------------------------------------------------
 
@@ -184,6 +189,8 @@ export type DesignAssets = {
   fontCss: string
   /** Base64 bytes of the embedded fonts. */
   fontBytes: number
+  /** Figure colours of both themes, resolved from the same tokens (embedded in the page data). */
+  plotThemes: { dark: PlotTheme; light: PlotTheme }
   /** Emit `design.build.done`; call once the page is assembled. */
   done(htmlBytes: number): void
 }
@@ -219,10 +226,16 @@ export function buildDesignAssets(opts: DesignBuildOptions): DesignAssets {
   const css = tokens.css + componentsCss()
   const fontCss = fontFaceCss(fonts)
   const fontBytes = fonts.reduce((n, f) => n + f.base64.length, 0)
+  const family = String(resolveFixed(contract)["font-sans"])
+  const plotThemes = {
+    dark: plotTheme("dark", resolveTheme(contract, themes, "dark"), family),
+    light: plotTheme("light", resolveTheme(contract, themes, "light"), family),
+  }
   return {
     css,
     fontCss,
     fontBytes,
+    plotThemes,
     done(htmlBytes: number) {
       emitEvent("design.build.done", "info", {
         css_bytes: Buffer.byteLength(css),

@@ -429,7 +429,7 @@ export function figTofT(
     data,
     layout: baseLayout({
       margin: { l: 64, r: RIGHT, t: 16, b: 48 },
-      xaxis: { title: { text: "Hour of day 2" }, dtick: 4 },
+      xaxis: { title: { text: "Hour of day 2" }, dtick: 4, range: [0, 24] },
       yaxis: { title: { text: "Surface temperature (°C)" } },
       showlegend: false,
       annotations: endLabels(labels, range),
@@ -672,7 +672,7 @@ export function figLiveTofT(r: LiveResult): FigureSpec {
     data,
     layout: baseLayout({
       margin: { l: 64, r: RIGHT, t: 16, b: 48 },
-      xaxis: { title: { text: "Hour of day 2" }, dtick: 4 },
+      xaxis: { title: { text: "Hour of day 2" }, dtick: 4, range: [0, 24] },
       yaxis: {
         title: {
           text: `Surface temperature (°C), band = p5-p95 of ${r.nDraws} draws`,

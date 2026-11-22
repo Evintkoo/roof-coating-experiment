@@ -236,7 +236,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-term:hover{color:${t("link-hover")}}
 `,
   dataTable: `
-.tv-table{max-width:100%;overflow-x:auto;margin:${t("space-4")} 0}
+.tv-table{position:relative;max-width:100%;overflow-x:auto;margin:${t("space-4")} 0}
 .tv-datatable{width:100%;border-collapse:collapse;font-family:${t("font-sans")}}
 .tv-datatable__caption{padding:${t("space-2")} ${t("space-3")};color:${t("text-primary")};font-size:${t("size-body")};font-weight:${t("weight-semibold")};text-align:left}
 .tv-table__head{background:${t("surface-base")};color:${t("text-muted")};font-size:${t("size-label")};font-weight:${t("weight-semibold")};font-family:${t("font-sans")}}

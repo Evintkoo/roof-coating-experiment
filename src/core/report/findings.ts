@@ -83,7 +83,7 @@ const PROFILE_WORDS: Record<string, string> = {
   durability_first: "durability-first",
 }
 
-const mean = (xs: readonly number[]): number =>
+export const mean = (xs: readonly number[]): number =>
   xs.reduce((a, b) => a + b, 0) / xs.length
 
 function fmt(value: number, digits: number): string {
@@ -102,7 +102,7 @@ class Nums {
   }
 }
 
-type Cooling = {
+export type Cooling = {
   value: number
   lo: number
   hi: number
@@ -111,7 +111,7 @@ type Cooling = {
   n: number
 }
 
-function coolingOf(
+export function coolingOf(
   id: string,
   results: readonly ResultRow[],
   c0Mean: number,
@@ -139,7 +139,7 @@ function coolingOf(
 }
 
 /** Roles from the plan-05 refine recipes when all three are present, else from the plan-03 shortlist (F6). */
-function recipeIds(i: FindingsInput): {
+export function recipeIds(i: FindingsInput): {
   ids: Record<Role, string>
   refined: Partial<Record<Role, RefineRecipe>>
 } {

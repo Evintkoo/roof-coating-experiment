@@ -129,7 +129,7 @@ export function cardDecision(i: CardInput): Decision {
 }
 
 const DECISION_TEXT: Record<Decision, string> = {
-  go: "go to coupon lab. This means the candidate is worth a coupon test, not that it works.",
+  go: "go to coupon lab. This means the candidate is worth a coupon test, not that it performs on a roof.",
   revise:
     "revise. At least one go criterion is not met; change the formulation and re-run before any coupon test.",
   reject:

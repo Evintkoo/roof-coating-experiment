@@ -119,6 +119,13 @@ function readContract(contract: unknown): Resolved {
   return { fixed, semantic }
 }
 
+/** The theme-independent tokens of the contract (primitives, type, space, radius) by `--tv-` name. */
+export function resolveFixed(
+  contract: unknown,
+): Record<string, string | number> {
+  return Object.fromEntries(readContract(contract).fixed)
+}
+
 function checkValues(group: Readonly<Record<string, string>>, token: string) {
   for (const [k, v] of Object.entries(group))
     if (!SAFE.test(v)) missing(k, `has an unusable value (${token})`)

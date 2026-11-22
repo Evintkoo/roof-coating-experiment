@@ -18,6 +18,8 @@ export type ProvenanceProps = {
   build?: readonly { label: string; value: string }[]
   extra: readonly ExtraFile[]
   files?: readonly HashedFile[]
+  /** Put the extra files table behind a closed Disclosure (the page does; the sentence about the core hash stays visible). */
+  extraInDisclosure?: boolean
   id?: string
   headingLevel?: 3 | 4
 }
@@ -81,6 +83,13 @@ export function provenance(p: ProvenanceProps): string {
     },
     { key: "sha256", label: "SHA-256", kind: "text" as const, mono: true },
   ]
+  const wrapExtra = (table: string): string =>
+    p.extraInDisclosure === true
+      ? disclosure({
+          summary: `The ${p.extra.length} later files this page was built from, with hashes`,
+          level: "detail",
+        })(table)
+      : table
   const extra =
     p.extra.length === 0
       ? tag(
@@ -100,12 +109,14 @@ export function provenance(p: ProvenanceProps): string {
             `These files are listed in the manifest's extra entries and were checked against the hashes below before the page was built. The page was built against core hash ${p.coreHash}; verify-report flags a page whose core hash no longer matches the manifest.`,
           ),
         ) +
-        dataTable({
-          id: `${id}-extra`,
-          caption: "Later outputs embedded in this page",
-          columns: columns(true),
-          rows: p.extra.map((f) => ({ ...f })),
-        })
+        wrapExtra(
+          dataTable({
+            id: `${id}-extra`,
+            caption: "Later outputs embedded in this page",
+            columns: columns(true),
+            rows: p.extra.map((f) => ({ ...f })),
+          }),
+        )
   const manifest =
     p.files === undefined || p.files.length === 0
       ? ""
