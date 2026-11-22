@@ -82,3 +82,21 @@ test("linkAttrsOwnsExternalLinks", () => {
   expect(linkAttrs(false)).toEqual({})
   expect(linkAttrs(undefined)).toEqual({})
 })
+
+import { buildError, finite, fixed, pct } from "../../../src/web/design/html"
+
+test("buildErrorFiniteFixedAndPct", () => {
+  expect(() => buildError("X", "m")).toThrow("m")
+  expect(finite("X", "v", 1.5)).toBe(1.5)
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, "1", undefined])
+    expect(() => finite("X", "v", bad)).toThrow()
+  expect(fixed("X", 14.449, 1)).toBe("14.4")
+  expect(fixed("X", 3, undefined)).toBe("3.00")
+  expect(fixed("X", -0.001, 2)).toBe("0.00")
+  expect(() => fixed("X", 1, 9)).toThrow()
+  expect(() => fixed("X", 1, 1.5)).toThrow()
+  expect(pct(5, 0, 10)).toBe("50")
+  expect(pct(-5, 0, 10)).toBe("0")
+  expect(pct(50, 0, 10)).toBe("100")
+  expect(pct(1, 0, 3)).toBe("33.3333")
+})

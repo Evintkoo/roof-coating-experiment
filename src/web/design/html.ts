@@ -103,3 +103,34 @@ export function linkAttrs(
 ): Record<string, string> {
   return external ? { target: "_blank", rel: "noopener noreferrer" } : {}
 }
+
+/** A build error of a component (F7): exit 4, phase design.component, key = the component name. */
+export function buildError(component: string, message: string): never {
+  throw new SpandekError(4, "design.component", component, message)
+}
+
+/** A finite number, or a build error. */
+export function finite(component: string, name: string, v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v))
+    return buildError(component, `${name} must be a finite number`)
+  return v
+}
+
+/** Fixed-point text with a plain minus-free zero (`-0.00` prints as `0.00`); the one number formatter of the design layer. */
+export function fixed(
+  component: string,
+  v: number,
+  digits: number | undefined,
+): string {
+  const d = digits ?? 2
+  if (!Number.isInteger(d) || d < 0 || d > 6)
+    return buildError(component, "digits must be an integer from 0 to 6")
+  const s = finite(component, "value", v).toFixed(d)
+  return /^-0(\.0+)?$/.test(s) ? s.slice(1) : s
+}
+
+/** Position of `v` on an axis as a percentage with four decimals (deterministic text), clamped to 0..100. */
+export function pct(v: number, min: number, max: number): string {
+  const p = ((v - min) / (max - min)) * 100
+  return String(Math.round(Math.min(100, Math.max(0, p)) * 10000) / 10000)
+}

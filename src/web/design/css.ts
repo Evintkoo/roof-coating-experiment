@@ -93,10 +93,31 @@ export const ATOM_CSS = {
 
 export type AtomCssName = keyof typeof ATOM_CSS
 
+/** Molecule CSS, keyed by molecule name (sheets R4 to R13). */
+export const MOLECULE_CSS = {
+  proxyBadge: `
+.tv-proxy{display:inline-flex;vertical-align:middle}
+`,
+} as const
+
+/** Organism CSS, keyed by organism name (sheets R14 to R22). */
+export const ORGANISM_CSS: Record<string, string> = {}
+
 /** The CSS of every atom, in a fixed order, one rule per line. */
 export function atomsCss(): string {
   return Object.values(ATOM_CSS)
     .map((s) => s.trim())
+    .join("\n")
+    .concat("\n")
+}
+
+/** Atoms, molecules and organisms: the stylesheet of the report and the gallery. */
+export function componentsCss(): string {
+  return [
+    atomsCss(),
+    ...Object.values(MOLECULE_CSS).map((x) => x.trim()),
+    ...Object.values(ORGANISM_CSS).map((x) => x.trim()),
+  ]
     .join("\n")
     .concat("\n")
 }

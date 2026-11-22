@@ -37,3 +37,16 @@ Components consume **semantic tokens only**; a raw value where a token exists is
 - contract: block renders `<pre class="tv-code" tabindex="0" role="region" aria-label="..."><code>text</code></pre>`; inline renders `<code class="tv-code tv-code--inline">`; the text is escaped and never interpreted; the block scrolls horizontally instead of wrapping so a hash stays one string
 - accessibility: a block can overflow, so it is focusable (`tabindex="0"`) with an accessible name (`label`, default "Code") so a keyboard user can scroll it; text on its fill is `text-primary` on `surface-card` / `surface-glass` (pair table, 4.5:1 in both themes); selectable text; print wraps (`pre-wrap`), drops the fill, never clips
 - do: use for values that must be copied exactly. don't: put prose in it, put unit exponents such as `W m⁻²` in it (the mono subset has no superscript minus: those are set in the UI face), or rely on colour inside it
+
+## Molecules
+
+Molecules compose atoms and carry the rules of the plan: an index value never appears without its caveat (FR-4), an interval is always drawn the same way (R4), detail is closed by default but never hides a caveat (R2, H9). Every molecule is a pure function returning escaped markup, a closed union per state (F7), CSS from tokens only.
+
+### R4 ProxyBadge
+
+- purpose: the one way a caveat is attached to a value. It wraps the Badge atom with the report's fixed wording so the same words appear everywhere: `proxy` reads "PROXY" (a relative ranking, not a measurement), `scenario` reads "scenario" (an ageing or what-if value), `nominal` reads "nominal only" (shown without its uncertainty).
+- tokens: those of the Badge atom R1 (`status-proxy`, `accent-secondary`, `text-muted`, `radius-pill`); the wrapper adds only `display:inline-flex`
+- states (closed union `tone`, required): `proxy`, `scenario`, `nominal`; there is no default tone, so a missing tone is a TypeScript error
+- contract: `<span class="tv-proxy" data-proxy-badge="<tone>">` around one Badge; an optional `label` replaces the default wording but never the tone; an empty label is a build error (exit 4)
+- accessibility: the words carry the meaning, never colour alone; contrast is the Badge's (pair table, H4); not interactive, no tab stop
+- do: put it in the same line as the value. don't: pick `nominal` for a value that has an interval (use the interval instead), or hide it behind a disclosure
