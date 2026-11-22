@@ -62,3 +62,100 @@ test("mergeRejectsMissingAndDuplicate", () => {
   expect(() => mergeOrdered([{ index: 2, value: 1 }], 2)).toThrow()
   expect(() => mergeOrdered([{ index: -1, value: 1 }], 1)).toThrow()
 })
+
+// ---- Task 4 (plan 07): the screening evaluator and its page data ----
+import { beforeAll } from "bun:test"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import {
+  buildScreeningData,
+  designsOf,
+  SCREEN_DRAWS,
+  screenChunk,
+} from "../../../src/core/anim/screening"
+import { weatherL9 } from "../../../src/core/design"
+import type { ModelContext } from "../../../src/core/pipeline/context"
+import { parseResultsCsv, type ResultRow } from "../../../src/core/schema"
+import { loadContext } from "../../../src/node/context"
+import { REPORT_FIXTURE, repoRoot } from "../../helpers"
+
+let ctx: ModelContext
+let rows: ResultRow[]
+beforeAll(async () => {
+  ctx = await loadContext(
+    join(repoRoot, "configs"),
+    join(repoRoot, "data", "literature"),
+  )
+  rows = parseResultsCsv(
+    readFileSync(join(REPORT_FIXTURE, "results.csv"), "utf8"),
+  )
+})
+
+test("screeningEqualsBatchNominalIn1e9", () => {
+  const data = buildScreeningData(rows, weatherL9(ctx.weather))
+  expect(data.nominal.length).toBe(864)
+  const designs = designsOf(data)
+  const tasks = screeningTasks(designs.length, data.scenarios.length)
+  const got = screenChunk(ctx, designs, data.scenarios, tasks, null)
+  expect(got.length).toBe(864)
+  let compared = 0
+  let max = 0
+  for (const g of got) {
+    const r = rows[g.index] as ResultRow
+    for (const [a, b] of [
+      [g.value[0], r.r_solar_pred],
+      [g.value[1], r.t_max_pred],
+      [g.value[2], r.q_in_mean_w_m2],
+    ] as const) {
+      max = Math.max(max, Math.abs(a - b))
+      compared++
+    }
+  }
+  expect(compared).toBe(2592)
+  expect(max).toBeLessThan(1e-9)
+}, 60000)
+
+test("pageDataIsTheBatchNominalColumnsInRowOrder", () => {
+  const data = buildScreeningData(rows, weatherL9(ctx.weather))
+  expect(data.candidates.length).toBe(96)
+  expect(data.scenarios.map((s) => s.scenario_id)).toEqual(
+    Array.from({ length: 9 }, (_, i) => `W${i + 1}`),
+  )
+  const r = rows[10] as ResultRow
+  expect(data.nominal[10]).toEqual([
+    r.r_solar_pred,
+    r.t_max_pred,
+    r.q_in_mean_w_m2,
+  ])
+})
+
+test("pageDataRefusesRowsOutOfOrderOrWithUnknownScenario", () => {
+  const sc = weatherL9(ctx.weather)
+  expect(() => buildScreeningData([...rows].reverse(), sc)).toThrow()
+  expect(() => buildScreeningData(rows.slice(1), sc)).toThrow()
+  expect(() => buildScreeningData(rows, sc.slice(0, 8))).toThrow()
+})
+
+test("drawsBandContainsNominalAndIsDeterministic", () => {
+  const data = buildScreeningData(rows, weatherL9(ctx.weather))
+  const designs = designsOf(data).slice(0, 2)
+  const tasks = screeningTasks(2, 9)
+  const mats = SCREEN_DRAWS
+  const a = screenChunk(ctx, designs, data.scenarios, tasks, mats)
+  const b = screenChunk(ctx, designs, data.scenarios, tasks, mats)
+  expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+  const nominalOnly = screenChunk(ctx, designs, data.scenarios, tasks, null)
+  for (const [i, g] of a.entries()) {
+    const v = g.value
+    expect(v.length).toBe(5)
+    // the nominal part is identical with and without draws
+    expect([...v].slice(0, 3)).toEqual([
+      ...(nominalOnly[i] as (typeof nominalOnly)[number]).value,
+    ])
+    expect(v[3] as number).toBeLessThanOrEqual(v[1])
+    expect(v[4] as number).toBeGreaterThanOrEqual(v[1])
+  }
+  expect(
+    a.some((g) => (g.value[4] as number) - (g.value[3] as number) > 1e-6),
+  ).toBe(true)
+}, 60000)

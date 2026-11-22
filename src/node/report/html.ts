@@ -8,6 +8,8 @@ import {
   writeFileSync,
 } from "node:fs"
 import { dirname, join } from "node:path"
+import { buildScreeningData } from "../../core/anim/screening"
+import { weatherL9 } from "../../core/design"
 import { ConfigError, DataError, SpandekError } from "../../core/errors"
 import type { ModelContext } from "../../core/pipeline/context"
 import { contextToJson } from "../../core/pipeline/contextJson"
@@ -401,6 +403,8 @@ export async function buildReport(
       irradiance_w_m2_um: Array.from(g.irradiance_w_m2_um),
     },
     ctxJson: contextToJson(input.ctx),
+    /** plan 07 Task 4: designs, scenarios and the batch nominal values the live screening runs on and is checked against (H7). */
+    screening: buildScreeningData(input.results, weatherL9(input.ctx.weather)),
     workerSrc: scriptSafe(workerJs),
     ext,
     plotThemes: design.plotThemes,

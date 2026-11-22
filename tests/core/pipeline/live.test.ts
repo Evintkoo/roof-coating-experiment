@@ -8,6 +8,7 @@ import {
 import type { ModelContext } from "../../../src/core/pipeline/context"
 import { type LiveInputs, liveSimulate } from "../../../src/core/pipeline/live"
 import { CONTROL_LAYERS, evaluate } from "../../../src/core/pipeline/stackProps"
+import { widenInterval } from "../../../src/core/pipeline/uncertainty"
 import type { FlaggedDesignRow } from "../../../src/core/schema"
 import { loadContext } from "../../../src/node/context"
 import { simulateAll } from "../../../src/node/simulate"
@@ -219,3 +220,16 @@ test("seedFixedBandsDoNotJitter", () => {
   const c = liveSimulate(inp, ctx, 8, SEED + 1)
   expect(c.bands.t_max_c).not.toEqual(a.bands.t_max_c)
 })
+
+test("seriesDrawsAreTheEnsembleTheBandIsMadeOf", () => {
+  const r = liveSimulate(inputsFor(cand, "W5"), ctx, 16, SEED)
+  expect(r.series.draws.length).toBe(16)
+  for (const d of r.series.draws) expect(d.length).toBe(r.series.t_k.length)
+  // the band at every node is the widened p5 to p95 of the draws (same widenInterval as the batch)
+  for (const i of [0, 40, 80, 143]) {
+    const col = Float64Array.from(r.series.draws, (d) => d[i] as number)
+    const w = widenInterval(r.series.t_k[i] as number, col)
+    expect(Math.abs(w.lo - (r.series.lo[i] as number))).toBeLessThan(1e-9)
+    expect(Math.abs(w.hi - (r.series.hi[i] as number))).toBeLessThan(1e-9)
+  }
+}, 60000)
