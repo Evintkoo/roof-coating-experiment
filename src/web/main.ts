@@ -41,6 +41,8 @@ import {
 import {
   clampInputs,
   defaultLiveState,
+  liveLabel,
+  liveValue,
   N_LIVE,
   type SliderSpec,
   sliderSpecs,
@@ -434,6 +436,22 @@ function initLive(): LiveApi {
     inputs = clampInputs(inputs, cfg.ranges, cfg.weather)
   }
 
+  // a worker that cannot start or has died: say so loudly, turn the controls off, and show no stale numbers
+  const fail = (text: string): void => {
+    worker = null
+    inFlight = null
+    pending = null
+    status.textContent = text
+    status.className = "live-status--fail"
+    status.setAttribute("role", "alert")
+    for (const e of $("live-controls").querySelectorAll("input,select"))
+      (e as HTMLInputElement).disabled = true
+    for (const e of tiles.querySelectorAll(".tile-value"))
+      e.textContent = "unavailable"
+    for (const e of tiles.querySelectorAll(".tile-range"))
+      e.textContent = "the live simulator is not running"
+  }
+
   // ---- scheduler (D3): one request in flight, one pending (the newest), results shown only when newer ----
   let requested = 0
   let shownId = 0
@@ -585,7 +603,7 @@ function initLive(): LiveApi {
   groups.scenario.append(preset)
   for (const s of specs) {
     const row = mk("div", "srow")
-    const lab = mk("label", undefined, `${s.label} (${s.unit})`)
+    const lab = mk("label", undefined, liveLabel(s))
     lab.htmlFor = `live-num-${s.key}`
     const rg = mk("input")
     rg.type = "range"
@@ -600,31 +618,50 @@ function initLive(): LiveApi {
     nb.id = `live-num-${s.key}`
     nb.min = String(s.min)
     nb.max = String(s.max)
-    nb.step = "any"
-    nb.value = String(s.value)
+    nb.step = String(s.step)
+    nb.value = liveValue(s.step, s.value)
     rangeEls.set(s.key, rg)
     numEls.set(s.key, nb)
     const after = (src: "range" | "box"): void => {
       commit()
       const v = String(get(s))
-      if (src === "range") nb.value = v
+      if (src === "range") nb.value = liveValue(s.step, get(s))
       rg.value = v
       if (s.group === "scenario") preset.value = "custom"
       request()
+    }
+    const typed = (): number | null => {
+      const v = Number.parseFloat(nb.value)
+      return nb.value.trim() !== "" &&
+        Number.isFinite(v) &&
+        v >= s.min &&
+        v <= s.max
+        ? v
+        : null
     }
     rg.addEventListener("input", () => {
       put(s, Number(rg.value))
       after("range")
     })
+    // an empty, minus or out-of-range entry leaves the previous result on screen and marks the box; blur restores a valid value
     nb.addEventListener("input", () => {
-      put(s, Number.parseFloat(nb.value))
+      const v = typed()
+      if (v === null) {
+        nb.setAttribute("aria-invalid", "true")
+        return
+      }
+      nb.removeAttribute("aria-invalid")
+      put(s, v)
       after("box")
     })
     nb.addEventListener("change", () => {
-      put(s, Number.parseFloat(nb.value))
+      nb.removeAttribute("aria-invalid")
+      const v = Number.parseFloat(nb.value)
+      if (Number.isFinite(v)) put(s, v)
       commit()
-      nb.value = String(get(s))
-      rg.value = nb.value
+      nb.value = liveValue(s.step, get(s))
+      rg.value = String(get(s))
+      request()
     })
     row.append(lab, rg, nb)
     groups[s.group].append(row)
@@ -640,7 +677,7 @@ function initLive(): LiveApi {
     commit()
     for (const s of specs.filter((x) => x.group === "scenario")) {
       const v = String(get(s))
-      ;(numEls.get(s.key) as HTMLInputElement).value = v
+      ;(numEls.get(s.key) as HTMLInputElement).value = liveValue(s.step, get(s))
       ;(rangeEls.get(s.key) as HTMLInputElement).value = v
     }
     request()
@@ -667,14 +704,13 @@ function initLive(): LiveApi {
     )
     worker = new Worker(url)
     worker.onmessage = (e: MessageEvent<FromWorker>) => onMessage(e.data)
-    worker.onerror = () => {
-      status.textContent =
-        "The live simulator stopped. The static results below still work."
-    }
+    worker.onerror = () =>
+      fail("The live simulator stopped. The static results below still work.")
     worker.postMessage({ type: "init", ctxJson: D.ctxJson })
   } catch {
-    status.textContent =
-      "This browser cannot start the live simulator. The static results below still work."
+    fail(
+      "This browser cannot start the live simulator. The static results below still work.",
+    )
   }
   request()
 

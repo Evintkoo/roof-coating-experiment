@@ -7,7 +7,10 @@ import {
   clampInputs,
   DESIGN_KEYS,
   defaultLiveState,
+  liveLabel,
+  liveValue,
   sliderSpecs,
+  unitText,
 } from "../../src/web/liveState"
 import { repoRoot } from "../helpers"
 
@@ -101,4 +104,20 @@ test("sliderSpecsComeFromRangesNotLiterals", () => {
     expect(s.value).toBeGreaterThanOrEqual(s.min)
     expect(s.value).toBeLessThanOrEqual(s.max)
   }
+})
+
+test("unitTextReadsCleanly", () => {
+  expect(unitText("um")).toBe("µm")
+  expect(unitText("pH")).toBe("")
+  expect(unitText("W/m2 peak irradiance (half-sine 06:00-18:00)")).toBe("W/m²")
+  expect(unitText("degC held constant")).toBe("°C")
+  expect(unitText("m/s")).toBe("m/s")
+  expect(liveLabel({ label: "Sol-gel pH", unit: "pH" })).toBe("Sol-gel pH")
+  expect(liveLabel({ label: "Primer DFT", unit: "um" })).toBe("Primer DFT (µm)")
+})
+
+test("liveValueDropsFloatNoise", () => {
+  expect(liveValue(0.001, 0.22499999999999998)).toBe("0.225")
+  expect(liveValue(1, 700)).toBe("700")
+  expect(liveValue(0.0005, 0.1 + 0.2)).toBe("0.3")
 })

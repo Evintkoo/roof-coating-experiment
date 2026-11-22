@@ -65,3 +65,21 @@ export async function startQa(): Promise<QaBrowser> {
   }
   return { browser, open, close: () => browser.close() }
 }
+
+/** Opens the live simulator disclosure and waits until every requested update has been shown. */
+export async function openLive(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    ;(document.getElementById("details-live") as HTMLDetailsElement).open = true
+  })
+  await settled(page)
+}
+
+/** Waits until the live simulator has shown the newest requested update. */
+export async function settled(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const r = document.getElementById("live-root") as HTMLElement
+    return (
+      r.dataset.shown === r.dataset.requested && r.dataset.requested !== "0"
+    )
+  })
+}

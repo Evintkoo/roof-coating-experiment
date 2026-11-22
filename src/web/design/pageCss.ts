@@ -66,6 +66,7 @@ pre{overflow-x:auto;max-width:100%}
 .ctl select{width:100%;margin:${t("space-2")} 0}
 .check{display:flex;align-items:center;gap:${t("space-2")};min-height:${t("target-min")}}
 .check input{width:${t("target-min")};height:${t("target-min")};margin:0;flex:none;accent-color:${t("action-primary")}}
+.live-status--fail{margin:${t("space-2")} 0;padding:${t("space-3")} ${t("space-4")};border:${t("hairline")} solid ${t("status-stop")};border-radius:${t("radius-control")};color:${t("status-stop")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 2.4),1fr));gap:${t("space-3")};margin:${t("space-2")} 0}
 .tile{background:${t("surface-glass")};border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};padding:${t("space-3")} ${t("space-4")};min-width:0}
 .tile-label{font-size:${t("size-small")};color:${t("text-muted")}}

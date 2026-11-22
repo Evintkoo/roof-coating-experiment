@@ -3,8 +3,8 @@ import { MOLECULE_CSS } from "../../../../src/web/design/css"
 import {
   SLIDER_SCRIPT,
   SLIDER_STATES,
-  snapToBounds,
   sliderField,
+  snapToBounds,
 } from "../../../../src/web/design/molecules/sliderField"
 import {
   elementsOf,
