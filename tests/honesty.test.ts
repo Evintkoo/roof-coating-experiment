@@ -40,10 +40,12 @@ test("liveFiguresShowTheBandAndSayHowManyDraws", () => {
   const kinds = (f.data as { meta: { kind: string } }[]).map((t) => t.meta.kind)
   expect(kinds.filter((k) => k === "predicted").length).toBe(1)
   expect(kinds.filter((k) => k === "band").length).toBe(2)
-  const y = (f.layout as { yaxis: { title: { text: string } } }).yaxis.title
-    .text
-  expect(y).toContain("p5-p95")
-  expect(y).toContain("32 draws")
+  // the band statement sits in the figure (an annotation above the plot, not the y-axis title, which it overran)
+  const notes = (f.layout as { annotations: { text: string }[] }).annotations
+    .map((a) => a.text)
+    .join(" ")
+  expect(notes).toContain("p5-p95")
+  expect(notes).toContain("32 draws")
   expect(JSON.stringify(figLiveSpectrum(r, ctx.g173).data)).toContain("tonexty")
 })
 
