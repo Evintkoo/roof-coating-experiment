@@ -177,6 +177,19 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     expect(
       await page.$$eval(".tv-cell--index", (e) => e.length),
     ).toBeGreaterThan(90)
+    // every Stat that is not a model prediction with an interval carries its caveat badge (mutation M1: a Stat without it)
+    const bareStats = await page.evaluate(() => {
+      const out: string[] = []
+      for (const s of document.querySelectorAll("[data-stat]"))
+        if (
+          s.getAttribute("data-tone") !== "interval" &&
+          !s.querySelector("[data-proxy-badge]")
+        )
+          out.push(s.textContent ?? "")
+      return { out, n: document.querySelectorAll("[data-stat]").length }
+    })
+    expect(bareStats.n).toBeGreaterThan(5)
+    expect(bareStats.out).toEqual([])
     const text = visibleText(html)
     expect(withoutAllowedLabels(text)).not.toMatch(OVERCLAIM_PATTERN)
     // the scan can fail: the same text with a claim added is caught, and a label that is not allowed is not let through
@@ -222,6 +235,19 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
       expect(shown.text).toContain(needle)
     expect(shown.text).not.toContain("Recommended")
     expect(shown.limits).toBe(true)
+    // the limits link and the honesty statement are on the first screen itself, not only in the rail (mutation M5, M7)
+    const hero = await page.evaluate(() => {
+      const vis = (e: Element | null) =>
+        e !== null &&
+        e.getBoundingClientRect().height > 0 &&
+        !e.closest("details:not([open])")
+      return {
+        limits: vis(document.querySelector('.tv-hero a[href="#limits"]')),
+        honesty: vis(document.querySelector(".tv-hero [data-honesty]")),
+        lead: vis(document.querySelector(".tv-hero__lead")),
+      }
+    })
+    expect(hero).toEqual({ limits: true, honesty: true, lead: true })
   })
 
   // ---- H10 ----
