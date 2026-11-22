@@ -43,11 +43,17 @@ const LOGO = `
 @media print{.tv-logo__wordmark{color:${t("text-primary")}}}
 `
 
+const NAVLINK = `
+.tv-navlink{display:inline-flex;align-items:center;min-height:${t("target-min")};min-width:${t("target-min")};justify-content:center;padding:${t("space-2")} ${t("space-3")};border-radius:${t("radius-control")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-label")};text-decoration:none}
+.tv-navlink:hover,.tv-navlink[aria-current="true"]{text-decoration:underline;text-decoration-color:${t("action-primary")};text-underline-offset:${t("space-1")}}
+`
+
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
   icon: ICON,
   logo: LOGO,
+  navLink: NAVLINK,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
