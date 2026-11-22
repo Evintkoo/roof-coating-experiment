@@ -128,6 +128,17 @@ export const MOLECULE_CSS = {
 .tv-callout--limit{border-inline-start-color:${t("status-stop")}}
 @media print{.tv-callout{background:none;border-color:${t("text-primary")}}}
 `,
+  disclosure: `
+.tv-disclosure{margin:${t("space-2")} 0;border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-disclosure__summary{display:flex;align-items:center;gap:${t("space-3")};min-height:var(--tv-target-min);padding:${t("space-2")} ${t("space-4")};border-radius:${t("radius-card")};font-size:${t("size-body")};font-weight:${t("weight-semibold")};cursor:pointer;list-style:none}
+.tv-disclosure__summary::-webkit-details-marker{display:none}
+.tv-disclosure__summary::before{content:"";flex-shrink:0;width:${t("space-2")};height:${t("space-2")};border-right:${t("ring-width")} solid ${t("text-muted")};border-bottom:${t("ring-width")} solid ${t("text-muted")};transform:rotate(-45deg);transition:transform ${t("motion-fast")} ease}
+.tv-disclosure[open]>.tv-disclosure__summary::before{transform:rotate(45deg)}
+.tv-disclosure__summary:hover{background:${t("surface-glass")}}
+.tv-disclosure__inner{padding:${t("space-2")} ${t("space-4")} ${t("space-4")}}
+@media (prefers-reduced-motion:reduce){.tv-disclosure__summary::before{transition:none}}
+@media print{.tv-disclosure::details-content{content-visibility:visible;display:block}.tv-disclosure>.tv-disclosure__inner{display:block}.tv-disclosure__summary::before{display:none}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */

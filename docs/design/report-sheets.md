@@ -77,3 +77,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<div class="tv-callout tv-callout--<tone>" role="note" data-callout="<tone>">` with a visible title (the given `title`, else the tone word "Note", "Caution" or "Limit") and one paragraph per body string; text is escaped; an empty body is a build error (exit 4)
 - accessibility: `role="note"`; the tone is also a word, so the border colour is never the only signal (R5); `text-primary` on `surface-glass` is in the pair table (4.5:1, both themes); the border is a graphic pair (`border-control`, `status-*`)
 - do: keep it to two or three sentences and put it where the claim it qualifies is. don't: collapse it inside a disclosure, use it for decoration, or stack more than one per section
+
+### R8 Disclosure
+
+- purpose: progressive disclosure (R2): detail is one click away and closed by default, so the closed page stays short (H1). It never hides a caveat (H9): what must stay visible is placed outside it by the caller, and the component tests that a closed disclosure holds only its own summary in the visible text.
+- tokens: `border-glass` hairline, `radius-card`, `surface-glass` summary on hover, `text-primary` summary in `weight-semibold`, chevron from `ring-width` borders in `text-muted`, `space-4` padding, 44 px minimum summary height (`target-min`)
+- states: `closed` (default) and `open` (the `open` prop, or the reader's click); one `level`, `detail` (a closed union so a second level is a deliberate change)
+- contract: `disclosure({ summary, open?, level })` returns a function `(inner) => string`; native `<details class="tv-disclosure" data-level="detail"><summary>` with the inner markup in `<div class="tv-disclosure__inner">`; the inner markup is trusted (already built by components), the summary is escaped. `DISCLOSURE_SCRIPT` (inline, no dependency) opens every closed ancestor `<details>` when a link or the address targets an id inside it, so a glossary anchor is reachable from a first use
+- accessibility: native element, so Enter and Space toggle and the state is exposed without ARIA; visible focus ring; 44 px target; print opens every disclosure (`::details-content` made visible) so nothing is lost on paper
+- do: put the live simulator, tables of 96 rows and assumed constants inside. don't: put a PROXY statement, the interval definition or the limits link inside one
