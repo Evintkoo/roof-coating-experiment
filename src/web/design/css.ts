@@ -139,6 +139,17 @@ export const MOLECULE_CSS = {
 @media (prefers-reduced-motion:reduce){.tv-disclosure__summary::before{transition:none}}
 @media print{.tv-disclosure::details-content{content-visibility:visible;display:block}.tv-disclosure>.tv-disclosure__inner{display:block}.tv-disclosure__summary::before{display:none}}
 `,
+  figureFrame: `
+.tv-figure{display:flex;flex-direction:column;gap:${t("space-2")};margin:${t("space-4")} 0;padding:${t("space-4")};border:${t("hairline")} solid ${t("border-panel")};border-radius:${t("radius-panel")};color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-figure__title{font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-figure__box{min-width:0;overflow-x:auto}
+.tv-figure__plot{min-height:calc(${t("space-16")} * 4)}
+.tv-figure--short .tv-figure__plot{min-height:calc(${t("space-16")} * 4)}
+.tv-figure--medium .tv-figure__plot{min-height:calc(${t("space-16")} * 5)}
+.tv-figure--tall .tv-figure__plot{min-height:calc(${t("space-16")} * 6)}
+.tv-figure__note{margin:0;color:${t("text-muted")};font-size:${t("size-small")}}
+@media print{.tv-figure{break-inside:avoid}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */

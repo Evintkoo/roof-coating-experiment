@@ -86,3 +86,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `disclosure({ summary, open?, level })` returns a function `(inner) => string`; native `<details class="tv-disclosure" data-level="detail"><summary>` with the inner markup in `<div class="tv-disclosure__inner">`; the inner markup is trusted (already built by components), the summary is escaped. `DISCLOSURE_SCRIPT` (inline, no dependency) opens every closed ancestor `<details>` when a link or the address targets an id inside it, so a glossary anchor is reachable from a first use
 - accessibility: native element, so Enter and Space toggle and the state is exposed without ARIA; visible focus ring; 44 px target; print opens every disclosure (`::details-content` made visible) so nothing is lost on paper
 - do: put the live simulator, tables of 96 rows and assumed constants inside. don't: put a PROXY statement, the interval definition or the limits link inside one
+
+### R9 FigureFrame
+
+- purpose: one message per chart (R3). The frame holds the message as its heading, the chart (a Plotly div or a drawn schematic) in a reserved box so the page does not jump, and a note for the source or the scale. Charts are the report's heaviest elements, so the frame fixes their height from the plan's page budget (260 to 400 px at 1280 px).
+- tokens: `border-panel` hairline, `radius-panel`, `space-4` padding, title `text-primary` at `size-body` and `weight-semibold`, note `text-muted` at `size-small`; plot box minimum height as a multiple of `space-16` (`short` 4, `medium` 5, `tall` 6)
+- states (closed union `size`): `short`, `medium`, `tall`; `interactive` true gives the plot area `role="group"` (the reader can operate it), otherwise `role="img"`
+- contract: `<figure class="tv-figure" data-figure>` with `<figcaption>` holding the message as the first child, a plot box with `role` and `aria-label` = the message plus the optional `describe` text, and an optional `<p class="tv-figure__note">`; the inner markup is trusted; an empty message is a build error (exit 4)
+- accessibility: a chart without its message as accessible name is a build error; interactive plots stay reachable by keyboard because the group does not hide them from assistive technology; the message is visible text, not only a label
+- do: write the title as the finding ("Aluminium primer runs 11 K hotter"), label series directly, name units on axes. don't: use a topic title ("Temperature"), or put two messages in one frame
