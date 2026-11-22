@@ -48,12 +48,18 @@ const NAVLINK = `
 .tv-navlink:hover,.tv-navlink[aria-current="true"]{text-decoration:underline;text-decoration-color:${t("action-primary")};text-underline-offset:${t("space-1")}}
 `
 
+const SECTION_LABEL = `
+.tv-section-label{margin:0 0 ${t("space-3")};color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-label")};font-weight:${t("weight-semibold")};letter-spacing:0.2em;text-transform:uppercase}
+.tv-section-label--accent{color:${t("link")}}
+`
+
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
   icon: ICON,
   logo: LOGO,
   navLink: NAVLINK,
+  sectionLabel: SECTION_LABEL,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
