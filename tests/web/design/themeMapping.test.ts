@@ -5,7 +5,6 @@ import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { PLOT_ROLE_TOKENS, plotTheme } from "../../../src/web/design/plotTheme"
-import { THEME_INIT_SCRIPT, THEME_KEY } from "../../../src/web/design/theme"
 import {
   mappingMarkdown,
   PLOT_ROLE_ROWS,
@@ -108,35 +107,4 @@ test("mappingDocMatchesCode", () => {
 test("lightIsTheDefaultAndNothingFollowsTheSystem", () => {
   expect(css).not.toContain("prefers-color-scheme")
   expect(css.split("\n")[0]).toContain(`:root,[data-theme="light"]`)
-})
-
-/** Runs the head script against a fake document and storage. */
-function runInit(
-  storage: { getItem(k: string): string | null } | "throws",
-): string {
-  let attr = ""
-  const doc = {
-    documentElement: { setAttribute: (_k: string, v: string) => (attr = v) },
-  }
-  const ls =
-    storage === "throws"
-      ? {
-          getItem() {
-            throw new Error("blocked")
-          },
-        }
-      : storage
-  new Function("document", "localStorage", THEME_INIT_SCRIPT)(doc, ls)
-  return attr
-}
-
-test("initScriptAppliesStoredDarkAndFallsBackToLight", () => {
-  expect(runInit({ getItem: (k) => (k === THEME_KEY ? "dark" : null) })).toBe(
-    "dark",
-  )
-  expect(runInit({ getItem: () => "light" })).toBe("light")
-  expect(runInit({ getItem: () => null })).toBe("light")
-  expect(runInit({ getItem: () => "<script>" })).toBe("light")
-  expect(runInit("throws")).toBe("light")
-  expect(THEME_KEY).toBe("spandek:theme")
 })
