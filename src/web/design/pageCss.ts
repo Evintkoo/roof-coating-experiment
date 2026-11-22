@@ -27,7 +27,8 @@ code{font-family:${t("font-mono")};font-size:0.92em;overflow-wrap:anywhere}
 .page-layers strong{display:block}
 .page-limits{columns:1;margin:${t("space-3")} 0;padding-inline-start:${t("space-6")}}
 .page-limits li{break-inside:avoid;margin:0 0 ${t("space-2")}}
-.page-cards{display:grid;gap:${t("space-3")}}
+.page-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:${t("space-3")}}
+.page-cards article{min-width:0}
 .page-cards article{padding:0 ${t("space-4")} ${t("space-3")}}
 .page-cards h4,.page-cards h5,.page-cards h6{margin:${t("space-4")} 0 ${t("space-2")}}
 .page-cards .tv-cell--text{text-align:left}

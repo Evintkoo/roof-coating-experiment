@@ -67,7 +67,10 @@ export function orphanTests(
   const srcSet = new Set(srcFiles.map(mirrorOf))
   return testFiles.filter((t) => {
     const f = fastTwinOf(t)
-    return !nonMirror.has(f) && !srcSet.has(f)
+    // plan 07: tests/qa/regression holds one file per fixed QA bug; each pins behaviour of the built page, not one source file
+    return (
+      !nonMirror.has(f) && !srcSet.has(f) && !f.startsWith("qa/regression/")
+    )
   })
 }
 

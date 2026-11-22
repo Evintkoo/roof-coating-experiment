@@ -59,6 +59,15 @@ test("noOrphanTests", () => {
   expect(orphanTests(srcFiles, testFiles, NON_MIRROR)).toEqual([])
 })
 
+test("regressionTestsOfTheQaBugsAreAllowedButStrayOnesAreNot", () => {
+  expect(
+    orphanTests(srcFiles, ["qa/regression/M1-skip-link.test.ts"], NON_MIRROR),
+  ).toEqual([])
+  expect(orphanTests(srcFiles, ["qa/other/stray.test.ts"], NON_MIRROR)).toEqual(
+    ["qa/other/stray.test.ts"],
+  )
+})
+
 test("guardCanFail", () => {
   const dir = mkdtempSync(join(tmpdir(), "guard-"))
   try {
