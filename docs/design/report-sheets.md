@@ -68,3 +68,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<div class="tv-interval" data-interval-bar>` with a `role="img"` track whose `aria-label` states the value, the interval and the scale, the drawn parts positioned in percent of the scale, a muted axis line with `min` and `max` and the unit, and the interval sentence; `min < max`, `min <= lo <= hi <= max` and `min <= value <= max` or the build fails (exit 4)
 - accessibility: the label is the whole message for a screen reader; the sentence is visible text so the name "parameter uncertainty only" is always on the page; the marker is a rotated square, so the position reads without colour; print keeps the track border
 - do: give every bar of a comparison the same `min` and `max`. don't: draw an interval any other way, or drop the sentence to save room
+
+### R7 Callout
+
+- purpose: a statement the reader must not miss: the honesty statement under the verdict, a limit beside a figure, a data caveat for a site. It is a block in the flow, not a banner and not a toast (R7: honesty is structural).
+- tokens: `surface-glass` fill, `text-primary` text at `size-body`, a `space-1` start border and a `border-glass` hairline elsewhere, `radius-panel`, `space-3`/`space-4` padding; start border `border-control` (`info`), `status-proxy` (`caution`), `status-stop` (`limit`); the title in `weight-semibold`
+- states (closed union `tone`): `info`, `caution`, `limit`
+- contract: `<div class="tv-callout tv-callout--<tone>" role="note" data-callout="<tone>">` with a visible title (the given `title`, else the tone word "Note", "Caution" or "Limit") and one paragraph per body string; text is escaped; an empty body is a build error (exit 4)
+- accessibility: `role="note"`; the tone is also a word, so the border colour is never the only signal (R5); `text-primary` on `surface-glass` is in the pair table (4.5:1, both themes); the border is a graphic pair (`border-control`, `status-*`)
+- do: keep it to two or three sentences and put it where the claim it qualifies is. don't: collapse it inside a disclosure, use it for decoration, or stack more than one per section

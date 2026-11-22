@@ -118,6 +118,16 @@ export const MOLECULE_CSS = {
 .tv-interval__text{color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-small")}}
 @media print{.tv-interval__track{border:${t("hairline")} solid ${t("text-primary")};background:none}.tv-interval__mark{background:${t("text-primary")}}}
 `,
+  callout: `
+.tv-callout{padding:${t("space-3")} ${t("space-4")};border:${t("hairline")} solid ${t("border-glass")};border-inline-start:${t("space-1")} solid ${t("border-control")};border-radius:${t("radius-panel")};background:${t("surface-glass")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-body")}}
+.tv-callout p{margin:0 0 ${t("space-2")}}
+.tv-callout p:last-child{margin-bottom:0}
+.tv-callout__title{font-weight:${t("weight-semibold")}}
+.tv-callout--info{border-inline-start-color:${t("border-control")}}
+.tv-callout--caution{border-inline-start-color:${t("status-proxy")}}
+.tv-callout--limit{border-inline-start-color:${t("status-stop")}}
+@media print{.tv-callout{background:none;border-color:${t("text-primary")}}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */
