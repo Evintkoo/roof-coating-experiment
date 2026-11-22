@@ -28,6 +28,7 @@ const NON_MIRROR = new Set(
     "determinism",
     "pipeline.e2e",
     "report.browser",
+    "design.atoms.browser",
     "honesty",
     "indonesia.e2e",
     "indonesia.crosscheck",

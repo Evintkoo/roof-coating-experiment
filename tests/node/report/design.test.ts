@@ -172,6 +172,9 @@ test("buildDesignAssetsEmitsStartAndDoneOnce", () => {
     componentCount: 8,
   })
   expect(a.css.length).toBeGreaterThan(1000)
+  expect(a.css).toContain("--tv-surface-base:#0b1020;")
+  expect(a.css).toContain(".tv-button--primary")
+  expect(a.css).toContain(".tv-badge--proxy")
   expect(a.fontCss).toContain("@font-face")
   expect(a.fontBytes).toBeGreaterThan(70_000)
   a.done(12345)

@@ -11,6 +11,7 @@ import {
 import { join, relative } from "node:path"
 import { DataError, SpandekError } from "../../core/errors"
 import { emitEvent } from "../../core/events"
+import { atomsCss } from "../../web/design/css"
 import { fontFaceCss } from "../../web/design/fonts"
 import {
   evaluatePairs,
@@ -178,7 +179,7 @@ export type DesignBuildOptions = {
   componentCount?: number
 }
 export type DesignAssets = {
-  /** Token and component CSS, without the font faces. */
+  /** Token and atom CSS, without the font faces. */
   css: string
   fontCss: string
   /** Base64 bytes of the embedded fonts. */
@@ -215,7 +216,7 @@ export function buildDesignAssets(opts: DesignBuildOptions): DesignAssets {
   const tokens = compileTokens(contract, themes)
   checkContrast(contract, themes)
   const fonts = loadFonts(opts.fontsDir)
-  const css = tokens.css
+  const css = tokens.css + atomsCss()
   const fontCss = fontFaceCss(fonts)
   const fontBytes = fonts.reduce((n, f) => n + f.base64.length, 0)
   return {
