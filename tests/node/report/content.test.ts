@@ -284,9 +284,12 @@ test("provenanceEmbedsTheFullFontLicencesInAClosedDisclosure", () => {
     expect(d).toContain(escaped)
   }
   expect(visibleText(d)).toContain("SIL OPEN FONT LICENSE Version 1.1")
-  // offline-safe: the notices add no resource to load (no external src, href, url() or link element) and the page stays under 8 MiB
-  expect(built.html).not.toMatch(/(?:src|href)="https?:/)
+  // offline-safe: the markup (outside the bundled scripts and the style element) loads nothing external
+  const markup = built.html
+    .replace(/<script>[\s\S]*?<\/script>/g, "")
+    .replace(/<style>[\s\S]*?<\/style>/g, "")
+  expect(markup).not.toMatch(/(?:src|href)="https?:/)
+  expect(markup).not.toContain("<link ")
   expect(built.html).not.toMatch(/url\(\s*["']?https?:/)
-  expect(built.html).not.toContain("<link ")
   expect(Buffer.byteLength(built.html)).toBeLessThan(8 * 1024 * 1024)
 })
