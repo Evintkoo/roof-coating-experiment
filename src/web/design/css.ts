@@ -35,10 +35,19 @@ const ICON = `
 .tv-icon svg{width:100%;height:100%}
 `
 
+const LOGO = `
+.tv-logo{display:inline-flex;align-items:center;gap:${t("space-2")};min-height:${t("target-min")};text-decoration:none}
+.tv-logo__mark{display:inline-flex;width:${t("mark-size")};height:${t("mark-size")}}
+.tv-logo__mark svg{width:100%;height:100%}
+.tv-logo__wordmark{color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+@media print{.tv-logo__wordmark{color:${t("text-primary")}}}
+`
+
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
   icon: ICON,
+  logo: LOGO,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
