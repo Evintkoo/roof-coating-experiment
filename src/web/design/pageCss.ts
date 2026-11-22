@@ -48,6 +48,7 @@ code{font-family:${t("font-mono")};font-size:0.92em;overflow-wrap:anywhere}
 .scroll th,.page-cards th{background:${t("surface-glass")};text-align:left}
 .scroll td.txt,.page-cards td.txt,.scroll td:first-child{text-align:left}
 .fig{width:100%;min-height:calc(${t("space-16")} * 4)}
+.fig--wide{min-width:calc(${t("space-16")} * 9)}
 .fig--tall{min-height:calc(${t("space-16")} * 6)}
 .page-explore .tv-table{max-height:calc(${t("space-16")} * 8);overflow:auto}
 .page-explore thead th{position:sticky;top:0;background:${t("surface-elevated")}}
@@ -57,7 +58,7 @@ select,input[type="number"]:not(.tv-slider__number){font:inherit;color:${t("text
 input[type="range"]{width:100%;min-height:${t("target-min")};margin:0;accent-color:${t("action-primary")}}
 details#debug{margin:${t("space-3")} 0}
 details#debug>summary{display:flex;align-items:center;min-height:${t("target-min")};cursor:pointer}
-pre{overflow-x:auto;max-width:100%}
+pre{overflow-x:auto;max-width:100%;font-family:${t("font-mono")};font-size:${t("size-small")}}
 .live{display:grid;grid-template-columns:minmax(0,1fr);gap:${t("space-4")};align-items:start}
 .ctl{border:${t("hairline")} solid ${t("border-panel")};border-radius:${t("radius-panel")};margin:0 0 ${t("space-3")};padding:${t("space-1")} ${t("space-3")} ${t("space-3")};min-width:0}
 .ctl legend{font-weight:${t("weight-semibold")};padding:0 ${t("space-1")}}
@@ -65,7 +66,7 @@ pre{overflow-x:auto;max-width:100%}
 .srow label{grid-column:1 / -1;font-size:${t("size-small")}}
 .ctl select{width:100%;margin:${t("space-2")} 0}
 .check{display:flex;align-items:center;gap:${t("space-2")};min-height:${t("target-min")}}
-.check input{width:${t("target-min")};height:${t("target-min")};margin:0;flex:none;accent-color:${t("action-primary")}}
+.check input{width:${t("space-6")};height:${t("space-6")};margin:0;flex:none;accent-color:${t("action-primary")}}
 .live-status--fail{margin:${t("space-2")} 0;padding:${t("space-3")} ${t("space-4")};border:${t("hairline")} solid ${t("status-stop")};border-radius:${t("radius-control")};color:${t("status-stop")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 2.4),1fr));gap:${t("space-3")};margin:${t("space-2")} 0}
 .tile{background:${t("surface-glass")};border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};padding:${t("space-3")} ${t("space-4")};min-width:0}

@@ -434,6 +434,12 @@ export const whySection: ReportSection = {
         (l) => `<li><strong>${esc(l.title)}</strong>${esc(l.why)}</li>`,
       ).join(""),
     )
+    const sharedTotalUm = Math.max(
+      ...ROLES.map((r) => {
+        const dsg = designOf(i, d.ids[r])
+        return dsg.primer_dft_um + dsg.midcoat_dft_um + dsg.topcoat_dft_um
+      }),
+    )
     const schem = ROLES.map((r) => {
       const dsg = designOf(i, d.ids[r])
       return `<div><h3>${esc(ROLE_LABELS[r])}</h3>${layerSchematic({
@@ -441,6 +447,7 @@ export const whySection: ReportSection = {
         primer_um: dsg.primer_dft_um,
         midcoat_um: dsg.midcoat_dft_um,
         topcoat_um: dsg.topcoat_dft_um,
+        sharedTotalUm,
       })}<p class="page-hint">${esc(Object.values(layerStrings(dsg)).join("; "))}</p></div>`
     }).join("")
     const fig = figureFrame({
@@ -449,7 +456,7 @@ export const whySection: ReportSection = {
       describe:
         "Surface temperature over the second simulated day, with the p5 to p95 band of parameter uncertainty",
       note: "Shaded band: p5 to p95, parameter uncertainty only. Bare aluminium is a nominal scenario value, not a measurement.",
-    })(`<div id="fig-why-tofT" class="fig"></div>`)
+    })(`<div id="fig-why-tofT" class="fig fig--wide"></div>`)
     return sec(
       "why",
       "How the layers work",
@@ -573,8 +580,8 @@ const explore: ReportSection = {
       id: "details-explorer",
     })(
       `<p>Drag on an axis to select candidates; the scatter matrix dims the rest and the table lists exactly the selected ones. Line colour is the share of uncertainty draws in which the candidate is on the Pareto front.</p>
-${figureFrame({ message: "Drag along an axis to keep only the candidates in that range", size: "tall", interactive: true, describe: "Parallel coordinates of the five objectives" })('<div id="fig-parcoords" class="fig fig--tall"></div>')}
-${figureFrame({ message: "The same candidates as a scatter matrix: the selected ones stay bright", size: "tall", interactive: true, describe: "Scatter matrix of the five objectives; the shortlisted recipes have their own symbols" })('<div id="fig-splom" class="fig fig--tall"></div>')}`,
+${figureFrame({ message: "Drag along an axis to keep only the candidates in that range", size: "tall", interactive: true, describe: "Parallel coordinates of the five objectives" })('<div id="fig-parcoords" class="fig fig--wide fig--tall"></div>')}
+${figureFrame({ message: "The same candidates as a scatter matrix: the selected ones stay bright", size: "tall", interactive: true, describe: "Scatter matrix of the five objectives; the shortlisted recipes have their own symbols" })('<div id="fig-splom" class="fig fig--wide fig--tall"></div>')}`,
     )
     const curves = disclosure({
       summary: "Temperature and reflectance curves of the three recipes",
@@ -582,8 +589,8 @@ ${figureFrame({ message: "The same candidates as a scatter matrix: the selected 
       id: "details-curves",
     })(
       `<div class="page-controls"><label for="sel-scenario">Weather scenario</label><select id="sel-scenario">${scen.map((s) => `<option>${esc(s)}</option>`).join("")}</select></div>
-${figureFrame({ message: "Surface temperature over day 2 in the chosen weather", size: "medium", describe: "Day-2 surface temperature with p5 to p95 bands", note: "Shaded band: p5 to p95, parameter uncertainty only." })('<div id="fig-tofT" class="fig"></div>')}
-${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium", describe: "Reflectance spectra with p5 to p95 bands and the solar reference", note: "Shaded band: p5 to p95, parameter uncertainty only. The grey area is sunlight, a reference and not a prediction." })('<div id="fig-spectrum" class="fig"></div>')}`,
+${figureFrame({ message: "Surface temperature over day 2 in the chosen weather", size: "medium", describe: "Day-2 surface temperature with p5 to p95 bands", note: "Shaded band: p5 to p95, parameter uncertainty only. The unlabelled dashed lines are the ablations of each recipe (C2 without the topcoat, C3 without the primer); hover a line for its name." })('<div id="fig-tofT" class="fig fig--wide"></div>')}
+${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium", describe: "Reflectance spectra with p5 to p95 bands and the solar reference", note: "Shaded band: p5 to p95, parameter uncertainty only. The grey area is sunlight, a reference and not a prediction. The unlabelled dashed lines are the ablations of each recipe (C2, C3); hover a line for its name." })('<div id="fig-spectrum" class="fig fig--wide"></div>')}`,
     )
     const live = disclosure({
       summary:
@@ -597,8 +604,8 @@ ${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium"
 <div class="live-out">
 <p id="live-status" class="page-hint" role="status" aria-live="polite"></p>
 <div id="live-tiles" class="tiles"></div>
-${figureFrame({ message: "Live surface temperature of the recipe you set", size: "medium", interactive: true, describe: "Live day-2 surface temperature with p5 to p95 band and controls" })('<div id="fig-live-tofT" class="fig"></div>')}
-${figureFrame({ message: "Live reflectance of the recipe you set", size: "medium", interactive: true, describe: "Live reflectance spectrum with p5 to p95 band" })('<div id="fig-live-spectrum" class="fig"></div>')}
+${figureFrame({ message: "Live surface temperature of the recipe you set", size: "medium", interactive: true, describe: "Live day-2 surface temperature with p5 to p95 band and controls", note: "Shaded band: p5 to p95 over the live uncertainty draws." })('<div id="fig-live-tofT" class="fig fig--wide"></div>')}
+${figureFrame({ message: "Live reflectance of the recipe you set", size: "medium", interactive: true, describe: "Live reflectance spectrum with p5 to p95 band" })('<div id="fig-live-spectrum" class="fig fig--wide"></div>')}
 </div>
 </div>
 <details id="debug"><summary>Debug: last events and timings</summary>

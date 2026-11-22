@@ -265,7 +265,7 @@ export const optimisationSection: ReportSection = {
         detail(
           "Performance against cost",
           `<div class="page-controls"><label for="opt-objective">Objective</label><select id="opt-objective">${o.data.objectives.map((ob, i) => `<option value="${i}"${ob === "t_max_pred" ? " selected" : ""}>${esc(axisLabel(ob))}</option>`).join("")}</select></div>
-${figureFrame({ message: "What the modelled recipe reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost with a p5 to p95 band", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--tall"></div>')}`,
+${figureFrame({ message: "What the modelled recipe reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost with a p5 to p95 band", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--wide fig--tall"></div>')}`,
         ),
       )
     if (o.recipes)

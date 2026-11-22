@@ -1,6 +1,6 @@
 import { ConfigError } from "../core/errors"
 import { OBJECTIVE_COLUMNS, type ObjRow } from "../core/pipeline/tables"
-import { axisLabel } from "./figures"
+import { axisLabel, shortAxisLabel } from "./figures"
 
 export type Range = [number, number]
 export type Ranges = Record<string, readonly Range[]>
@@ -58,7 +58,9 @@ export const emptyBrush = (): BrushState => ({
 })
 
 const columnOfLabel = (label: unknown): string | undefined =>
-  OBJECTIVE_COLUMNS.find((c) => axisLabel(c) === label)
+  OBJECTIVE_COLUMNS.find(
+    (c) => axisLabel(c) === label || shortAxisLabel(c) === label,
+  )
 
 /** Read the brush and the axis order from `gd.data[0].dimensions` (indexed by label, so reordering is harmless). */
 export function readBrush(

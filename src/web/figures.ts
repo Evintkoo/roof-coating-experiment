@@ -74,6 +74,18 @@ const INPUT_LABEL: Record<string, string> = {
   wind_m_s: "Wind speed",
 }
 
+const SHORT: Record<string, string> = {
+  r_solar_pred: "Solar<br>reflectance",
+  t_max_pred: "Peak temp.<br>(°C)",
+  corrosion_proxy: "Corrosion<br>index<br>(PROXY)",
+  delam_proxy: "Delamination<br>index<br>(PROXY)",
+  cost_proxy: "Cost<br>index<br>(PROXY)",
+}
+
+/** The short two-line axis title of a screening objective in the parallel-coordinates and scatter-matrix plots (the unit stays in the table). */
+export const shortAxisLabel = (column: string): string =>
+  SHORT[column] ?? axisLabel(column)
+
 /** A model input in words (the sensitivity tables carry the code names). */
 export const inputLabel = (id: string): string => INPUT_LABEL[id] ?? id
 
@@ -115,9 +127,10 @@ export function figParcoords(
     const lo = v.length ? Math.min(...v) : 0
     const hi = v.length ? Math.max(...v) : 1
     return {
-      label: axisLabel(c),
+      label: shortAxisLabel(c),
       values: v,
       range: [lo, hi > lo ? hi : lo + 1],
+      tickformat: ".3~g",
     }
   })
   return {
@@ -132,15 +145,18 @@ export function figParcoords(
           cmax: 1,
           showscale: true,
           colorbar: {
-            title: { text: "Share of draws on the Pareto front" },
-            thickness: 12,
+            title: { text: "Pareto-front share" },
+            thickness: 10,
           },
         },
         dimensions,
         meta: { kind: "predicted", id: "parcoords", scale: "seq" },
       },
     ],
-    layout: baseLayout({ margin: { l: 70, r: 70, t: 56, b: 24 } }),
+    layout: baseLayout({
+      margin: { l: 44, r: 44, t: 72, b: 24 },
+      font: { size: 10 },
+    }),
     config: CONFIG,
   }
 }
@@ -170,7 +186,7 @@ export function figSplom(
         }),
         hovertemplate: "%{text}<extra></extra>",
         dimensions: OBJECTIVE_COLUMNS.map((c) => ({
-          label: axisLabel(c),
+          label: shortAxisLabel(c),
           values: rows.map((r) => r[c]),
         })),
         marker: {
@@ -197,7 +213,8 @@ export function figSplom(
     ],
     layout: baseLayout({
       dragmode: "select",
-      margin: { l: 90, r: 16, t: 16, b: 70 },
+      margin: { l: 80, r: 16, t: 16, b: 90 },
+      font: { size: 11 },
     }),
     config: CONFIG,
   }
@@ -400,6 +417,17 @@ export type CurveOpts = {
   only?: readonly string[]
 }
 
+/**
+ * Which series get a direct label. With a shortlist and no `only`, the figure carries 11 series (the three recipes, the controls and
+ * the C2 and C3 ablations of each recipe): labelling all of them stacks the labels, so only the recipes and the controls C0 and C1
+ * are labelled; the thin ablation lines are named on hover. With `only` or no shortlist every drawn series is labelled.
+ */
+export function labelledIds(opts: CurveOpts): (id: string) => boolean {
+  if (opts.only !== undefined || opts.shortlist === undefined) return () => true
+  const keep = new Set([...Object.values(opts.shortlist), "C0", "C1"])
+  return (id) => keep.has(id)
+}
+
 function candidateSlot(
   id: string,
   shortlist: Record<string, string> | undefined,
@@ -432,6 +460,7 @@ export function figTofT(
   let ci = 0
   let ki = 0
   const last = (a: ArrayLike<number>): number => a[a.length - 1] as number
+  const named = labelledIds(opts)
   for (const s of curves.series.filter(
     (q) =>
       q.scenario_id === scenarioId &&
@@ -441,12 +470,13 @@ export function figTofT(
       const slot = candidateSlot(s.id, opts.shortlist, ci++)
       data.push(...lineWithBand(s.id, s.id, x, s.t_c, s.t_lo_c, s.t_hi_c, slot))
       ys.push(s.t_c, s.t_lo_c, s.t_hi_c)
-      labels.push({
-        text: candidateLabel(s.id, opts.shortlist),
-        slot,
-        x: last(x),
-        y: last(s.t_c),
-      })
+      if (named(s.id))
+        labels.push({
+          text: candidateLabel(s.id, opts.shortlist),
+          slot,
+          x: last(x),
+          y: last(s.t_c),
+        })
     } else {
       data.push(
         nominalLine(
@@ -459,12 +489,13 @@ export function figTofT(
         ),
       )
       ys.push(s.t_c)
-      labels.push({
-        text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
-        slot: "baseline",
-        x: last(x),
-        y: last(s.t_c),
-      })
+      if (named(s.id))
+        labels.push({
+          text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
+          slot: "baseline",
+          x: last(x),
+          y: last(s.t_c),
+        })
     }
   }
   const range = extent(ys)
@@ -539,17 +570,19 @@ export function figSpectrum(
   let ci = 0
   let ki = 0
   const xEnd = x[x.length - 1] as number
+  const named = labelledIds(opts)
   for (const s of spec.series) {
     if (opts.only !== undefined && !opts.only.includes(s.id)) continue
     if (s.kind === "candidate" && s.r_lo && s.r_hi) {
       const slot = candidateSlot(s.id, opts.shortlist, ci++)
       data.push(...lineWithBand(s.id, s.id, x, s.r, s.r_lo, s.r_hi, slot))
-      labels.push({
-        text: candidateLabel(s.id, opts.shortlist),
-        slot,
-        x: xEnd,
-        y: s.r[s.r.length - 1] as number,
-      })
+      if (named(s.id))
+        labels.push({
+          text: candidateLabel(s.id, opts.shortlist),
+          slot,
+          x: xEnd,
+          y: s.r[s.r.length - 1] as number,
+        })
     } else {
       data.push(
         nominalLine(
@@ -561,12 +594,13 @@ export function figSpectrum(
           DASHES[ki++ % DASHES.length] as string,
         ),
       )
-      labels.push({
-        text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
-        slot: "baseline",
-        x: xEnd,
-        y: s.r[s.r.length - 1] as number,
-      })
+      if (named(s.id))
+        labels.push({
+          text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
+          slot: "baseline",
+          x: xEnd,
+          y: s.r[s.r.length - 1] as number,
+        })
     }
   }
   const notes = endLabels(labels, [0, 1])
@@ -717,9 +751,7 @@ export function figLiveTofT(r: LiveResult): FigureSpec {
       margin: { l: 64, r: RIGHT, t: 16, b: 48 },
       xaxis: { title: { text: "Hour of day 2" }, dtick: 4, range: [0, 24] },
       yaxis: {
-        title: {
-          text: `Surface temperature (°C), band = p5-p95 of ${r.nDraws} draws`,
-        },
+        title: { text: "Surface temperature (°C)" },
       },
       showlegend: false,
       annotations: endLabels(
