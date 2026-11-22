@@ -181,6 +181,13 @@ export const MOLECULE_CSS = {
 .tv-slider[data-state="error"] .tv-slider__number{border-color:${t("status-stop")}}
 .tv-slider[data-state="disabled"]{opacity:0.6}
 `,
+  tableCell: `
+.tv-cell{padding:${t("space-2")} ${t("space-3")};border-bottom:${t("hairline")} solid ${t("border-panel")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-small")};line-height:1.5;text-align:left;vertical-align:middle}
+.tv-cell--number{font-family:${t("font-mono")};font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.tv-cell--index .tv-badge{margin-inline-start:${t("space-1")};font-size:${t("size-micro")}}
+.tv-cell__interval,.tv-cell--empty{color:${t("text-muted")}}
+.tv-visually-hidden{position:absolute;width:${t("hairline")};height:${t("hairline")};margin:calc(${t("hairline")} * -1);padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */
