@@ -19,6 +19,8 @@ Measured proof wall times (2026-11-22, one file at a time, `nice -n 10`, load av
 | `design.components.browser.proof.test.ts` | 7 s |
 | total | 878 s |
 
+Plan 06 measurement (2026-11-22, one process at a time, `nice -n 10`, other sessions active): `bun run check` took 283.7 s (979 tests in 130 files, exit 0) at load average 3.8 to 8.4; the idle 155 s baseline above is for 679 tests and was not reproducible under that load. Per-file times from the junit reporter (summed 286 s): `node/refine.test.ts` 68 s, `oracle.fixtures.test.ts` 41 s, `core/opt/objective.test.ts` 26 s, `report.browser.test.ts` 26 s, `budget.baseline.test.ts` 17 s, `node/cli.test.ts` 15 s, `report.design.browser.test.ts` 14.6 s, `design.components.browser.test.ts` 5 s. The plan-06 files together are about 21 s (7 %); none depends on a sample size or a wall-clock limit, so none was moved to the proof tier. Plan-06 proof files, run once each: `report.design.browser.proof` 12.5 s, `design.atoms.browser.proof` 1.8 s, `design.components.browser.proof` 4.5 s, `report.browser.proof` 51.7 s (live latency p95 92.7 ms against 100 ms at load 3 to 4).
+
 `bun run test` is the fast tier without biome and tsc. `bun run proof` runs the proof files serially on purpose: they assert wall-clock limits (plan 05 `T_nrt` 600 s, `T_nrt_table` 900 s, plan 03 frozen runtime), so they must not compete with each other for cores.
 
 ## The rule
