@@ -50,3 +50,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<span class="tv-proxy" data-proxy-badge="<tone>">` around one Badge; an optional `label` replaces the default wording but never the tone; an empty label is a build error (exit 4)
 - accessibility: the words carry the meaning, never colour alone; contrast is the Badge's (pair table, H4); not interactive, no tab stop
 - do: put it in the same line as the value. don't: pick `nominal` for a value that has an interval (use the interval instead), or hide it behind a disclosure
+
+### R5 Stat
+
+- purpose: one number with its meaning: label, value, unit, the caveat that goes with it and, when there is one, its interval. It is the only way a headline or index value is shown (FR-4): the caveat is a required part of the call.
+- tokens: label `text-muted` at `size-small`; value `font-family-mono` at `size-heading`, `weight-semibold`, `text-primary`; unit in `font-family-sans` (the mono subset has no superscript minus) at `size-small`, `text-muted`; interval line and note `text-muted` at `size-small`; `space-1` rhythm
+- states (closed union `tone`, required): `proxy`, `scenario`, `nominal` (each adds its ProxyBadge R4 to the value line and may carry an interval) and `interval` (a model prediction shown with its interval, which is then required)
+- contract: `<div class="tv-stat" data-stat data-tone>` with label, value line (number set with `digits`, default 2, unit, badge), an interval line "parameter uncertainty only: lo to hi unit" (the same words everywhere, R4) and an optional note; `lo` must not exceed `hi`; a value that is not a finite number is a build error (exit 4)
+- accessibility: the badge words, not colour, carry the caveat; label, value, badge and interval read in that order; contrast from the pair table
+- do: pass `digits` once per quantity and keep it across the page (R8). don't: format the number outside the call, or render an index value with plain text next to it

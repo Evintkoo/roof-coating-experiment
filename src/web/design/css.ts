@@ -98,6 +98,15 @@ export const MOLECULE_CSS = {
   proxyBadge: `
 .tv-proxy{display:inline-flex;vertical-align:middle}
 `,
+  stat: `
+.tv-stat{display:grid;gap:${t("space-1")};min-width:0}
+.tv-stat p{margin:0}
+.tv-stat__label{color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-small")}}
+.tv-stat__value{display:flex;flex-wrap:wrap;align-items:baseline;gap:${t("space-2")};color:${t("text-primary")}}
+.tv-stat__num{font-family:${t("font-mono")};font-size:${t("size-heading")};font-weight:${t("weight-semibold")};line-height:1.2}
+.tv-stat__unit{font-family:${t("font-sans")};font-size:${t("size-small")};color:${t("text-muted")}}
+.tv-stat__interval,.tv-stat__note{color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-small")}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */
