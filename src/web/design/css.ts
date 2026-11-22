@@ -194,7 +194,7 @@ export const MOLECULE_CSS = {
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */
 export const ORGANISM_CSS: Record<string, string> = {
   navRail: `
-.tv-skip{position:absolute;inset-inline-start:${t("space-4")};top:${t("space-2")};z-index:1;padding:${t("space-2")} ${t("space-4")};border-radius:${t("radius-control")};background:${t("action-primary")};color:${t("action-label")};font-family:${t("font-sans")};font-weight:${t("weight-semibold")};text-decoration:none;transform:translateY(-300%)}
+.tv-skip{position:absolute;min-height:var(--tv-target-min);display:inline-flex;align-items:center;inset-inline-start:${t("space-4")};top:${t("space-2")};z-index:1;padding:${t("space-2")} ${t("space-4")};border-radius:${t("radius-control")};background:${t("action-primary")};color:${t("action-label")};font-family:${t("font-sans")};font-weight:${t("weight-semibold")};text-decoration:none;transform:translateY(-300%)}
 .tv-skip:focus{transform:none}
 .tv-rail{position:sticky;top:0;z-index:1;display:flex;flex-direction:row;align-items:center;gap:${t("space-2")};overflow-x:auto;padding:${t("space-2")} ${t("space-4")};border-bottom:${t("hairline")} solid ${t("border-panel")};background:${t("surface-base")};font-family:${t("font-sans")}}
 .tv-rail__brand{flex-shrink:0;margin-inline-end:${t("space-4")};color:${t("text-primary")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}

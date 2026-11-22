@@ -14,6 +14,7 @@ import {
   galleryAtoms,
 } from "../../src/web/design/templates/galleryAtoms"
 import { repoRoot } from "../helpers"
+import { textContrast } from "../support/pageContrast"
 import type { Tier } from "./scale"
 
 export type AtomsBrowserScale = { tier: Tier }
@@ -231,70 +232,7 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
   reg("textContrastMeetsAAInEveryStateBothThemes", true, async () => {
     for (const scheme of ["light", "dark"] as const) {
       const page = await open({ scheme })
-      const res = await page.evaluate(() => {
-        type Rgba = [number, number, number, number]
-        const parse = (c: string): Rgba => {
-          // Chrome reports color-mix() as `color(srgb r g b / a)` with 0..1 channels, everything else as rgb()/rgba()
-          const cs = /^color\(srgb ([^)]+)\)$/.exec(c)
-          if (cs) {
-            const v = (cs[1] ?? "").split(/[ /]+/).filter(Boolean).map(Number)
-            return [
-              (v[0] ?? 0) * 255,
-              (v[1] ?? 0) * 255,
-              (v[2] ?? 0) * 255,
-              v[3] ?? 1,
-            ]
-          }
-          const m = /^rgba?\(([^)]+)\)$/.exec(c)
-          if (!m) throw new Error(`unparsed colour ${c}`)
-          const v = (m[1] ?? "")
-            .split(/[ ,/]+/)
-            .filter(Boolean)
-            .map(Number)
-          return [v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 1]
-        }
-        const over = (f: Rgba, b: Rgba): Rgba => [
-          f[0] * f[3] + b[0] * (1 - f[3]),
-          f[1] * f[3] + b[1] * (1 - f[3]),
-          f[2] * f[3] + b[2] * (1 - f[3]),
-          1,
-        ]
-        const lin = (x: number) => {
-          const c = x / 255
-          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-        }
-        const lum = (c: Rgba) =>
-          0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
-        const rows: { key: string; ratio: number; gradient: boolean }[] = []
-        for (const el of document.querySelectorAll(".tv-gallery__sample *")) {
-          const own = [...el.childNodes].some(
-            (n) => n.nodeType === 3 && (n.textContent ?? "").trim() !== "",
-          )
-          if (!own) continue
-          let bg: Rgba = [255, 255, 255, 1]
-          const chain: Element[] = []
-          for (let e: Element | null = el; e; e = e.parentElement)
-            chain.unshift(e)
-          let gradient = false
-          for (const e of chain) {
-            const s = getComputedStyle(e)
-            if (s.backgroundImage !== "none") gradient = true
-            bg = over(parse(s.backgroundColor), bg)
-          }
-          const fg = over(parse(getComputedStyle(el).color), bg)
-          const [hi, lo] = [lum(fg), lum(bg)].sort((a, b) => b - a) as [
-            number,
-            number,
-          ]
-          const cell = el.closest("[data-atom]")
-          rows.push({
-            key: `${cell?.getAttribute("data-atom")}/${cell?.getAttribute("data-state")}`,
-            ratio: (hi + 0.05) / (lo + 0.05),
-            gradient,
-          })
-        }
-        return rows
-      })
+      const res = await textContrast(page, ".tv-gallery__sample")
       // one text-bearing element per state of every atom except the icons (they carry no text)
       expect(res.length).toBe(
         galleryAtomCells().filter((c) => c.atom !== "Icon").length,

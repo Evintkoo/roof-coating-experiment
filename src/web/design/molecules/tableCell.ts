@@ -20,7 +20,7 @@ export type TableCellProps =
 const C = "TableCell"
 
 export function tableCell(p: TableCellProps): string {
-  const kind = oneOf(C, CELL_KINDS, p.kind)
+  oneOf(C, CELL_KINDS, p.kind)
   if (p.kind === "text") {
     if (typeof p.value !== "string")
       return buildError(C, "text must be a string")
@@ -51,7 +51,7 @@ export function tableCell(p: TableCellProps): string {
         "data-sort": String(value),
         "data-tone": tone,
       },
-      esc(num) + " " + proxyBadge({ tone }),
+      `${esc(num)} ${proxyBadge({ tone })}`,
     )
   }
   let iv = ""
@@ -61,7 +61,6 @@ export function tableCell(p: TableCellProps): string {
     if (lo > hi) return buildError(C, "interval.lo must not exceed interval.hi")
     iv = ` ${tag("span", { class: "tv-cell__interval" }, esc(`[${fixed(C, lo, p.digits)}, ${fixed(C, hi, p.digits)}]`))}`
   }
-  void kind
   return tag(
     "td",
     { class: "tv-cell tv-cell--number", "data-sort": String(value) },
