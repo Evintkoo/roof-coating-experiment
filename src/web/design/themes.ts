@@ -107,6 +107,7 @@ const SHARED = {
   "icon-size": "20px",
   "mark-size": "32px",
   "motion-fast": "120ms",
+  "motion-base": "240ms",
   nudge: "2px",
 } as const
 

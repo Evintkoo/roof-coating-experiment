@@ -16,6 +16,8 @@ export type OpenOpts = {
   height?: number
   reducedMotion?: boolean
   print?: boolean
+  /** Install Playwright's fake clock before the page loads (rAF then advances only with `page.clock.runFor`). */
+  clock?: boolean
 }
 
 export class BrowserFixture {
@@ -64,6 +66,7 @@ export class BrowserFixture {
     page.on("pageerror", (e) => w.errors.push(String(e)))
     page.on("requestfailed", (r) => w.failed.push(r.url()))
     if (o.print) await page.emulateMedia({ media: "print" })
+    if (o.clock) await page.clock.install()
     await page.goto(`file://${path}`)
     await page.evaluate(() => document.fonts.ready.then(() => undefined))
     return page

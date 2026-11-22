@@ -181,6 +181,17 @@ test("printAlwaysUsesTheLightTheme", () => {
   expect(print).toContain("--tv-text-primary:#0b1020;")
 })
 
+test("durationTokensAreZeroUnderReducedMotion", () => {
+  const { css, names } = compileTokens(contract, THEMES)
+  expect(names).toContain("motion-base")
+  expect(css).toContain("--tv-motion-base:240ms;")
+  const reduce =
+    /@media \(prefers-reduced-motion:reduce\)\{[^}]*\{([^}]*)\}/.exec(css)
+  expect(reduce?.[1]).toContain("--tv-motion-base:0ms;")
+  expect(reduce?.[1]).toContain("--tv-motion-fast:0ms;")
+  expect(css).toContain('[data-motion="reduce"]')
+})
+
 test("sharedTokensAreCompiled", () => {
   const { css, names } = compileTokens(contract, THEMES)
   for (const n of [

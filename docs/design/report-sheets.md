@@ -225,3 +225,117 @@ Organisms compose molecules into the blocks of the reading path (FR-2). Like the
 - contract: `layerSchematic({ name, primer_um, midcoat_um, topcoat_um })` returns `<figure class="tv-schem" data-layer-schematic="<name>">` with an SVG (`role="img"`, `aria-label` listing the three thicknesses in µm) and a caption; thicknesses must be finite and positive and the name non-empty, else a build error (exit 4)
 - accessibility: the accessible name carries the numbers; the drawing is not the only place the thicknesses appear (the recipe card lists them as text)
 - do: draw every layer from the recipe's own value. don't: stretch a layer for looks or drop the unit
+
+## Animation (plan 07)
+
+Motion is explanatory only (D5): the day (heat over time), rays and arrows (what is reflected, absorbed, conducted), lanes (what runs in parallel) and tweens (what changed). Nothing moves for decoration, every moving region has a visible pause control, and every moving element declares where its value comes from (`data-source`) and sits inside a container labelled "Model output, not a measurement". Durations are the tokens `motion-fast` (120 ms) and `motion-base` (240 ms), both 0 under `prefers-reduced-motion: reduce` and under `<html data-motion="reduce">` (the page's own switch).
+
+### R24 PlayButton
+
+- purpose: play, pause and replay the day. The one control every moving region must have (H6).
+- tokens: `surface-glass` fill, `border-control` hairline, `radius-control`, `text-primary` label at `size-body` in `weight-semibold`, `link` border while playing, `target-min` in both axes
+- states (closed union `state`): `paused`, `playing`, `ended`; hover raises the fill to `surface-raised`; focus-visible 2px `focus-ring` outline
+- contract: `playButton({ state })` returns `<button type="button" class="tv-play" data-anim="play" data-state aria-label>` with a glyph and a visible word (Play, Pause, Replay); an unknown state is a build error (exit 4)
+- accessibility: the name says what pressing does ("Pause the day"); Space and Enter work natively; the glyph is decorative; state is shown by glyph and word, never colour alone
+- motion rule: no transition; pressing it is the only way a reduced-motion reader starts the day
+- do: put it first in the control row. don't: hide it, autoplay without it, or make it smaller than 44 px
+
+### R25 Scrubber
+
+- purpose: move to any time of the day; the day player reads its value, so the chart and every readout follow it.
+- tokens: native range input, `accent-color` `action-primary`, `target-min` high, grows to fill the row
+- states: one state; the value is a number from 0 to 24 (outside it, or a non-finite number, is a build error, exit 4)
+- contract: `scrubber({ value, label?, step? })` returns `<input type="range" class="tv-scrub" min="0" max="24" step data-anim="scrub" aria-label>`; the default label is "Time of day in hours"
+- accessibility: arrow keys, Home and End are the browser's; the label is required text; the clock beside it repeats the value in words
+- motion rule: none of its own; dragging seeks, it never tweens
+- do: keep step at 0.1 h or finer so the cursor is smooth. don't: round the value the player samples at
+
+### R26 SpeedSelect
+
+- purpose: playback speed from a closed set: 0.5x, 1x, 2x and 4x.
+- tokens: `surface-glass` fill, `border-control` hairline, `radius-control`, label `text-muted` at `size-small`, `target-min` high
+- states (closed union `speed`): `0.5`, `1`, `2`, `4`
+- contract: `speedSelect({ value })` returns `<label class="tv-speed"><select data-anim="speed">` with one option per speed, the given one selected; any other value is a build error (exit 4)
+- accessibility: a native select with a visible label "Speed"
+- motion rule: changes the rate of the clock only; at 4x the day takes 4 s
+- do: show the speed in words ("2×"). don't: allow a free number, zero or a negative speed (F11)
+
+### R27 TimeReadout
+
+- purpose: the time of day of the cursor as text (HH:MM), with the exact hour in `data-value` for scripts and tests.
+- tokens: `font-family-mono` at `size-body`, `text-primary`, a minimum width so the controls do not shift
+- states: one state; a non-finite hour is a build error (exit 4)
+- contract: `timeReadout({ tH })` returns `<output class="tv-time" data-anim="time" data-value aria-live="off">`
+- accessibility: not a live region (it changes every frame while playing); the scrubber's own value text is the spoken one
+- motion rule: text only, no animation
+- do: keep it beside the scrubber. don't: announce it on every frame
+
+### R28 DayChart
+
+- purpose: one day of the solved surface temperature of the live recipe against bare aluminium, with the p5 to p95 band and the draw fan, a time cursor and two dots at the cursor.
+- tokens: lines `viz-recommended` (recipe) and `viz-baseline` dashed (bare aluminium), band `viz-3` at 18 % fill, fan lines `viz-3` at 35 % stroke, grid `border-panel`, ticks `text-muted` at `size-small`, cursor `text-primary`
+- states: one drawing per recipe; series of equal length, at least two points, all finite (else a build error, exit 4); the fan group is empty until draws are given
+- contract: `dayChart({ name, data, tH? })` returns `<figure class="tv-daychart-frame">` with `<svg data-daychart role="img">`; each moving element carries `data-source`: `series:recipe`, `series:bare`, `band:t_surface`, `clock:t_h`, `series:recipe@t`, `series:bare@t`, and fan lines `draw:<i>`; `dayChartPaths(data)` is the one geometry
+- accessibility: the SVG has a name that says what is drawn; the two series differ by dash as well as colour; a legend names every series; the numbers at the cursor are in the readouts as text
+- motion rule: the cursor and dots move with the clock only; nothing else moves; under reduced motion the full day is the static frame
+- do: take every value from the solved series. don't: smooth, extrapolate past the last node or add a series the model did not compute
+
+### R29 FluxSchematic
+
+- purpose: heat arrows at the cursor: sunlight arriving, the share reflected, the share absorbed and the heat conducted into the building. Lengths come from the model: incident `G(t)`, reflected `G(t) r_solar`, absorbed `G(t) (1 - r_solar)`, conducted `(T_surface(t) - T_inside) / R_total`.
+- tokens: arrows `status-proxy` (sunlight), `viz-3` (reflected), `viz-recommended` (absorbed), `status-stop` (conducted), roof `viz-baseline`, labels `text-primary` and values `text-muted` at `size-small`
+- states: one drawing; a conducted flux below zero (heat flowing out at night) points the other way
+- contract: `fluxSchematic({ name, flux?, refs? })` returns `<svg data-flux-schematic role="img">`; each arrow is `<g data-flux="<key>" data-source="flux:<key>" data-w data-wref>` whose length is `70 * w / wref` px; `wref` is the day's peak magnitude of that flux, so an arrow at full length is the peak of its own quantity (stated beside the figure)
+- accessibility: every arrow has a text label and a value in W/m²; colours are never the only carrier; the figure has a name
+- motion rule: lengths follow the clock only
+- do: label the scale ("each arrow is scaled to its own daily peak"). don't: draw an arrow whose length is a constant
+
+### R30 ComputingIndicator
+
+- purpose: says in words that workers are busy.
+- tokens: `text-muted` at `size-small`, a `border-panel` track and a `link` bar
+- states (closed union `state`): `idle`, `busy`
+- contract: `computingIndicator({ state })` returns `<span class="tv-computing" role="status" aria-live="polite" data-anim="computing" data-state>` with a bar and the words "Computing in your browser" or "Idle"
+- accessibility: a polite live region; the words carry the state
+- motion rule: the bar sweeps only while `busy`, at five times `motion-base`, and not under reduced motion (it is then a solid bar)
+- do: show it only while workers run. don't: use it as decoration or leave it moving when idle
+
+### R31 LaneMeter
+
+- purpose: one lane per worker: its state in words, the cells it has computed and a bar, so the parallel work is visible.
+- tokens: bar `border-panel` track with `viz-3` fill, `status-stop` fill and bold word for a failed lane, counts in `font-family-mono`
+- states (closed union `state`): `idle`, `busy`, `failed`, `done`
+- contract: `laneMeter({ lanes, total })` returns `<ol class="tv-lanes" data-anim="lanes">` with one `<li data-lane data-state>` per lane ("Worker 1", or "Single lane" for the inline fallback); `laneItems(lanes, total)` is the one renderer; a non-finite count or a total of zero or less is a build error (exit 4)
+- accessibility: the list has a name; state is in words, not colour alone; the bar is decorative
+- motion rule: widths follow the results; no easing
+- do: show a failed lane as failed. don't: hide a lane that died
+
+### R32 CellGrid
+
+- purpose: the 96 x 9 screening as 864 SVG cells filled as results arrive, coloured by the cell's peak surface temperature on a seven step sequential scale.
+- tokens: `viz-seq-7` (coolest) to `viz-seq-1`, empty cells outlined in `border-panel`, failed cells `status-stop`
+- states (closed union per cell): `empty`, `filled` (with a bin 0 to 6), `failed`
+- contract: `cellGrid({ candidates, scenarios })` returns `<svg data-anim="grid" data-source="screening:t_max">` with one `<rect data-cell="<index>">` per cell, index = candidate x scenarios + scenario; `cellBin` is the one mapping from value to bin
+- accessibility: the grid has a name; the values are in the summary and in the report's tables, so no information exists only as a colour
+- motion rule: a cell changes once, when its result arrives
+- do: fill cells from results only. don't: fill ahead of the results or replay them
+
+### R33 WatchDay
+
+- purpose: the day player organism: controls, chart, arrows and readouts for one recipe and one scenario.
+- tokens: the molecules' tokens; the control row wraps; the stage is two columns above 640 px and one below
+- states: `state` (`paused`, `playing`, `ended`), `speed` (`0.5`, `1`, `2`, `4`)
+- contract: `watchDay({ name, data, flux?, refs?, tH?, state?, speed?, id? })` returns `<div class="tv-watchday" data-watch-day role="group">` holding the honesty badge "Model output, not a measurement", the controls (play, step back one hour, scrubber, clock, step forward, speed), the day chart, the flux schematic and four readouts (`data-anim="read"`, text at one decimal, exact value in `data-value`)
+- accessibility: every control is a 44 px target reachable by Tab; Space toggles play when focus is in the player; the readouts are text
+- motion rule: autoplay once, at 4x, when the section first enters the viewport; never under reduced motion; any use of a control ends it; the loop pauses with the tab
+- do: keep the pause control visible. don't: loop the day or start it on load
+
+### R34 WatchScreening
+
+- purpose: the parallel screening panel: run the 96 x 9 screening in this browser and see the lanes and the grid fill, the summary and the check against the batch.
+- tokens: the molecules' tokens; the stage is two columns above 640 px
+- states: idle, running (the button reads "Cancel the run"), done, cancelled, failed (words in the summary and the lane list)
+- contract: `watchScreening({ candidates, scenarios, draws, id? })` returns `<div class="tv-watchscreen" data-watch-screening>` holding the honesty badge, the start button (`data-anim="screen-start"`), a workers select (`auto`, `1`, `2`, `4`), the "with uncertainty draws" checkbox, the computing indicator, the lanes, the grid, the summary (`role="status"`) and the check line
+- accessibility: the summary is a polite live region; the time shown is this machine's measurement, labelled as such; a failed run says so in words
+- motion rule: lanes and cells change only when results arrive; the computing bar is the only moving element
+- do: state the measured time and what was run (nominal only, or with draws). don't: promise a time or show a cell that was not computed

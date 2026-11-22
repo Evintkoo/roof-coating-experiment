@@ -148,6 +148,10 @@ function decls(entries: Iterable<[string, string | number]>): string {
   return out
 }
 
+/** Duration tokens (plan 07): zeroed under reduced motion. */
+export const MOTION_TOKENS = ["motion-fast", "motion-base"] as const
+const ZERO = MOTION_TOKENS.map((k) => `--tv-${k}:0ms;`).join("")
+
 export function compileTokens(
   contract: unknown,
   themes: Themes,
@@ -183,6 +187,9 @@ export function compileTokens(
     `[data-theme="dark"]{color-scheme:dark;${decls(Object.entries(dark))}}`,
     // paper is white: print always uses the light theme, whatever the screen theme is
     `@media print{:root,[data-theme="dark"]{${lightBlock}}}`,
+    // plan 07 H5: every duration token is zero under reduced motion (the system setting, or the page's own switch on <html data-motion="reduce">)
+    `@media (prefers-reduced-motion:reduce){:root,[data-theme]{${ZERO}}}`,
+    `:root[data-motion="reduce"],[data-motion="reduce"] [data-theme]{${ZERO}}`,
   ].join("\n")
   return { css: `${css}\n`, names: darkEntries.map(([k]) => k) }
 }

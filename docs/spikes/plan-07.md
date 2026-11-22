@@ -15,7 +15,7 @@ Scripts live in `docs/spikes/plan-07/`; `bun docs/spikes/plan-07/run_all.ts` run
 |---|---|---|
 | `T_speedup` | **1.5** (the plan's hard floor) | measured 4 workers over 1: 2.65x to 2.85x total, 3.06x compute only (Bun and Chrome); the floor is kept because the machine is loaded |
 | `T_screen_s` | **2** | measured 0.073 to 0.087 s for all 864 cells on 4 workers, 0.22 s on 1 worker; 2 s leaves a 25x margin for throttled CPUs and phones |
-| `T_js_kib` | **not frozen yet** | the pure core (`src/core/anim`) is 2.1 KiB minified; the renderers and loop do not exist until Task 5, so the plan's "freeze after Task 3" cannot be done honestly; freeze after Task 5 (cap 150 stays) |
+| `T_js_kib` | **100** (frozen after Task 5, see below; originally "not frozen yet") | the pure core (`src/core/anim`) is 2.1 KiB minified; the renderers and loop do not exist until Task 5, so the plan's "freeze after Task 3" cannot be done honestly; freeze after Task 5 (cap 150 stays) |
 | `T_page_px`, `T_size_mib`, `T_frame_ms` and the others | unchanged | inherited or fixed by the plan |
 
 ## Q1 Cost of the models in the browser
@@ -53,3 +53,9 @@ At a time `t` in a scenario with peak irradiance G (half-sine over 6 to 18 h, fr
 ## Pure-core choices fixed by Task 3 (for Tasks 4 to 6)
 
 Clock: `HOURS_PER_SECOND = 1.5` at speed 1x (a day in 16 s; 4x in 4 s, inside the 5 s autoplay rule of D6); modes `once` (stops, `playing` false), `loop` (wraps), `hold` (stays at 24 h); invalid dt or speed moves nothing (F11).
+
+## Frozen after Task 5 (2026-11-22, never edited afterwards)
+
+`T_js_kib` = **100**. Measured with `Bun.build` as the page bundles it (`minify: false`, IIFE): loop, tweens, day player, screening panel, pool and the design constants they import come to **43.9 KiB** (22.7 KiB minified, 9.3 KiB gzip); with the inline lane (the model code the single-lane fallback pulls into the page, F5) **74.5 KiB**. 100 leaves about 35 % headroom over the worst case for the Task 6 wiring; the plan's hard cap of 150 stays. Pinned by `animationJsStaysUnderTheFrozenSizeH14` in `tests/web/anim/loop.test.ts`.
+
+Task 4 and 5 measurements on the same loaded machine: speedup 4 over 1 workers 3.23x (1 worker 224 ms, 4 workers 69 ms, best of 3), above the 1.5 floor; 4 workers finish the 864 cells in 0.07 s against `T_screen_s` 2.
