@@ -11,6 +11,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseCsv } from "../../../src/core/csv"
 import { parseParetoCsv } from "../../../src/core/pipeline/tables"
+import { roleText } from "../../../src/core/report/outline"
 import { configureLogging, newRunId } from "../../../src/node/logging"
 import {
   buildReport,
@@ -193,6 +194,8 @@ test("tableValuesEqualCsv", () => {
       const got = cells[k] as string
       if (typeof v === "number") expect(Number(got)).toBe(v)
       else if (typeof v === "boolean") expect(got).toBe(v ? "yes" : "no")
+      else if (c === "role")
+        expect(got).toBe(roleText(String(v)).toLowerCase()) // shown in words, sorted as words
       else expect(got).toBe(String(v).toLowerCase())
     })
   })

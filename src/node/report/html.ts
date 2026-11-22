@@ -140,7 +140,10 @@ function parseJson(text: string, name: string): unknown {
 
 // ---- a deliberately small Markdown renderer for the candidate cards (headings, paragraphs, lists, tables) ----
 
-export function renderMarkdown(md: string): string {
+export function renderMarkdown(
+  md: string,
+  o: { levels?: (hashes: number) => number } = {},
+): string {
   const out: string[] = []
   const lines = md.split("\n")
   let i = 0
@@ -155,7 +158,8 @@ export function renderMarkdown(md: string): string {
     if (l.trim() === "") {
       i++
     } else if (/^#{1,6} /.test(l)) {
-      const n = Math.min(6, (l.match(/^#+/) as RegExpMatchArray)[0].length + 1)
+      const hashes = (l.match(/^#+/) as RegExpMatchArray)[0].length
+      const n = Math.min(6, o.levels ? o.levels(hashes) : hashes + 1)
       out.push(`<h${n}>${esc(l.replace(/^#+ /, ""))}</h${n}>`)
       i++
     } else if (l.startsWith("|")) {

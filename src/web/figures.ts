@@ -56,7 +56,26 @@ const HUMAN: Record<string, string> = {
   wetting_theta_pred: "Contact angle (deg)",
   pareto_freq: "Pareto frequency",
   t_max_worst: "Peak temperature, hottest scenario (°C)",
+  r_solar: "Solar reflectance (0 to 1)",
+  t_max_c: "Peak surface temperature (°C)",
 }
+
+const INPUT_LABEL: Record<string, string> = {
+  primer_gptes_molfrac: "Primer GPTES mole fraction",
+  primer_dft_um: "Primer thickness",
+  midcoat_pvc: "Midcoat PVC",
+  midcoat_tio2_fraction: "Midcoat TiO2 share",
+  midcoat_dft_um: "Midcoat thickness",
+  topcoat_mtes_molfrac: "Topcoat MTES mole fraction",
+  topcoat_dft_um: "Topcoat thickness",
+  sol_gel_ph: "Sol-gel pH",
+  irradiance_w_m2: "Peak irradiance",
+  t_air_c: "Air temperature",
+  wind_m_s: "Wind speed",
+}
+
+/** A model input in words (the sensitivity tables carry the code names). */
+export const inputLabel = (id: string): string => INPUT_LABEL[id] ?? id
 
 /** Readable axis or column label; every PROXY index (`*_proxy`, corrosion_risk, delam, cost) ends in "(PROXY)". */
 export function axisLabel(column: string): string {
@@ -584,7 +603,7 @@ export function figSobol(sens: readonly SensRow[], output: string): FigureSpec {
     return {
       type: "bar",
       name,
-      x: vars,
+      x: vars.map(inputLabel),
       y: vars.map((v) => by.get(v)?.value ?? 0),
       showlegend: false,
       error_y: {
@@ -643,7 +662,7 @@ export function figMorris(
         mode: "markers+text",
         x: vars.map((v) => get(v, "mu_star")?.value ?? 0),
         y: vars.map((v) => get(v, "sigma")?.value ?? 0),
-        text: vars,
+        text: vars.map(inputLabel),
         textposition: "top center",
         textfont: { color: slotHex("series-3") },
         error_x: {
@@ -910,7 +929,8 @@ export function figIndonesiaBars(
           symmetric: false,
           array: pick.map((r, k) => (r ? r.dq_hi - (y[k] as number) : 0)),
           arrayminus: pick.map((r, k) => (r ? (y[k] as number) - r.dq_lo : 0)),
-          thickness: 1.2,
+          thickness: 1.5,
+          color: slotHex("baseline"),
         },
         marker: { color: slotHex(slot) },
         meta: { kind: "predicted", id: subject, slot, site },
@@ -922,8 +942,8 @@ export function figIndonesiaBars(
     layout: baseLayout({
       ...layout,
       barmode: "group",
-      margin: { l: 72, r: 16, t: 64, b: 96 },
-      height: 300 * nrows + 120,
+      margin: { l: 72, r: 16, t: 104, b: 96 },
+      height: 300 * nrows + 150,
       annotations: [
         ...notes,
         {
@@ -931,14 +951,14 @@ export function figIndonesiaBars(
           y: 1.0,
           xref: "paper",
           yref: "paper",
-          yshift: 44,
-          text: `Aluminium, scenario ageing: ${INDONESIA_STATE_LABEL[state]}; whiskers: outer bound`,
+          yshift: 80,
+          text: `Aluminium roof, state: ${INDONESIA_STATE_LABEL[state]}; whiskers: outer bound of the benefit interval`,
           showarrow: false,
           xanchor: "left",
           font: { size: 12 },
         },
       ],
-      legend: { orientation: "h", x: 0, y: 1.0, yanchor: "bottom", yshift: 8 },
+      legend: { orientation: "h", x: 0, y: 1.0, yanchor: "bottom", yshift: 34 },
     }),
     config: CONFIG,
   }

@@ -22,6 +22,7 @@ import {
   OUTLINE,
   ROLE_BLURBS,
   ROLE_LABELS,
+  roleText,
 } from "../../core/report/outline"
 import { tag } from "../../web/design/html"
 import { callout } from "../../web/design/molecules/callout"
@@ -362,7 +363,7 @@ export const recipesSection: ReportSection = {
         summary: `Full card of ${id} (${ROLE_LABELS[r]}): every number, the controls and the decision`,
         level: "detail",
       })(
-        `<div class="page-cards" id="card-${esc(c.name.replace(/\.md$/, ""))}"><article>${renderMarkdown(c.text)}</article></div>`,
+        `<div class="page-cards" id="card-${esc(c.name.replace(/\.md$/, ""))}"><article>${renderMarkdown(plainCard(c.text), { levels: CARD_LEVELS })}</article></div>`,
       )
     }).join("\n")
     return sec(
@@ -379,6 +380,16 @@ ${cards}`,
 }
 
 // ---- How the layers work ----
+
+/** Card headings sit under the h3 "Full cards": the card title is an h4 and its parts h5 (no skipped level). */
+const CARD_LEVELS = (hashes: number): number => (hashes === 1 ? 4 : 5)
+
+/** Display-only wording of a candidate card: role codes become the plain role names; the card file itself is unchanged. */
+export function plainCard(text: string): string {
+  return text.replace(/\b(high_performing|balanced|low_cost)\b/g, (m) =>
+    roleText(m),
+  )
+}
 
 /** The scenario of the day-2 figure: the one in which bare aluminium peaks highest. */
 export function whyScenario(i: ReportInput): string {
@@ -415,7 +426,7 @@ export const whySection: ReportSection = {
       recipePeaks.length === 0
         ? ""
         : ` and the three recipes at ${fmtValue(Math.min(...recipePeaks), 1)} to ${fmtValue(Math.max(...recipePeaks), 1)} °C`
-    const message = `On the hottest modelled day (${sc}) bare aluminium peaks at ${fmtValue(c0, 1)} °C${range}`
+    const message = `On the day bare aluminium is hottest (${sc}) it peaks at ${fmtValue(c0, 1)} °C${range}; the recipes have their own hottest day, shown on the cards`
     const layers = tag(
       "ul",
       { class: "page-layers" },
@@ -520,7 +531,12 @@ const explore: ReportSection = {
         digits: 2,
         sortable: true,
       },
-      { key: "on_front", label: "On the Pareto front", kind: "text" },
+      {
+        key: "on_front",
+        label: "On the Pareto front",
+        kind: "text",
+        sortable: true,
+      },
       {
         key: "pareto_freq",
         label: axisLabel("pareto_freq"),
@@ -528,7 +544,7 @@ const explore: ReportSection = {
         digits: 2,
         sortable: true,
       },
-      { key: "role", label: "Shortlist role", kind: "text" },
+      { key: "role", label: "Shortlist role", kind: "text", sortable: true },
     ]
     if (columns.length !== PARETO_COLUMNS.length)
       throw new DataError("pareto.csv", "explore columns differ from the file")
@@ -542,7 +558,7 @@ const explore: ReportSection = {
       t_max_worst: r.t_max_worst,
       on_front: r.on_front ? "yes" : "no",
       pareto_freq: r.pareto_freq,
-      role: String(r.role),
+      role: roleText(String(r.role)),
     }))
     const table = dataTable({
       id: "tbl-explorer",

@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { coerceCell, parseCsv } from "../../core/csv"
 import { ConfigError, DataError } from "../../core/errors"
 import { OBJECTIVE_COLUMNS } from "../../core/pipeline/tables"
+import { roleText } from "../../core/report/outline"
 import { callout } from "../../web/design/molecules/callout"
 import { disclosure } from "../../web/design/molecules/disclosure"
 import { figureFrame } from "../../web/design/molecules/figureFrame"
@@ -138,6 +139,20 @@ export function loadOptimisation(input: ReportInput): Optimisation | null {
   return out
 }
 
+const FRESH_LABEL: Record<string, string> = {
+  s_p90_train_nominal:
+    "Scalar objective S, nominal recipe, p90 over the training draws",
+  s_p90_train_robust:
+    "Scalar objective S, robust recipe, p90 over the training draws",
+  s_p95_fresh_nominal:
+    "Scalar objective S, nominal recipe, p95 over fresh draws",
+  s_p95_fresh_robust: "Scalar objective S, robust recipe, p95 over fresh draws",
+  regret_p95_nominal:
+    "Regret of the nominal recipe against the better of the two, p95 over fresh draws",
+  regret_p95_robust:
+    "Regret of the robust recipe against the better of the two, p95 over fresh draws",
+}
+
 const cell = (v: string | undefined, digits = 4): string => {
   if (v === undefined || v === "") return "–"
   const n = Number(v)
@@ -151,14 +166,14 @@ function recipesTable(rows: Rec[]): string {
   const cols = [...OBJECTIVE_COLUMNS]
   return `<p class="page-hint">Recipes the models rank highest for three priorities, found by derivative-based search from the screened candidates. Model optima, not measured optima (PROXY).</p>
 <div class="scroll"><table>${th(["Role", "Refined from", "Scalar S (lower is better)", ...cols.map(axisLabel), "Solver status"])}<tbody>
-${rows.map((r) => `<tr><td class="txt">${esc(r.role ?? "")}</td><td class="txt">${esc(r.screened_id ?? "")}</td><td>${cell(r.S)}</td>${cols.map((c) => `<td>${cell(r[c])}</td>`).join("")}<td class="txt">${esc(r.status ?? "")}</td></tr>`).join("\n")}
+${rows.map((r) => `<tr><td class="txt">${esc(roleText(r.role ?? ""))}</td><td class="txt">${esc(r.screened_id ?? "")}</td><td>${cell(r.S)}</td>${cols.map((c) => `<td>${cell(r[c])}</td>`).join("")}<td class="txt">${esc(r.status ?? "")}</td></tr>`).join("\n")}
 </tbody></table></div>`
 }
 
 function toleranceTable(rows: Rec[]): string {
   return `<p class="page-hint">How far each ingredient may move below (lower) or above (upper) the recipe before the scalar objective worsens by the tolerance (relative loss at the edge shown). "Limited by the box" means the allowed range ended first.</p>
 <div class="scroll"><table>${th(["Role", "Ingredient", "Recipe value", "Lower tolerance", "Upper tolerance", "Relative loss at the edge", "Limited by the box"])}<tbody>
-${rows.map((r) => `<tr><td class="txt">${esc(r.role ?? "")}</td><td class="txt">${esc(varLabel(r.variable ?? ""))}</td><td>${cell(r.x_star)}</td><td>${cell(r.tol_lo)}</td><td>${cell(r.tol_hi)}</td><td>${cell(r.loss_edge, 5)}</td><td class="txt">${r.clipped === "true" ? "yes" : "no"}</td></tr>`).join("\n")}
+${rows.map((r) => `<tr><td class="txt">${esc(roleText(r.role ?? ""))}</td><td class="txt">${esc(varLabel(r.variable ?? ""))}</td><td>${cell(r.x_star)}</td><td>${cell(r.tol_lo)}</td><td>${cell(r.tol_hi)}</td><td>${cell(r.loss_edge, 5)}</td><td class="txt">${r.clipped === "true" ? "yes" : "no"}</td></tr>`).join("\n")}
 </tbody></table></div>`
 }
 
@@ -171,7 +186,7 @@ function robustTable(rows: Rec[]): string {
 <div class="scroll"><table>${th(["Ingredient", "Nominal optimum", "Robust optimum", "p5 over draws", "Median", "p95 over draws"])}<tbody>
 ${dist.map((r) => `<tr><td class="txt">${esc(varLabel(r.name ?? ""))}</td><td>${cell(byName("nominal", r.name ?? "")?.value)}</td><td>${cell(byName("robust", r.name ?? "")?.value)}</td><td>${cell(r.p05)}</td><td>${cell(r.p50)}</td><td>${cell(r.p95)}</td></tr>`).join("\n")}
 </tbody></table></div>
-${fresh.length ? `<ul>${fresh.map((r) => `<li>${esc((r.name ?? "").replaceAll("_", " "))}: ${cell(r.value, 5)}</li>`).join("")}</ul>` : ""}`
+${fresh.length ? `<ul>${fresh.map((r) => `<li>${esc(FRESH_LABEL[r.name ?? ""] ?? (r.name ?? "").replaceAll("_", " "))}: ${cell(r.value, 5)}</li>`).join("")}</ul>` : ""}`
 }
 
 /** Budget panel and its lookup page data: the exact table lookup, the bare-aluminium peak (nominal) and the shared cooling scale. */
