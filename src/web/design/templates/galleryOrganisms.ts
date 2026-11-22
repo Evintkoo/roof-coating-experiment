@@ -225,6 +225,7 @@ export function galleryOrganismCells(): GalleryCell[] {
     recipeCard({
       ...FULL,
       variant: "full",
+      layersId: "layers-scenario",
       badges: [{ tone: "scenario", label: "ageing scenario" }],
     }),
   )

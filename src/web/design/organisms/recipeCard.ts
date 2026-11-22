@@ -46,6 +46,8 @@ export type RecipeCardProps = {
   recommended?: boolean
   variant?: RecipeVariant
   headingLevel?: 2 | 3 | 4
+  /** Id of the layers table (default: derived from the name; give one when the same recipe is drawn twice on a page). */
+  layersId?: string
 }
 
 const C = "RecipeCard"
@@ -109,7 +111,9 @@ export function recipeCard(p: RecipeCardProps): string {
   const layerList =
     variant === "full" && p.layers !== undefined
       ? dataTable({
-          id: `layers-${p.name.replace(/[^A-Za-z0-9_-]/g, "") || "recipe"}`,
+          id:
+            p.layersId ??
+            `layers-${p.name.replace(/[^A-Za-z0-9_-]/g, "") || "recipe"}`,
           caption: "Layers from the metal up",
           columns: [
             { key: "layer", label: "Layer", kind: "text", rowHeader: true },

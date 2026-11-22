@@ -38,7 +38,7 @@ const ID = /^[A-Za-z][A-Za-z0-9_-]*$/
 /** The result region's content. */
 export function budgetResult(
   r: BudgetLookupResult,
-  o: { digits: number },
+  o: { digits: number; id?: string },
 ): string {
   if (r === null || typeof r !== "object")
     return buildError(C, "the lookup returned nothing")
@@ -66,7 +66,12 @@ export function budgetResult(
       esc(
         `Recipe of the tabulated budget at or below the one chosen: cost ${cost} ${BUDGET_UNIT}, unspent headroom ${head}${knee}.`,
       ),
-    ) + recipeCard({ ...r.recipe, variant: "full" })
+    ) +
+    recipeCard({
+      ...r.recipe,
+      variant: "full",
+      ...(o.id === undefined ? {} : { layersId: `${o.id}-layers` }),
+    })
   )
 }
 
@@ -99,7 +104,10 @@ export function budgetPanel(p: BudgetPanelProps): string {
       }),
     )
     .join("")
-  const result = budgetResult(p.lookup(p.profile, p.budget.value), { digits })
+  const result = budgetResult(p.lookup(p.profile, p.budget.value), {
+    digits,
+    id: p.id,
+  })
   return tag(
     "section",
     {
@@ -150,7 +158,7 @@ export function mountBudgetPanel(
     try {
       region.innerHTML = budgetResult(
         lookup(root.dataset.profile ?? "", budget),
-        { digits },
+        { digits, ...(root.id ? { id: root.id } : {}) },
       )
     } catch {
       region.innerHTML = callout({
