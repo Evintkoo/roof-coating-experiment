@@ -1,91 +1,34 @@
 // Plan 06 vendor drift check (H5, F2). The vendored Torviello material under vendor/ is recorded in vendor/manifest.sha256
 // (sha256 of every file except VENDORED.md and manifest.sha256 itself, sorted by path, `shasum -a 256 -c` compatible
-// when run from vendor/). Task 2 moves vendorCheck into src/node/report/design.ts unchanged.
+// when run from vendor/). Task 2 moved vendorCheck into src/node/report/design.ts; this script is now only the CLI and the self-test.
 //
 //   bun docs/spikes/plan-06/vendor-check.ts                check ./vendor (exit 0 ok, 5 drift, 2 manifest unreadable)
 //   bun docs/spikes/plan-06/vendor-check.ts --write        rewrite vendor/manifest.sha256 (a deliberate re-sync only)
 //   bun docs/spikes/plan-06/vendor-check.ts --selftest     prove the check detects one flipped byte, a missing and an extra file
 //
 // Exit 0 only when the tree equals the manifest (or, for --selftest, when every detection works).
-import { createHash } from "node:crypto"
 import {
   cpSync,
   existsSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, relative } from "node:path"
+import { dirname, join } from "node:path"
+import {
+  MANIFEST,
+  vendorCheck,
+  writeManifest,
+} from "../../../src/node/report/design"
 
-export const MANIFEST = "manifest.sha256"
-const EXCLUDED = new Set(["VENDORED.md", MANIFEST])
-
-export type VendorResult =
-  | { ok: true }
-  | { ok: false; first: number; count: number }
-
-function walk(dir: string, base = dir): string[] {
-  const out: string[] = []
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) out.push(...walk(p, base))
-    else if (e.isFile()) out.push(relative(base, p).split("\\").join("/"))
-  }
-  return out
-}
-const sha256 = (p: string) =>
-  createHash("sha256").update(readFileSync(p)).digest("hex")
-/** Plain bytewise order, the same as `LC_ALL=C sort`. */
-const byBytes = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
-
-export function listVendorFiles(root: string): string[] {
-  return walk(root)
-    .filter((f) => !EXCLUDED.has(f))
-    .sort(byBytes)
-}
-export function writeManifest(root: string): number {
-  const files = listVendorFiles(root)
-  writeFileSync(
-    join(root, MANIFEST),
-    `${files.map((f) => `${sha256(join(root, f))}  ${f}`).join("\n")}\n`,
-  )
-  return files.length
-}
-/** `first` is the index of the first offending line in the manifest (an unlisted extra file counts after the last line); `count` is how many entries differ. */
-export function vendorCheck(root: string): VendorResult {
-  const mp = join(root, MANIFEST)
-  if (!existsSync(mp)) return { ok: false, first: 0, count: 1 }
-  const lines = readFileSync(mp, "utf8")
-    .split("\n")
-    .filter((l) => l.length > 0)
-  const bad: number[] = []
-  const listed = new Set<string>()
-  for (const [i, line] of lines.entries()) {
-    const m = /^([0-9a-f]{64}) {2}(.+)$/.exec(line)
-    if (!m) {
-      bad.push(i)
-      continue
-    }
-    const path = m[2] as string
-    listed.add(path)
-    const p = join(root, path)
-    if (!existsSync(p) || !statSync(p).isFile() || sha256(p) !== m[1])
-      bad.push(i)
-  }
-  let extra = 0
-  for (const f of listVendorFiles(root)) {
-    if (!listed.has(f)) {
-      bad.push(lines.length + extra)
-      extra++
-    }
-  }
-  if (bad.length === 0) return { ok: true }
-  return { ok: false, first: Math.min(...bad), count: bad.length }
-}
+export {
+  listVendorFiles,
+  MANIFEST,
+  vendorCheck,
+  writeManifest,
+} from "../../../src/node/report/design"
 
 function selftest(root: string): number {
   let fails = 0
