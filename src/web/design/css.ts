@@ -191,7 +191,21 @@ export const MOLECULE_CSS = {
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */
-export const ORGANISM_CSS: Record<string, string> = {}
+export const ORGANISM_CSS: Record<string, string> = {
+  navRail: `
+.tv-skip{position:absolute;inset-inline-start:${t("space-4")};top:${t("space-2")};z-index:1;padding:${t("space-2")} ${t("space-4")};border-radius:${t("radius-control")};background:${t("action-primary")};color:${t("action-label")};font-family:${t("font-sans")};font-weight:${t("weight-semibold")};text-decoration:none;transform:translateY(-300%)}
+.tv-skip:focus{transform:none}
+.tv-rail{position:sticky;top:0;z-index:1;display:flex;flex-direction:row;align-items:center;gap:${t("space-2")};overflow-x:auto;padding:${t("space-2")} ${t("space-4")};border-bottom:${t("hairline")} solid ${t("border-panel")};background:${t("surface-base")};font-family:${t("font-sans")}}
+.tv-rail__brand{flex-shrink:0;margin-inline-end:${t("space-4")};color:${t("text-primary")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-rail .tv-navlink{flex-shrink:0;justify-content:flex-start}
+@media (min-width:64em){
+.tv-shell{display:grid;grid-template-columns:calc(${t("space-16")} * 3.25) minmax(0,1fr);align-items:start}
+.tv-rail{flex-direction:column;align-items:stretch;align-self:start;height:100vh;overflow-x:visible;overflow-y:auto;padding:${t("space-8")} ${t("space-4")};border-bottom:0;border-inline-end:${t("hairline")} solid ${t("border-panel")}}
+.tv-rail__brand{margin:0 0 ${t("space-4")}}
+}
+@media print{.tv-rail,.tv-skip{display:none}.tv-shell{display:block}}
+`,
+}
 
 /** The CSS of every atom, in a fixed order, one rule per line. */
 export function atomsCss(): string {

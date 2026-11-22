@@ -131,3 +131,16 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<td class="tv-cell tv-cell--<kind>">` carrying `data-sort` (the raw number, or the lower-cased text, empty for `empty`) so a table can sort without parsing; `number` with `interval` reads "14.4 [14.3, 14.5]" with the interval in the muted style and `lo <= hi`; `index` appends the ProxyBadge R4 and sets `data-tone`; `empty` shows an en dash with a visually hidden "no value"; a non-finite number or a missing tone is a build error (exit 4, and a TypeScript error for the tone)
 - accessibility: numeric cells are right-aligned and use tabular figures so digits line up; the badge is text, so an index is labelled in the cell and not only in the header; `th scope="row"` for the row name; the empty mark has a text alternative
 - do: keep `digits` the same down a column. don't: put the unit in the cell, or show an index number without its badge
+
+## Organisms
+
+Organisms compose molecules into the blocks of the reading path (FR-2). Like the molecules they are pure functions with escaped text, closed unions and token-only CSS; none writes script except where a sheet says so.
+
+### R14 NavRail
+
+- purpose: the page's section navigation and its skip link. A left rail on wide screens (the reader keeps the map in view), a top bar on phones (a single scrolling row, so it never takes more than one line of height). The first Tab stop of the page is the skip link.
+- tokens: `surface-base` fill, `border-panel` hairline (end edge of the rail, bottom edge of the bar), brand text `text-primary` at `size-body` and `weight-semibold`, links are the NavLink atom (A3), `space-4`/`space-8` padding, width `space-16` times 3.25 on wide screens, the skip link `action-primary` fill with `action-label` text on focus
+- states: per link `default` and `current` (the NavLink states, `aria-current="true"`); `current` names one item (or none); layout switches at the wide breakpoint of 64em: rail at 64em and above, top bar below
+- contract: `navRail({ brand, items, current?, mainId, label? })` returns the skip link `<a class="tv-skip" href="#<mainId>">Skip to content</a>` followed by `<nav class="tv-rail" aria-label="<label>">` holding the brand and one NavLink per item (`href="#<id>"`); item ids are distinct plain identifiers; `current` must be one of them; `.tv-shell` (rail and `<main>` side by side from the wide breakpoint) is part of the same CSS
+- accessibility: a `<nav>` landmark with an accessible name; the skip link is first in DOM order and visible on focus; every link is a 44 px target; `aria-current` marks the section, with an underline as well as colour; the bar scrolls horizontally on phones with all links still reachable by keyboard; print hides the rail and the skip link
+- do: use the section names of the outline (FR-2), in reading order. don't: add a link that has no section, or show more than one current item
