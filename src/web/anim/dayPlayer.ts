@@ -60,6 +60,8 @@ export function mountDayPlayer(
   let data = initial
   let clock: ClockState = initialClock("once")
   let speed: Speed = 1
+  /** The speed the reader chose; the autoplay runs at AUTOPLAY_SPEED and gives this back when it ends. */
+  let chosen: Speed = 1
   let autoplayed = false
   let source: "user" | "auto" = "user"
   let off: (() => void) | null = null
@@ -152,10 +154,19 @@ export function mountDayPlayer(
     }
   }
 
+  const giveSpeedBack = (): void => {
+    speed = chosen
+    const sel = q<HTMLSelectElement>(root, '[data-anim="speed"]')
+    if (sel) sel.value = String(chosen)
+  }
   const tick = (dt: number): void => {
     clock = advance(clock, dt, speed)
     render()
     if (!clock.playing) {
+      if (source === "auto") {
+        source = "user"
+        giveSpeedBack()
+      }
       off?.()
       off = null
       deps.log?.("anim.pause", {
@@ -181,6 +192,10 @@ export function mountDayPlayer(
       clock = { ...clock, playing: false }
       off?.()
       off = null
+      if (source === "auto") {
+        source = "user"
+        giveSpeedBack()
+      }
       deps.log?.("anim.pause", {
         source: src,
         t_h: Math.round(clock.tH * 100) / 100,
@@ -204,7 +219,10 @@ export function mountDayPlayer(
       render()
     },
     setSpeed(s) {
-      if ((SPEEDS as readonly number[]).includes(s)) speed = s
+      if ((SPEEDS as readonly number[]).includes(s)) {
+        speed = s
+        chosen = s
+      }
       const sel = q<HTMLSelectElement>(root, '[data-anim="speed"]')
       if (sel) sel.value = String(speed)
     },
@@ -216,6 +234,7 @@ export function mountDayPlayer(
     autoplayOnce() {
       if (autoplayed || deps.reduced()) return false
       autoplayed = true
+      chosen = speed
       speed = AUTOPLAY_SPEED
       const sel = q<HTMLSelectElement>(root, '[data-anim="speed"]')
       if (sel) sel.value = String(speed)
@@ -239,10 +258,7 @@ export function mountDayPlayer(
     }
     if (source === "auto") {
       source = "user"
-      speed = Number(
-        q<HTMLSelectElement>(root, '[data-anim="speed"]')?.value ?? 1,
-      ) as Speed
-      if (!(SPEEDS as readonly number[]).includes(speed)) speed = 1
+      giveSpeedBack()
     }
   }
   const onClick = (e: Event): void => {

@@ -272,7 +272,9 @@ test("axisLabelsMarkProxy", () => {
   ).dimensions.map((d) => d.label)
   // the parallel-coordinates titles are two lines at most (a third line printed over the range number); the matrix keeps its own
   expect(labels.every((l) => l.split("<br>").length <= 2)).toBe(true)
-  expect(labels.map((l) => l.replace(" index<br>", "<br>index<br>"))).toEqual(sp)
+  expect(labels.map((l) => l.replace(" index<br>", "<br>index<br>"))).toEqual(
+    sp,
+  )
 })
 
 test("infeasibleRowsAbsentFromFigures", () => {

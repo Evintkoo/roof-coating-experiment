@@ -252,6 +252,33 @@ test("autoplayRunsOnceStopsWithin5sAndAnyControlEndsItH6", async () => {
   expect((await state(q)).tH).toBe(5)
 }, 60000)
 
+test("autoplayGivesTheSpeedChoiceBackWhenItEnds", async () => {
+  // owner review: after the autoplay the Speed box was left on 4x and the next Play ran at 4x although the reader never chose it
+  const p = await open({ clock: true })
+  const speedBox = p.locator('[data-anim="speed"]')
+  await p.evaluate(() => window.P.autoplayOnce())
+  expect(await speedBox.inputValue()).toBe("4") // the box tells the truth while it runs fast
+  await p.clock.runFor(5000)
+  expect((await state(p)).playing).toBe(false)
+  expect(await speedBox.inputValue()).toBe("1")
+  expect((await state(p)).speed).toBe(1)
+  await p.getByRole("button", { name: "Replay the day" }).click()
+  await p.clock.runFor(1000)
+  expect((await state(p)).tH).toBeLessThan(2) // 1 s at 1x is 1.5 h
+  // a reader who took over mid-run also gets the box back
+  const q = await open({ clock: true })
+  await q.evaluate(() => window.P.autoplayOnce())
+  await q.clock.runFor(500)
+  await q.getByRole("button", { name: /Pause/ }).click()
+  expect(await q.locator('[data-anim="speed"]').inputValue()).toBe("1")
+  // a speed the reader chose first is the one that comes back
+  const r = await open({ clock: true })
+  await r.locator('[data-anim="speed"]').selectOption("2")
+  await r.evaluate(() => window.P.autoplayOnce())
+  await r.clock.runFor(5000)
+  expect(await r.locator('[data-anim="speed"]').inputValue()).toBe("2")
+}, 60000)
+
 test("pauseButtonSpaceAndHiddenTabAllStopTheClockH6", async () => {
   const p = await open({ clock: true })
   const btn = p.locator('[data-anim="play"]')

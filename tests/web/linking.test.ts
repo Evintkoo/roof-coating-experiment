@@ -157,16 +157,19 @@ test("brushIsReadByLabelAndReinjectedBeforeReact", () => {
   ).dimensions
   expect(out.map((d) => d.label)).toEqual(brush.order.map(parcoordsAxisLabel))
   expect(
-    out.find((d) => d.label === parcoordsAxisLabel("t_max_pred"))?.constraintrange,
+    out.find((d) => d.label === parcoordsAxisLabel("t_max_pred"))
+      ?.constraintrange,
   ).toEqual([31, 32])
   expect(
-    out.find((d) => d.label === parcoordsAxisLabel("delam_proxy"))?.constraintrange,
+    out.find((d) => d.label === parcoordsAxisLabel("delam_proxy"))
+      ?.constraintrange,
   ).toEqual([
     [0, 0.1],
     [0.5, 0.6],
   ])
   expect(
-    out.find((d) => d.label === parcoordsAxisLabel("cost_proxy"))?.constraintrange,
+    out.find((d) => d.label === parcoordsAxisLabel("cost_proxy"))
+      ?.constraintrange,
   ).toBeUndefined()
   // the input spec is not mutated, and an empty brush removes ranges
   expect(JSON.stringify(fresh)).toBe(specBefore)
