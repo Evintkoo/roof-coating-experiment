@@ -1,0 +1,21 @@
+{
+  "versions": {
+    "svelte": "5.59.1",
+    "vite": "8.3.8",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "vite-plugin-singlefile": "2.3.4"
+  },
+  "install_ms": 32,
+  "node_modules_top_level_entries": 34,
+  "node_modules_mb": 35.4,
+  "build_1_ms": 1162,
+  "build_2_ms": 262,
+  "single_file_bytes": 59315,
+  "sha256": "09e9f61821f8e490158f7767d6b236c4eae3a785847a8be87fa1dcede32dc1b4",
+  "same_bytes_in_another_directory": true,
+  "component_count_measured": 1,
+  "build_steps": [
+    "bun install (4 devDependencies)",
+    "vite build (svelte plugin + singlefile plugin + alias for @torviello/design/brand)"
+  ]
+}

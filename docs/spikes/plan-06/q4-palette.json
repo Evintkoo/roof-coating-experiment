@@ -1,0 +1,135 @@
+{
+  "thresholds": {
+    "cvd_target": 8,
+    "cvd_floor": 6,
+    "normal_floor": 15,
+    "graphic_contrast": 3
+  },
+  "order": [
+    "green",
+    "magenta",
+    "blue",
+    "yellow",
+    "aqua",
+    "violet"
+  ],
+  "method": "dataviz skill six checks, own implementation (docs/spikes/plan-06/lib/colour.ts); Machado 2009 severity 1.0",
+  "light": {
+    "categorical": [
+      "#008300",
+      "#c95f89",
+      "#2a78d6",
+      "#b17702",
+      "#019465",
+      "#6250d6"
+    ],
+    "order": [
+      "green",
+      "magenta",
+      "blue",
+      "yellow",
+      "aqua",
+      "violet"
+    ],
+    "recommended": "#e65121",
+    "baseline": "#5e636f",
+    "worst_adjacent_cvd": 8.06,
+    "worst_adjacent_normal": 17.97,
+    "all_pairs_cap_slots": 3,
+    "all_pairs_cap_worst": {
+      "cvd": 12.34,
+      "normal": 24.15
+    },
+    "min_pairwise_all_slots": {
+      "cvd": 1.75,
+      "normal": 9.47
+    },
+    "min_contrast_vs_surfaces": 3.11,
+    "plot_backgrounds": [
+      "#f7f8fa",
+      "#ffffff"
+    ]
+  },
+  "dark": {
+    "categorical": [
+      "#0ca30c",
+      "#d55181",
+      "#3987e5",
+      "#c98500",
+      "#199e70",
+      "#9085e9"
+    ],
+    "order": [
+      "green",
+      "magenta",
+      "blue",
+      "yellow",
+      "aqua",
+      "violet"
+    ],
+    "recommended": "#ff683b",
+    "baseline": "#b0b6c3",
+    "worst_adjacent_cvd": 8.36,
+    "worst_adjacent_normal": 19.77,
+    "all_pairs_cap_slots": 3,
+    "all_pairs_cap_worst": {
+      "cvd": 9.88,
+      "normal": 26.52
+    },
+    "min_pairwise_all_slots": {
+      "cvd": 1.56,
+      "normal": 9.76
+    },
+    "min_contrast_vs_surfaces": 3.76,
+    "plot_backgrounds": [
+      "#0b1020",
+      "#101827"
+    ]
+  },
+  "light_scales": {
+    "sequential": [
+      "#74a6e7",
+      "#5b91d7",
+      "#427cc7",
+      "#2868b6",
+      "#1a559c",
+      "#0a4382",
+      "#003167"
+    ],
+    "diverging": [
+      "#2963ab",
+      "#538ed9",
+      "#86baff",
+      "#e2e5ea",
+      "#ff987a",
+      "#d2694b",
+      "#a33f20"
+    ],
+    "diverging_mid": "#e2e5ea",
+    "min_adjacent_seq_cvd": 5.8,
+    "pole_gap_cvd": 18.1
+  },
+  "dark_scales": {
+    "sequential": [
+      "#295894",
+      "#386db0",
+      "#4781cc",
+      "#5797e9",
+      "#71adfb",
+      "#97c4ff",
+      "#bedaff"
+    ],
+    "diverging": [
+      "#71adfb",
+      "#4781cc",
+      "#1c579e",
+      "#32353c",
+      "#963212",
+      "#c55d3f",
+      "#f58869"
+    ],
+    "diverging_mid": "#32353c",
+    "min_adjacent_seq_cvd": 6,
+    "pole_gap_cvd": 20.6
+  }
+}

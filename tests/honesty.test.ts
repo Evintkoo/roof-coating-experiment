@@ -4,6 +4,7 @@ import { beforeAll, expect, test } from "bun:test"
 import { join } from "node:path"
 import type { ModelContext } from "../src/core/pipeline/context"
 import { liveSimulate } from "../src/core/pipeline/live"
+import { OVERCLAIM_PATTERN } from "../src/core/report/outline"
 import { loadContext } from "../src/node/context"
 import {
   figLiveSpectrum,
@@ -15,6 +16,7 @@ import { defaultLiveState } from "../src/web/liveState"
 import {
   buildIndonesiaReport,
   buildTestReport,
+  claimText,
   repoRoot,
   visibleText,
 } from "./helpers"
@@ -77,7 +79,7 @@ test("limitsSectionAndNavLinkPresent", async () => {
   const { html } = await buildTestReport()
   expect(hasLimits(html)).toBe(true)
   const text = visibleText(html)
-  expect(text).toContain("Methods and limits")
+  expect(text).toContain("Method and limits")
   expect(text).toContain("Every PROXY index is uncalibrated")
   // F5: without the section (or the link) the check fails
   expect(
@@ -88,37 +90,51 @@ test("limitsSectionAndNavLinkPresent", async () => {
 
 test("forbiddenPhrasesAbsent", async () => {
   const { html } = await buildTestReport()
-  const forbidden = /proven|safe|guaranteed|\d+\s*%\s*(safe|aman|self-clean)/i
-  expect(visibleText(html)).not.toMatch(forbidden)
-  expect(forbidden.test("a safe coating")).toBe(true) // the scan can fail
+  // plan 06: "proven" is word-bounded (the section "Provenance" is not a claim); no label is allow-listed any more
+  const text = claimText(html)
+  expect(text).not.toMatch(OVERCLAIM_PATTERN)
+  expect(OVERCLAIM_PATTERN.test("a safe coating")).toBe(true) // the scan can fail
+  expect(OVERCLAIM_PATTERN.test("this recipe is proven")).toBe(true)
+  expect(OVERCLAIM_PATTERN.test("the best recipe")).toBe(true)
+  expect(OVERCLAIM_PATTERN.test("Provenance")).toBe(false)
+  expect("Highest cooling").not.toMatch(OVERCLAIM_PATTERN)
+  expect("Best cooling").toMatch(OVERCLAIM_PATTERN)
+  expect("each recommended recipe").toMatch(OVERCLAIM_PATTERN)
 })
 
 test("pageStatesProxyAndIntervalsUpFront", async () => {
   const { html } = await buildTestReport()
-  const text = visibleText(html)
-  expect(text).toContain("PROXY results")
+  const text = claimText(html)
+  expect(text).toContain("PROXY")
   expect(text).toContain("parameter uncertainty only")
   expect(text).toContain("not a laboratory result")
-  // every summary prediction carries an interval in brackets
-  const summary = /<section id="summary"[\s\S]*?<\/section>/.exec(
-    html,
-  )?.[0] as string
-  const rows = [...summary.matchAll(/<tr><td class="txt">[\s\S]*?<\/tr>/g)]
+  // every recipe prediction of the comparison table carries an interval in brackets, every index its PROXY badge
+  const table =
+    /<table class="tv-datatable" id="tbl-recipes">[\s\S]*?<\/table>/.exec(
+      html,
+    )?.[0] as string
+  const rows = [...table.matchAll(/<tr data-row="\d+">[\s\S]*?<\/tr>/g)].slice(
+    0,
+    3,
+  )
   expect(rows.length).toBe(3)
-  for (const r of rows)
-    expect((r[0].match(/\[[-\d.]+, [-\d.]+\]/g) ?? []).length).toBe(4)
+  for (const r of rows) {
+    expect((r[0].match(/\[[-\d.]+, [-\d.]+\]/g) ?? []).length).toBe(2)
+    expect((r[0].match(/tv-badge--proxy/g) ?? []).length).toBe(3)
+  }
 })
 
 // ---- Indonesia section (plan 04 Task 6): the forbidden phrases extend to claims the data cannot carry ----
 
 test("forbiddenPhrasesAbsentFromTheIndonesiaSection", async () => {
   const { html } = await buildIndonesiaReport()
-  const forbidden =
-    /proven|safe|guaranteed|\d+\s*%\s*(safe|aman|self-clean)|validated|ground[- ]truth|station[- ]measured|measured in Indonesia|field[- ]tested|real[- ]world performance/i
-  const text = visibleText(html)
+  const forbidden = OVERCLAIM_PATTERN
+  const text = claimText(html)
   expect(text).not.toMatch(forbidden)
   const section = visibleText(
-    /<section id="indonesia"[\s\S]*?<\/section>/.exec(html)?.[0] as string,
+    /<section id="climate"[\s\S]*<section id="limits"/.exec(
+      html,
+    )?.[0] as string,
   )
   expect(section.length).toBeGreaterThan(2000)
   // the scan can fail on the phrases it is meant to catch
@@ -170,10 +186,12 @@ test("ageingStatementsDoNotContradictAcrossThePage", async () => {
   ).toBe(false)
   // the overview names the initial state for the main results and the labelled scenario for ageing
   const overview = visibleText(
-    /<section id="overview"[\s\S]*?<\/section>/.exec(html)?.[0] as string,
+    /<section id="limits"[\s\S]*?<\/section>/.exec(html)?.[0] as string,
   )
   expect(overview).toContain("initial, as-applied state")
-  expect(overview).toContain("labelled scenario in the Indonesia section")
+  expect(overview).toContain(
+    "labelled scenario in the Indonesian climate section",
+  )
   expect(overview).toContain("never as a measurement")
   // a page without the Indonesia section does not point at it as if it were there
   const plain = visibleText((await buildTestReport()).html)

@@ -236,8 +236,8 @@ export function refineE2eSuite(S: RefineE2eScale): void {
       createHash("sha256").update(html).digest("hex"),
     )
     expect(html).toContain(m.core_sha256)
-    expect(html).toContain('<section id="optimisation"')
-    expect(html).toContain('href="#optimisation"')
+    expect(html).toContain('<section id="budget"')
+    expect(html).toContain('href="#budget"')
     expect(readVerifiedTable(tablePath).tables.length).toBe(3)
     // idempotent: a second `report` gives the same bytes
     const again = await run(["report", "--in", dir, "--max-load", "1000"])

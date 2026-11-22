@@ -1,4 +1,5 @@
 // Shared test helpers; later tasks add to this file.
+
 import {
   cpSync,
   existsSync,
@@ -6,14 +7,19 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { parse, stringify } from "yaml"
+import { THEME_INIT_SCRIPT } from "../src/web/design/theme"
 
 export const repoRoot = join(import.meta.dir, "..")
+
+/** The committed compact run directory (real numbers of the seed 20261121 run, draws.csv cut to one draw) that fast tests read instead of the git-ignored reports/. */
+export const REPORT_FIXTURE = join(repoRoot, "tests", "fixtures", "report-run")
 
 /** Recursively list files under dir (relative POSIX paths), [] if dir is missing. */
 export function listFiles(dir: string): string[] {
@@ -214,6 +220,30 @@ export function buildTestRun(): Promise<string> {
   return testRun
 }
 
+let bareFixture: Promise<string> | undefined
+
+/**
+ * The committed fixture run (tests/fixtures/report-run) with refine/ and indonesia/ removed and extra[] emptied (core hash rewritten),
+ * i.e. a finished run with no later outputs, built without executing the pipeline. Never mutate it: copy it.
+ */
+export function bareFixtureRun(): Promise<string> {
+  bareFixture ??= (async () => {
+    const dst = mkdtempSync(join(tmpdir(), "spandek-bare-"))
+    cpSync(REPORT_FIXTURE, dst, { recursive: true })
+    const m = JSON.parse(
+      readFileSync(join(dst, "run_manifest.json"), "utf8"),
+    ) as { extra: { path: string }[] }
+    await unregisterExtra(
+      dst,
+      m.extra.map((e) => e.path),
+    )
+    rmSync(join(dst, "refine"), { recursive: true, force: true })
+    rmSync(join(dst, "indonesia"), { recursive: true, force: true })
+    return dst
+  })()
+  return bareFixture
+}
+
 /** A private copy of the test run, for tests that edit one input. */
 export async function copyRun(): Promise<string> {
   const src = await buildTestRun()
@@ -262,11 +292,18 @@ export function visibleText(html: string): string {
     .replaceAll("&amp;", "&")
 }
 
-/** The contents of the page's <script> blocks in order: [data, plotly, main]. */
-export function scriptBlocks(html: string): string[] {
-  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-    (m) => m[1] as string,
+/** The visible text a reader could take as the report's own claims: everything except the third-party licence notices (OFL text says "derivative works"). */
+export function claimText(html: string): string {
+  return visibleText(
+    html.replace(/<details[^>]*id="[^"]*-licences"[\s\S]*?<\/details>/, ""),
   )
+}
+
+/** The contents of the page's <script> blocks in order: [data, plotly, main]; the tiny head script that applies the stored theme is not one of them. */
+export function scriptBlocks(html: string): string[] {
+  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    .map((m) => m[1] as string)
+    .filter((b) => b !== THEME_INIT_SCRIPT)
 }
 
 /**
@@ -427,4 +464,22 @@ export async function unregisterExtra(
   )
   m.core_sha256 = manifestCoreHash(m)
   writeFileSync(p, `${JSON.stringify(m, null, 2)}\n`)
+}
+
+/**
+ * Wall-clock samples for a latency bound that must hold on a loaded machine. Contention only adds time to a deterministic call,
+ * so the bound is judged on the best sample: `sample` is called up to `tries` times and stops at the first value below `limit`.
+ * The caller asserts `Math.min(...samples) < limit`; code that is really too slow exceeds the limit on every try and still fails.
+ */
+export async function samplesUntilUnder(
+  limit: number,
+  tries: number,
+  sample: () => Promise<number> | number,
+): Promise<number[]> {
+  const out: number[] = []
+  for (let i = 0; i < tries; i++) {
+    out.push(await sample())
+    if ((out[out.length - 1] as number) < limit) break
+  }
+  return out
 }

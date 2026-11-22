@@ -4,7 +4,15 @@ import {
   type BudgetTable,
   lookupBudget,
 } from "../core/opt/budgetTable"
-import { axisLabel, type FigureSpec, OKABE_ITO, UIREVISION } from "./figures"
+import { LIGHT_PLOT, type Slot, slotColor, withAlpha } from "./design/plotTheme"
+import {
+  axisLabel,
+  type EndLabel,
+  endLabels,
+  extent,
+  type FigureSpec,
+  UIREVISION,
+} from "./figures"
 import { fmtValue } from "./fmt"
 
 export type FrontRow = {
@@ -115,6 +123,8 @@ export const rowText = (r: BudgetRow, digits = 3): string =>
   `${fmtValue(r.value, digits)} [${fmtValue(r.lo, digits)}, ${fmtValue(r.hi, digits)}]`
 
 type Meta = { kind: "predicted" | "band" | "marker"; id: string }
+/** One colour role per priority profile; the brand orange stays with the recommended recipe. */
+const PROFILE_SLOT: readonly Slot[] = ["series-3", "series-1", "series-4"]
 
 /**
  * Performance against cost for each profile: the best objective value the models reach under each budget (one line per
@@ -128,45 +138,59 @@ export function figFrontier(
   const name = data.objectives[objectiveIndex]
   if (name === undefined) throw new RangeError("unknown objective index")
   const traces: object[] = []
-  const meta = (m: Meta) => m
+  const meta = (m: Meta, slot: Slot) => ({ ...m, slot })
+  const labels: EndLabel[] = []
+  const all: number[][] = []
   data.tables.forEach((t, i) => {
-    const color = OKABE_ITO[[1, 5, 2][i % 3] as number] as string
+    const slot = PROFILE_SLOT[i % PROFILE_SLOT.length] as Slot
+    const color = slotColor(LIGHT_PLOT, slot)
     const label = PROFILE_LABEL[t.profile] ?? t.profile
     const x = t.entries.map((e) => e.cost)
     const common = { type: "scatter", legendgroup: t.profile }
+    const lo = t.entries.map((e) => e.lo[objectiveIndex] as number)
+    const hi = t.entries.map((e) => e.hi[objectiveIndex] as number)
+    const y = t.entries.map((e) => e.objectives[objectiveIndex] as number)
+    all.push(lo, hi, y)
     traces.push(
       {
         ...common,
         mode: "lines",
         x,
-        y: t.entries.map((e) => e.lo[objectiveIndex]),
+        y: lo,
         line: { width: 0, color },
         hoverinfo: "skip",
         showlegend: false,
-        meta: meta({ kind: "band", id: t.profile }),
+        meta: meta({ kind: "band", id: t.profile }, slot),
       },
       {
         ...common,
         mode: "lines",
         x,
-        y: t.entries.map((e) => e.hi[objectiveIndex]),
+        y: hi,
         line: { width: 0, color },
         fill: "tonexty",
-        fillcolor: `${color}33`,
+        fillcolor: withAlpha(color, 0.2),
         hoverinfo: "skip",
         showlegend: false,
-        meta: meta({ kind: "band", id: t.profile }),
+        meta: meta({ kind: "band", id: t.profile }, slot),
       },
       {
         ...common,
         mode: "lines",
         x,
-        y: t.entries.map((e) => e.objectives[objectiveIndex]),
+        y,
         name: label,
-        line: { width: 2, color },
-        meta: meta({ kind: "predicted", id: t.profile }),
+        showlegend: false,
+        line: { width: 2.5, color },
+        meta: meta({ kind: "predicted", id: t.profile }, slot),
       },
     )
+    labels.push({
+      text: label,
+      slot,
+      x: x[x.length - 1] as number,
+      y: y[y.length - 1] as number,
+    })
     const knee = lookupBudget(t, t.knee_budget)
     if (knee.status === "ok")
       traces.push({
@@ -175,13 +199,9 @@ export function figFrontier(
         x: [knee.entry.cost],
         y: [knee.entry.objectives[objectiveIndex]],
         name: `${label}: knee of the curve`,
-        marker: {
-          symbol: "diamond",
-          size: 11,
-          color,
-          line: { width: 1.5, color: "#000000" },
-        },
-        meta: meta({ kind: "marker", id: `${t.profile}:knee` }),
+        showlegend: false,
+        marker: { symbol: "diamond", size: 11, color },
+        meta: meta({ kind: "marker", id: `${t.profile}:knee` }, slot),
       })
   })
   if (selected) {
@@ -194,26 +214,28 @@ export function figFrontier(
         x: [r.entry.cost],
         y: [r.entry.objectives[objectiveIndex]],
         name: "Recipe for the chosen budget",
+        showlegend: false,
         marker: {
           symbol: "x",
           size: 13,
-          color: "#000000",
-          line: { width: 2, color: "#000000" },
+          color: slotColor(LIGHT_PLOT, "ink"),
+          line: { width: 2, color: slotColor(LIGHT_PLOT, "ink") },
         },
-        meta: meta({ kind: "marker", id: "selected" }),
+        meta: meta({ kind: "marker", id: "selected" }, "ink"),
       })
   }
   return {
     data: traces,
     layout: {
       uirevision: UIREVISION,
-      margin: { l: 60, r: 16, t: 24, b: 48 },
-      colorway: [...OKABE_ITO],
+      margin: { l: 64, r: 150, t: 24, b: 48 },
+      colorway: [...LIGHT_PLOT.colorway],
       xaxis: { title: { text: costLabel(data.cost_unit) } },
       yaxis: { title: { text: `${axisLabel(name)}, p5-p95 band` } },
-      legend: { orientation: "h", y: -0.3 },
+      showlegend: false,
+      annotations: endLabels(labels, extent(all)),
     },
-    config: { responsive: true, displaylogo: false },
+    config: { responsive: true, displaylogo: false, displayModeBar: false },
   }
 }
 
@@ -236,13 +258,20 @@ export function figRefineFront(
         text: rows.map((r) => r.weight_id),
         hovertemplate: "%{text}<extra></extra>",
         name: "Refined recipes (nominal)",
-        marker: { color: OKABE_ITO[4], size: 9, symbol: "circle" },
+        marker: {
+          color: slotColor(LIGHT_PLOT, "series-3"),
+          size: 9,
+          symbol: "circle",
+        },
+        showlegend: false,
+        meta: { kind: "predicted", id: "refined", slot: "series-3" },
       },
     ],
     layout: {
       uirevision: UIREVISION,
       margin: { l: 60, r: 16, t: 24, b: 48 },
-      colorway: [...OKABE_ITO],
+      colorway: [...LIGHT_PLOT.colorway],
+      showlegend: false,
       xaxis: {
         title: {
           text: `${axisLabel("cost_proxy")}, ${costUnitText(cost_unit)}`,
@@ -250,6 +279,6 @@ export function figRefineFront(
       },
       yaxis: { title: { text: axisLabel("r_solar_pred") } },
     },
-    config: { responsive: true, displaylogo: false },
+    config: { responsive: true, displaylogo: false, displayModeBar: false },
   }
 }

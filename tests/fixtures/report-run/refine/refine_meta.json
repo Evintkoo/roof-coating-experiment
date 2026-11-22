@@ -1,0 +1,22 @@
+{
+  "seed": 20261121,
+  "run_id": "20261121T172756012-a4f1d5e7",
+  "scenarios": "generic9",
+  "n_starts": 20,
+  "n_solves": 40,
+  "n_front": 16,
+  "n_dominated_removed": 24,
+  "s_balanced": {
+    "best": 0.1070835693416553,
+    "worst": 0.12938503788106828,
+    "spread": 0.022301468539412977
+  },
+  "best_screened": {
+    "candidate_id": "SP-031",
+    "S": 0.1544220825660233
+  },
+  "saddles": [],
+  "robust_draws": 32,
+  "fresh_draws": 256,
+  "note": "optimum of the models, not a measured optimum (PROXY)"
+}

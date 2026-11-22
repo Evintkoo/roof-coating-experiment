@@ -13,8 +13,8 @@ export class SpandekError extends Error {
 }
 
 export class ConfigError extends SpandekError {
-  constructor(key: string, message: string) {
-    super(2, "config", key, message)
+  constructor(key: string, message: string, phase = "config") {
+    super(2, phase, key, message)
   }
 }
 
@@ -31,8 +31,8 @@ export class PhysicsRangeError extends SpandekError {
 }
 
 export class DataError extends SpandekError {
-  constructor(key: string, message: string) {
-    super(5, "data", key, message)
+  constructor(key: string, message: string, phase = "data") {
+    super(5, phase, key, message)
   }
 }
 

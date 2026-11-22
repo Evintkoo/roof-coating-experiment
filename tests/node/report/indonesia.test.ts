@@ -34,7 +34,8 @@ const codeOf = async (f: () => Promise<unknown>): Promise<number> => {
   return 0
 }
 const section = (html: string): string =>
-  (/<section id="indonesia"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "") as string
+  (/<section id="climate"[\s\S]*<section id="limits"/.exec(html)?.[0] ??
+    "") as string
 const summary = (dir: string) =>
   parseCsv(
     readFileSync(join(dir, "indonesia", "indonesia_summary.csv"), "utf8"),
@@ -46,18 +47,18 @@ beforeAll(async () => {
 }, 120_000)
 
 test("absentIndonesiaOutputsOmitTheSectionWithoutError", () => {
-  expect(plain.html).not.toContain('id="indonesia"')
-  expect(plain.html).not.toContain('href="#indonesia"')
+  expect(plain.html).not.toContain('id="climate"')
+  expect(plain.html).not.toContain('href="#climate"')
 })
 
-test("presentOutputsAddTheSectionBetweenOptimisationAndLimits", () => {
+test("presentOutputsAddTheSectionBetweenWhyItWorksAndLimits", () => {
   const h = b.html
-  expect(h).toContain('href="#indonesia"')
-  expect(h.indexOf('<section id="indonesia"')).toBeGreaterThan(
-    h.indexOf('<section id="sensitivity"'),
+  expect(h).toContain('href="#climate"')
+  expect(h.indexOf('<section id="climate"')).toBeGreaterThan(
+    h.indexOf('<section id="why"'),
   )
   expect(h.indexOf('<section id="limits"')).toBeGreaterThan(
-    h.indexOf('<section id="indonesia"'),
+    h.indexOf('<section id="climate"'),
   )
   expect(section(h)).toContain('id="fig-indonesia-bars"')
 })
@@ -177,6 +178,11 @@ test("benefitBarsInChromeEqualTheCsvForBothStates", async () => {
     page.on("pageerror", (e) => errors.push(String(e)))
     page.on("requestfailed", (r) => failed.push(r.url()))
     await page.goto(`file://${b.path}`)
+    await page.evaluate(() =>
+      document.querySelectorAll("details").forEach((d) => {
+        d.open = true
+      }),
+    )
     await page.waitForSelector("#fig-indonesia-bars .main-svg")
     const rows = summary(b.dir)
     for (const state of ["initial", "aged"] as const) {
@@ -185,9 +191,9 @@ test("benefitBarsInChromeEqualTheCsvForBothStates", async () => {
         await page.waitForFunction(() =>
           (
             document.querySelector("#fig-indonesia-bars") as unknown as {
-              layout: { xaxis: { title: { text: string } } }
+              layout: { annotations: { text: string }[] }
             }
-          ).layout.xaxis.title.text.includes("aged"),
+          ).layout.annotations.some((a) => a.text.includes("aged")),
         )
       }
       const fig = await page.evaluate(() => {
@@ -195,23 +201,25 @@ test("benefitBarsInChromeEqualTheCsvForBothStates", async () => {
           data: {
             name: string
             y: number[]
-            x: string[][]
+            x: string[]
+            meta: { id: string; site: string }
             error_y: { array: number[]; arrayminus: number[] }
           }[]
-          layout: { xaxis: { title: { text: string } } }
+          layout: { annotations: { text: string }[] }
         }
         return {
-          title: gd.layout.xaxis.title.text,
+          title: gd.layout.annotations.map((a) => a.text).join(" "),
           data: gd.data.map((t) => ({
-            name: t.name,
+            id: t.meta.id,
+            site: t.meta.site,
             y: t.y,
-            bins: t.x[1],
+            bins: t.x,
             up: t.error_y.array,
             down: t.error_y.arrayminus,
           })),
         }
       })
-      expect(fig.title).toContain("aluminium, scenario ageing")
+      expect(fig.title).toContain("Aluminium, scenario ageing")
       expect(fig.data.length).toBe(4)
       const label: Record<string, string> = {
         "hot day": "hot",
@@ -219,23 +227,17 @@ test("benefitBarsInChromeEqualTheCsvForBothStates", async () => {
         "overcast day": "overcast",
         weighted: "weighted",
       }
-      const subj: Record<string, string> = {
-        "C1 commercial datasheet": "C1",
-        "High-performing card": "card_high",
-        "Balanced card": "card_balanced",
-        "Low-cost card": "card_low",
-      }
       let n = 0
       for (const t of fig.data)
         t.y.forEach((y, i) => {
           const r = rows.find(
             (x) =>
-              x.site === "jakarta" &&
-              x.bin === label[t.bins?.[i] as string] &&
-              x.subject === subj[t.name] &&
+              x.site === t.site &&
+              x.bin === label[t.bins[i] as string] &&
+              x.subject === t.id &&
               x.state === state,
           )
-          if (!r) throw new Error(`no row for ${t.name} ${t.bins?.[i]}`)
+          if (!r) throw new Error(`no row for ${t.id} ${t.bins[i]}`)
           n++
           expect(y).toBeCloseTo(Number(r.dq_w_m2), 12)
           expect((y as number) + (t.up[i] as number)).toBeCloseTo(
@@ -322,14 +324,25 @@ test("indonesiaBarSeriesAreVisibleInBothThemesAndTheYTitleIsNotClipped", async (
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
   }
   for (const scheme of ["dark", "light"] as const) {
+    // the theme comes from the stored choice (the system scheme is ignored): dark and light both start as asked
     const ctx = await browser.newContext({
       offline: true,
-      colorScheme: scheme,
+      colorScheme: scheme === "dark" ? "light" : "dark",
       viewport: { width: 1280, height: 900 },
     })
+    await ctx.addInitScript((t) => {
+      try {
+        localStorage.setItem("spandek:theme", t)
+      } catch {}
+    }, scheme)
     try {
       const page = await ctx.newPage()
       await page.goto(`file://${b.path}`)
+      await page.evaluate(() =>
+        document.querySelectorAll("details").forEach((d) => {
+          d.open = true
+        }),
+      )
       await page.waitForSelector("#fig-indonesia-bars .main-svg")
       const read = () =>
         page.evaluate(() => {
@@ -350,7 +363,7 @@ test("indonesiaBarSeriesAreVisibleInBothThemesAndTheYTitleIsNotClipped", async (
             colours: gd.data.map((t) => t.marker.color),
             plot: gd._fullLayout.plot_bgcolor,
             bg: getComputedStyle(document.documentElement)
-              .getPropertyValue("--bg")
+              .getPropertyValue("--tv-surface-base")
               .trim(),
             titleLeft: t.left - f.left,
             titleTop: t.top - f.top,

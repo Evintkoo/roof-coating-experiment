@@ -2,6 +2,15 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { parseCsv } from "../../core/csv"
 import { DataError } from "../../core/errors"
+import { callout } from "../../web/design/molecules/callout"
+import { disclosure } from "../../web/design/molecules/disclosure"
+import { figureFrame } from "../../web/design/molecules/figureFrame"
+import { findingList } from "../../web/design/organisms/findingList"
+import {
+  type SiteBenefit,
+  type SiteCaveat,
+  siteBenefitPanel,
+} from "../../web/design/organisms/siteBenefitPanel"
 import {
   INDONESIA_BIN_LABEL,
   INDONESIA_STATE_LABEL,
@@ -12,6 +21,7 @@ import {
 } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
 import { emit } from "../logging"
+import { derive } from "./content"
 import { esc, type ReportInput, type ReportSection } from "./html"
 import { readListed } from "./manifest"
 
@@ -280,39 +290,110 @@ function daysTable(o: Indonesia): string {
   return `<div class="scroll"><table id="tbl-indonesia-days">${th(["Site", "Season", "Day type", "Local date", "Daily GHI kWh/m²"])}<tbody>\n${body.join("\n")}\n</tbody></table></div>`
 }
 
+/** The panel data of the Indonesia section: card_high, weighted, initial against aged, per site, on one scale. */
+export function climatePanelData(o: Indonesia): {
+  sites: SiteBenefit[]
+  axis: { min: number; max: number }
+  loss: { lo: number; hi: number }
+} {
+  const sites = [...new Set(o.data.summary.map((r) => r.site))]
+  const pick = (site: string, state: string) => {
+    const r = o.data.summary.find(
+      (x) =>
+        x.site === site &&
+        x.bin === "weighted" &&
+        x.subject === "card_high" &&
+        x.state === state,
+    )
+    if (!r)
+      throw new DataError(
+        "indonesia_summary.csv",
+        `no ${state} weighted row of card_high for ${site}`,
+      )
+    return { value: r.dq_w_m2, lo: r.dq_lo, hi: r.dq_hi }
+  }
+  const out: SiteBenefit[] = sites.map((id) => ({
+    id,
+    name: siteLabel(id),
+    initial: pick(id, "initial"),
+    aged: pick(id, "aged"),
+  }))
+  const all = out.flatMap((s) => [s.initial, s.aged])
+  const axis = {
+    min: Math.min(0, Math.floor(Math.min(...all.map((e) => e.lo)))),
+    max: Math.ceil(Math.max(...all.map((e) => e.hi))) + 1,
+  }
+  const losses = out
+    .filter((s) => s.initial.value > 0)
+    .map((s) =>
+      Math.min(100, Math.max(0, 100 * (1 - s.aged.value / s.initial.value))),
+    )
+  const loss =
+    losses.length === 0
+      ? { lo: 0, hi: 0 }
+      : { lo: Math.min(...losses), hi: Math.max(...losses) }
+  return { sites: out, axis, loss }
+}
+
 export const indonesiaSection: ReportSection = {
-  id: "indonesia",
-  title: "Indonesia",
-  order: 75,
+  id: "climate",
+  title: "Indonesian climate",
+  order: 40,
   render: (input) => {
     const o = loadIndonesia(input)
     if (o === null) return null
+    const d = derive(input)
     const lo = fmtValue(100 * o.data.loss_lo, 0)
     const hi = fmtValue(100 * o.data.loss_hi, 0)
     const tow = Object.entries(o.tow)
       .map(([s, h]) => `${esc(siteLabel(s))} ${fmtValue(h, 0)} h`)
       .join(", ")
-    return `<section id="indonesia" aria-labelledby="h-indonesia">
-<h2 id="h-indonesia">Indonesia: five sites, aluminium, initial and aged</h2>
-<div class="banner" role="note">
-<p><strong>PROXY results on aluminium, with scenario ageing.</strong> The weather is modelled (NASA POWER hourly reanalysis and satellite data, 2015 to 2024), not station measurements. Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three shortlisted recipes, each as its full three-layer system. The aged values are a scenario: the effective reflectance of a coating loses ${lo} to ${hi} % (range from three US three-year exposure records), not an Indonesian measurement; bare aluminium is not aged and C1 uses its own weathered datasheet values. Intervals are parameter uncertainty only (p5 to p95 over ${esc(String(o.data.n_mc))} draws, plus the ageing-loss range for aged recipes).</p>
-<p><strong>Weather limits.</strong> The NASA POWER values belong to a grid cell, not to the city. The elevation of the cell is the elevation of the data: Bandung's cell is at 921.68 m (the TMYx airport file is at 740 m), so its temperatures may read 1 to 2 K cool against the city, and Medan and Makassar, whose cells also lie well above city level, may read cool as well. No correction is applied. Medan has no clear dry season: its "dry" months are dry only relative to its other months. A month is called wet when its ten-year mean precipitation exceeds 150 mm, a design threshold and not a climate classification; Bandung's June (151 mm) sits right on it.</p>
-</div>
-<h3>Heat-flux benefit by site and day type</h3>
-<p class="hint">Benefit = mean heat flux into the building of bare aluminium minus that of the subject; positive means less heat enters. The last group of each site weights the day types 0.2 hot, 0.6 typical, 0.2 overcast and the seasons by their share of days in the ten years. The bracket of a benefit is an outer bound, not the p5 to p95 of the benefit: the interval of the subject is subtracted from the interval of bare aluminium without pairing the draws, so it is wider than a paired interval would be. Whiskers in the figure show the same outer bound.</p>
-<p class="hint">Read the aged rows with care: the aged datasheet control C1 uses its own weathered datasheet values (a loss of about 14 %), while the three cards use the midpoint of the scenario loss range (about ${fmtValue(50 * (o.data.loss_lo + o.data.loss_hi), 0)} %). The ordering of aged C1 against the cards is therefore driven by the assumed loss and their intervals overlap; it is not a finding about which product ages better.</p>
-<div class="controls"><label for="sel-indonesia-state">State</label><select id="sel-indonesia-state"><option value="initial">Initial</option><option value="aged">Aged (scenario ageing)</option></select></div>
-<div id="fig-indonesia-bars" class="fig tall" role="img" aria-label="Heat-flux benefit against bare aluminium per site and day type with outer-bound whiskers, aluminium, scenario ageing"></div>
-<h3>Weighted benefit table</h3>
-${benefitTable(o)}
-<h3>Weighted mean of the day peaks (temperature) and mean heat flux</h3>
-${absoluteTable(o)}
-<h3>Cross-check of the weather data</h3>
-<p>NASA POWER and the TMYx typical-year files of climate.onebuilding.org are both modelled products (reanalysis and satellite based; TMYx irradiance comes from ERA5 at airport locations). This table checks that the two agree month by month in mean daily global irradiation; it does not compare either with ground measurements, so a small difference shows consistency between two models, not accuracy.</p>
-${crossTable(o)}
-<h3>Representative days</h3>
-${daysTable(o)}
-<p class="hint">Time of wetness (hours per year with relative humidity above 80 % and air above 0 °C, ten-year mean): ${tow}. It is reported beside the unchanged corrosion index (PROXY); no site factor is applied to that index.</p>
+    const panel = climatePanelData(o)
+    const ids = new Set(panel.sites.map((s) => s.id))
+    const caveats: SiteCaveat[] = [
+      {
+        id: "grid",
+        text: "The NASA POWER values belong to a grid cell, not to the city, and the elevation of the cell is the elevation of the data. Bandung's cell is at 921.68 m (the TMYx airport file is at 740 m), so its temperatures may read 1 to 2 K cool against the city; Medan and Makassar, whose cells also lie well above city level, may read cool as well. No correction is applied.",
+      },
+      {
+        id: "medan",
+        ...(ids.has("medan") ? { site: "medan" } : {}),
+        text: "Medan has no clear dry season: its dry months are dry only relative to its other months.",
+      },
+    ]
+    const sentences = d.findings
+      .filter((f) => f.id.startsWith("indonesia-"))
+      .map((f) => ({ id: f.id, sentence: f.sentence }))
+    const detail = (summary: string, inner: string) =>
+      disclosure({ summary, level: "detail" })(inner)
+    return `<section id="climate" class="page-section" aria-labelledby="h-climate">
+<h2 id="h-climate">Indonesian climate</h2>
+${callout({ tone: "caution", title: "PROXY results on aluminium, with scenario ageing", body: `The weather is modelled (NASA POWER hourly reanalysis and satellite data, 2015 to 2024), not station measurements. The roof is bare aluminium; the aged values are a scenario: the effective reflectance of a coating loses ${lo} to ${hi} % (a range from three US three-year exposure records), not an Indonesian measurement. Intervals are parameter uncertainty only (p5 to p95 over ${o.data.n_mc} draws, plus the ageing-loss range for aged recipes).` })}
+${sentences.length > 0 ? findingList({ items: sentences, seen: d.seen }) : ""}
+${siteBenefitPanel({ sites: panel.sites, axis: panel.axis, scenario: "Ageing is a scenario", loss: panel.loss, caveats, id: "sites", digits: 1 })}
+${detail(
+  "Weather model: how the five sites were built",
+  `<p>Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three shortlisted recipes, each as its full three-layer system. Bare aluminium is not aged and C1 uses its own weathered datasheet values.</p>
+<p>A month is called wet when its ten-year mean precipitation exceeds 150 mm, a design threshold and not a climate classification; Bandung's June (151 mm) sits right on it.</p>
+<p class="page-hint">Time of wetness (hours per year with relative humidity above 80 % and air above 0 °C, ten-year mean): ${tow}. It is reported beside the unchanged corrosion index (PROXY); no site factor is applied to that index.</p>`,
+)}
+${detail(
+  "Day-type detail: hot, typical and overcast days",
+  `<p class="page-hint">Benefit = mean heat flux into the building of bare aluminium minus that of the subject; positive means less heat enters. The last group of each site weights the day types 0.2 hot, 0.6 typical, 0.2 overcast and the seasons by their share of days in the ten years. The bracket of a benefit is an outer bound, not the p5 to p95 of the benefit: the interval of the subject is subtracted from the interval of bare aluminium without pairing the draws, so it is wider than a paired interval would be.</p>
+<div class="page-controls"><label for="sel-indonesia-state">State</label><select id="sel-indonesia-state"><option value="initial">Initial</option><option value="aged">Aged (scenario ageing)</option></select></div>
+${figureFrame({ message: "Benefit against bare aluminium on hot, typical and overcast days, site by site on one shared axis", size: "tall", describe: "Heat-flux benefit per site and day type with outer-bound whiskers, aluminium, scenario ageing", note: "Whiskers: outer bound of the benefit interval. PROXY, parameter uncertainty only." })('<div id="fig-indonesia-bars" class="fig fig--tall"></div>')}`,
+)}
+${detail(
+  "Reading the aged rows",
+  `<p>The aged datasheet control C1 uses its own weathered datasheet values (a loss of about 14 %), while the three recipes use the midpoint of the scenario loss range (about ${fmtValue(50 * (o.data.loss_lo + o.data.loss_hi), 0)} %). The ordering of aged C1 against the recipes is therefore driven by the assumed loss and their intervals overlap; it is not a finding about which product ages better.</p>`,
+)}
+${detail("Weighted benefit table (all subjects)", benefitTable(o))}
+${detail("Surface temperature and heat flux table", absoluteTable(o))}
+${detail(
+  "Cross-check of the weather data (NASA POWER against TMYx)",
+  `<p>NASA POWER and the TMYx typical-year files of climate.onebuilding.org are both modelled products (reanalysis and satellite based; TMYx irradiance comes from ERA5 at airport locations). This table checks that the two agree month by month in mean daily global irradiation; it does not compare either with ground measurements, so a small difference shows consistency between two models, not accuracy.</p>${crossTable(o)}`,
+)}
+${detail("Representative days", daysTable(o))}
 </section>`
   },
   data: (input) => loadIndonesia(input)?.data ?? null,

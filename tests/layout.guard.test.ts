@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import {
+  fastTwinOf,
   listFiles,
   missingMirrors,
   orphanTests,
@@ -27,6 +28,10 @@ const NON_MIRROR = new Set(
     "determinism",
     "pipeline.e2e",
     "report.browser",
+    "report.design.browser",
+    "report.fixture",
+    "design.atoms.browser",
+    "design.components.browser",
     "honesty",
     "indonesia.e2e",
     "indonesia.crosscheck",
@@ -146,4 +151,24 @@ test("proofFilesPairWithAFastTwin", () => {
   expect(
     orphanTests(srcFiles, ["refine.e2e.proof.test.ts"], NON_MIRROR),
   ).toEqual([])
+})
+
+test("everyDesignFileMapsToATestUnderTestsWebDesign", () => {
+  // plan 06 FR-5/FR-11: the design layer is one source file, one mirrored test, under tests/web/design
+  const design = srcFiles.filter((f) => f.startsWith("web/design/"))
+  expect(design.length).toBeGreaterThan(0)
+  const tests = testFiles.filter((f) => f.startsWith("web/design/"))
+  for (const f of design) {
+    expect(NO_MIRROR_NEEDED.has(f)).toBe(false)
+    expect(tests).toContain(`${f.replace(/\.ts$/, "")}.test.ts`)
+  }
+  // no test under tests/web/design without its source file
+  for (const t of tests) {
+    const twin = fastTwinOf(t)
+    expect(design).toContain(`${twin.replace(/\.test\.ts$/, "")}.ts`)
+  }
+  // the guard can fail: a design file without a mirror is reported
+  expect(
+    missingMirrors(["web/design/stray.ts"], testFiles, NO_MIRROR_NEEDED),
+  ).toEqual(["web/design/stray.ts"])
 })

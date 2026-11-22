@@ -12,9 +12,10 @@ import { ConfigError, DataError, SpandekError } from "../../core/errors"
 import type { ModelContext } from "../../core/pipeline/context"
 import { contextToJson } from "../../core/pipeline/contextJson"
 import {
+  type ControlRow,
   type CurvesJson,
   type ObjRow,
-  PARETO_COLUMNS,
+  parseControlsCsv,
   parseParetoCsv,
   parseSensCsv,
   type SensRow,
@@ -24,13 +25,14 @@ import {
   validateSpectra,
 } from "../../core/pipeline/tables"
 import { parseResultsCsv, type ResultRow } from "../../core/schema"
-import { axisLabel } from "../../web/figures"
-import { fmtValue } from "../../web/fmt"
+import { PAGE_CSS } from "../../web/design/pageCss"
+import { COMPONENT_SCRIPT } from "../../web/design/scripts"
+import { reportDocument } from "../../web/design/templates/reportPage"
 import { loadContext } from "../context"
 import { emit } from "../logging"
-import { STATIC_LIMITS, scenarioConstants } from "./cards"
+import { READING_PATH, SECTION_LABEL } from "./content"
+import { buildDesignAssets } from "./design"
 import { indonesiaSection } from "./indonesia"
-import { extraEntries } from "./manifest"
 import { optimisationSection } from "./optimisation"
 
 /** T_size_mb: the page must stay well under the 16 MB artifact limit. */
@@ -52,6 +54,8 @@ export type ReportInput = {
   curves: CurvesJson
   spectra: SpectraJson
   cards: { name: string; text: string }[]
+  /** controls.csv (C0 to C3, nominal only), read after its hash was checked against the manifest. */
+  controls: ControlRow[]
   ctx: ModelContext
   shortlist: Record<string, string>
 }
@@ -67,7 +71,7 @@ export type ReportSection = {
   order: number
   render: (input: ReportInput) => string | null
   data?: (input: ReportInput) => unknown
-  /** false: no link in the top bar (default true). */
+  /** false: no link in the rail (default true). */
   nav?: boolean
 }
 
@@ -195,255 +199,12 @@ export function renderMarkdown(md: string): string {
 
 // ---- built-in sections ----
 
-const mean = (xs: readonly number[]): number =>
-  xs.reduce((a, b) => a + b, 0) / xs.length
-
-function scenarioMean(
-  rows: readonly ResultRow[],
-  col: "r_solar" | "t_max" | "corrosion_proxy" | "delam_proxy",
-): [number, number, number] {
-  const p =
-    col === "corrosion_proxy" || col === "delam_proxy" ? col : `${col}_pred`
-  const lo =
-    col === "corrosion_proxy" || col === "delam_proxy"
-      ? `${col}_lo`
-      : `${col}_lo`
-  const hi = `${col}_hi`
-  const g = (k: string) =>
-    mean(rows.map((r) => (r as unknown as Record<string, number>)[k] as number))
-  return [g(p), g(lo), g(hi)]
-}
-
-const interval = (t: [number, number, number], d = 3): string =>
-  `${fmtValue(t[0], d)} [${fmtValue(t[1], d)}, ${fmtValue(t[2], d)}]`
-
-const ROLE_NAME: Record<string, string> = {
-  high_performing: "High performing",
-  balanced: "Balanced",
-  low_cost: "Low cost",
-}
-
-function decisionOf(cardText: string): string {
-  const m = /### Decision\s+(\w+)/.exec(cardText)
-  return m ? (m[1] as string) : "not stated"
-}
-
-const sec = (id: string, title: string, body: string): string =>
-  `<section id="${id}" aria-labelledby="h-${id}">\n<h2 id="h-${id}">${esc(title)}</h2>\n${body}\n</section>`
-
-const overview: ReportSection = {
-  id: "overview",
-  title: "Overview",
-  order: 10,
-  render: (i) =>
-    `<section id="overview" aria-labelledby="h-overview">
-<h1 id="h-overview">Spandek coating experiment: digital screening report</h1>
-<div class="banner" role="note">
-<p><strong>PROXY results.</strong> Every number here is a prediction from uncalibrated scenario models. The main results (cards, explorer, live simulator, optimisation) describe the initial, as-applied state. Ageing appears only as a labelled scenario in the Indonesia section (aluminium, a scenario range of effective reflectance loss), never as a measurement. Indices marked PROXY are relative rankings, not measurements. Intervals show parameter uncertainty only (p5 to p95 over ${i.meta.n_mc} uncertainty draws); they leave out model-form error and are not prediction intervals for a real roof.</p>
-</div>
-<p class="meta">Run <code>${esc(i.runId)}</code> · seed ${i.meta.seed} · ${i.meta.n_mc} draws · manifest core hash <code>${esc(String(i.manifest.core_sha256 ?? "unavailable"))}</code></p>
-<div class="cols">
-<div class="card"><h3>What this is</h3><p>A screening of 96 candidate coating stacks (primer, midcoat, topcoat on aluminium) by physical models, a live simulator that re-runs the same models in your browser, and a results explorer. It ranks candidates for the next laboratory step.</p></div>
-<div class="card"><h3>What this is not</h3><p>It is not a laboratory result and it does not show that any coating works on a roof. A "go" decision means a candidate is worth a coupon test, nothing more. Weathering and adhesion are not modelled; the only ageing in this report is the labelled scenario loss range in the Indonesia section, not a prediction of how a coating ages.</p></div>
-</div>
-</section>`,
-}
-
-const live: ReportSection = {
-  id: "live",
-  title: "Live simulator",
-  order: 20,
-  render: (i) =>
-    `<section id="live" aria-labelledby="h-live">
-<h2 id="h-live">Live simulator</h2>
-<p>Move a slider and the models run again in your browser. Bands are p5 to p95 over 32 uncertainty draws (this run's batch used ${i.meta.n_mc}); controls C0 and C1 are nominal only. Every index marked PROXY is a relative ranking, not a measurement.</p>
-<div id="live-root" class="live" data-requested="0" data-shown="0">
-<div id="live-controls" class="live-controls"></div>
-<div class="live-out">
-<p id="live-status" class="hint" role="status" aria-live="polite"></p>
-<div id="live-tiles" class="tiles"></div>
-<div id="fig-live-tofT" class="fig" role="img" aria-label="Live day-2 surface temperature with p5 to p95 band and controls"></div>
-<div id="fig-live-spectrum" class="fig" role="img" aria-label="Live reflectance spectrum with p5 to p95 band"></div>
-</div>
-</div>
-<details id="debug"><summary>Debug: last events and timings</summary>
-<p id="debug-timing" class="hint">No live update yet.</p>
-<pre id="debug-events"></pre>
-</details>
-</section>`,
-}
-
-const summary: ReportSection = {
-  id: "summary",
-  title: "Summary",
-  order: 30,
-  render: (i) => {
-    const rows = Object.entries(i.shortlist)
-      .map(([role, id]) => {
-        const rs = i.results.filter((r) => r.candidate_id === id)
-        const p = i.pareto.find((q) => q.candidate_id === id)
-        const card = i.cards.find((c) => c.name.includes(id))
-        return `<tr><td class="txt">${esc(ROLE_NAME[role] ?? role)}</td><td class="txt">${esc(id)}</td><td>${interval(scenarioMean(rs, "r_solar"))}</td><td>${interval(scenarioMean(rs, "t_max"), 1)}</td><td>${interval(scenarioMean(rs, "corrosion_proxy"))}</td><td>${interval(scenarioMean(rs, "delam_proxy"))}</td><td>${fmtValue(p?.cost_proxy ?? Number.NaN)}</td><td>${fmtValue(p?.pareto_freq ?? Number.NaN, 2)}</td><td class="txt">${esc(decisionOf(card?.text ?? ""))}</td></tr>`
-      })
-      .join("\n")
-    return sec(
-      "summary",
-      "Summary: three shortlisted candidates",
-      `<p class="hint">Scenario means over the weather scenarios with the p5 to p95 interval in brackets. Cost is nominal only.</p>
-<div class="scroll"><table><thead><tr><th>Role</th><th>Candidate</th><th>${esc(axisLabel("r_solar_pred"))}</th><th>${esc(axisLabel("t_max_pred"))}</th><th>${esc(axisLabel("corrosion_proxy"))}</th><th>${esc(axisLabel("delam_proxy"))}</th><th>${esc(axisLabel("cost_proxy"))}</th><th>${esc(axisLabel("pareto_freq"))}</th><th>Decision</th></tr></thead><tbody>
-${rows}
-</tbody></table></div>`,
-    )
-  },
-}
-
-const explorer: ReportSection = {
-  id: "explorer",
-  title: "Explorer",
-  order: 40,
-  render: (i) => {
-    const scen = [...new Set(i.curves.series.map((s) => s.scenario_id))].sort()
-    const head = PARETO_COLUMNS.map(
-      (c) => `<th scope="col">${esc(axisLabel(c))}</th>`,
-    ).join("")
-    const body = i.pareto
-      .map((r) => {
-        const cells = PARETO_COLUMNS.map((c) => {
-          const v = (r as unknown as Record<string, string | number | boolean>)[
-            c
-          ]
-          if (typeof v === "number")
-            return `<td data-col="${c}">${fmtValue(v, 4)}</td>`
-          return `<td class="txt" data-col="${c}">${esc(String(v))}</td>`
-        }).join("")
-        return `<tr data-id="${esc(r.candidate_id)}">${cells}</tr>`
-      })
-      .join("\n")
-    return sec(
-      "explorer",
-      "Explorer",
-      `<p>Drag on an axis of the parallel-coordinates plot to select candidates; the scatter matrix dims the rest and the table lists exactly the selected ones. Line colour is the share of uncertainty draws in which the candidate is on the Pareto front.</p>
-<div id="fig-parcoords" class="fig tall" role="img" aria-label="Parallel coordinates of the five objectives"></div>
-<div id="fig-splom" class="fig tall" role="img" aria-label="Scatter matrix of the five objectives"></div>
-<p id="tbl-count" class="hint" aria-live="polite">${i.pareto.length} of ${i.pareto.length} candidates</p>
-<div class="scroll"><table id="tbl-explorer"><thead><tr>${head}</tr></thead><tbody>
-${body}
-<tr id="tbl-empty" hidden><td class="txt" colspan="${PARETO_COLUMNS.length}">No candidates match the current selection.</td></tr>
-</tbody></table></div>
-<h3>Temperature and reflectance of the shortlist</h3>
-<div class="controls"><label for="sel-scenario">Weather scenario</label><select id="sel-scenario">${scen.map((s) => `<option>${esc(s)}</option>`).join("")}</select></div>
-<div id="fig-tofT" class="fig" role="img" aria-label="Day-2 surface temperature with p5 to p95 bands"></div>
-<div id="fig-spectrum" class="fig" role="img" aria-label="Reflectance spectra with p5 to p95 bands"></div>`,
-    )
-  },
-}
-
-const cards: ReportSection = {
-  id: "cards",
-  title: "Candidate cards",
-  order: 50,
-  render: (i) =>
-    sec(
-      "cards",
-      "Candidate cards",
-      i.cards
-        .map(
-          (c) =>
-            `<article id="card-${esc(c.name.replace(/\.md$/, ""))}">\n${renderMarkdown(c.text)}\n</article>`,
-        )
-        .join("\n"),
-    ),
-}
-
-const sensitivity: ReportSection = {
-  id: "sensitivity",
-  title: "Sensitivity",
-  order: 60,
-  render: (i) => {
-    const outs = [...new Set(i.sens.map((s) => s.output))].sort()
-    return sec(
-      "sensitivity",
-      "Sensitivity",
-      `<p>Sobol indices (error bars: 95 % confidence half-width of the estimate) and Morris screening for the full stack over eleven inputs.</p>
-${outs
-  .map(
-    (o) =>
-      `<h3>${esc(axisLabel(o))}</h3>\n<div id="fig-sobol-${esc(o)}" class="fig" role="img" aria-label="Sobol indices for ${esc(o)}"></div>\n<div id="fig-morris-${esc(o)}" class="fig" role="img" aria-label="Morris screening for ${esc(o)}"></div>`,
-  )
-  .join("\n")}`,
-    )
-  },
-}
-
-const limits: ReportSection = {
-  id: "limits",
-  title: "Methods and limits",
-  order: 80,
-  render: (i) =>
-    sec(
-      "limits",
-      "Methods and limits",
-      `<h3>Methods</h3>
-<p>Optics: Mie scattering of TiO2 and BaSO4 pigments in a binder, a two-flux film model and the ASTM G173 spectrum. Heat: a one-dimensional surface balance (radiation, convection, conduction into the building) over two simulated days; the second day is shown. Indices for corrosion, water repellence, delamination and cost are PROXY numbers from simple relations, not calibrated against experiments. Uncertainty: ${i.meta.n_mc} Latin-hypercube draws of the uncertain material constants; intervals are p5 to p95 widened to include the nominal value.</p>
-<h3>Limits</h3>
-<ul>${STATIC_LIMITS.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
-<h3>Assumed constants (status: scenario)</h3>
-<ul>${scenarioConstants(i.ctx)
-        .map(
-          (k) =>
-            `<li><code>${esc(k.path)}</code> = ${esc(k.value)}${k.unit ? ` ${esc(k.unit)}` : ""}</li>`,
-        )
-        .join("")}</ul>`,
-    ),
-}
-
-const manifestSection: ReportSection = {
-  id: "manifest",
-  title: "Manifest",
-  order: 90,
-  render: (i) => {
-    const files = (i.manifest.files ?? []) as {
-      path: string
-      sha256: string
-      bytes: number
-    }[]
-    const extra = extraEntries(i.manifest)
-    const v = (i.manifest.versions ?? {}) as Record<string, string>
-    return sec(
-      "manifest",
-      "Manifest",
-      `<p class="meta">Run <code>${esc(i.runId)}</code> · core hash <code>${esc(String(i.manifest.core_sha256 ?? ""))}</code> · commit <code>${esc(String(i.manifest.git_commit ?? ""))}</code> · Bun ${esc(String(v.bun ?? ""))}</p>
-<div class="scroll"><table><thead><tr><th>File</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>
-${files.map((f) => `<tr><td class="txt">${esc(f.path)}</td><td>${f.bytes}</td><td class="txt"><code>${esc(f.sha256)}</code></td></tr>`).join("\n")}
-</tbody></table></div>
-${
-  extra.length === 0
-    ? ""
-    : `<h3>Later outputs embedded in this page</h3>
-<p class="hint">Files of \`refine\`, \`budget-table\` and \`indonesia\`, listed in the manifest's extra[] and checked against these hashes before the page was built. The page was built against core hash <code>${esc(String(i.manifest.core_sha256 ?? ""))}</code>; \`verify-report\` flags a page whose core hash no longer matches the manifest.</p>
-<div class="scroll"><table id="tbl-manifest-extra"><thead><tr><th>File</th><th>Kind</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>
-${extra.map((f) => `<tr><td class="txt">${esc(f.path)}</td><td class="txt">${esc(f.kind)}</td><td>${f.bytes}</td><td class="txt"><code>${esc(f.sha256)}</code></td></tr>`).join("\n")}
-</tbody></table></div>`
-}`,
-    )
-  },
-}
-
-/** The built-in sections; later plans append to this list (or pass their own to buildReport). */
-export const BUILTIN_SECTIONS: readonly ReportSection[] = [
-  overview,
-  live,
-  summary,
-  explorer,
-  cards,
-  sensitivity,
-  limits,
-  manifestSection,
-]
+/** The built-in reading path (Verdict, Recipes, How the layers work, Explore, Method and limits, Provenance); later plans add sections between. */
+export const BUILTIN_SECTIONS: readonly ReportSection[] = READING_PATH
 
 /**
  * Sections that later plans add (for example Indonesia, plan 4): push a ReportSection here before calling buildReport.
- * The Optimisation (plan 5) and Indonesia (plan 4) sections are always offered; each renders only when its outputs are in the input directory.
+ * The Budget (plan 5) and Indonesian climate (plan 4) sections are always offered; each renders only when its outputs are in the input directory.
  */
 export const EXTRA_SECTIONS: ReportSection[] = []
 
@@ -479,17 +240,6 @@ async function bundle(entry: string): Promise<string> {
   return text
 }
 
-const fill = (tpl: string, vars: Record<string, string>): string =>
-  tpl.replace(
-    /\{\{(raw:)?(\w+)\}\}/g,
-    (_m, raw: string | undefined, k: string) => {
-      const v = vars[k]
-      if (v === undefined)
-        throw new Error(`template placeholder ${k} has no value`)
-      return raw ? v : esc(v)
-    },
-  )
-
 /**
  * Plan 00 Task 4: validate the run directory, bundle the page script and the worker, and write one self-contained HTML file
  * (Plotly, CSS, data and model context inlined; no network). Refuses with a SpandekError before writing anything:
@@ -508,6 +258,7 @@ export async function buildReport(
     "curves.json",
     "spectra.json",
     "run_manifest.json",
+    "controls.csv",
   ]
   const text: Record<string, string> = {}
   for (const n of names) text[n] = readFile(inDir, n)
@@ -561,6 +312,19 @@ export async function buildReport(
       "run_manifest.json",
     ) as Record<string, unknown>
     const ctx = await loadContext(opts.configDir, opts.dataDir)
+    const controlsText = text["controls.csv"] as string
+    const listed = (
+      (manifest.files ?? []) as { path: string; sha256: string }[]
+    ).find((f) => f.path === "controls.csv")
+    if (listed && listed.sha256 !== sha(controlsText))
+      refuse(
+        "tampered_input",
+        "controls.csv",
+        new DataError(
+          "controls.csv",
+          "controls.csv does not match the hash in run_manifest.json",
+        ),
+      )
     input = {
       dir: inDir,
       runId: opts.runId,
@@ -572,6 +336,7 @@ export async function buildReport(
       curves,
       spectra,
       cards,
+      controls: parseControlsCsv(controlsText),
       ctx,
       shortlist: shortlistFromPareto(pareto),
     }
@@ -596,13 +361,6 @@ export async function buildReport(
     .map((s) => ({ s, html: s.render(input) }))
     .filter((x): x is { s: ReportSection; html: string } => x.html !== null)
     .sort((a, b) => a.s.order - b.s.order || (a.s.id < b.s.id ? -1 : 1))
-  const nav = sections
-    .filter(({ s }) => s.nav !== false)
-    .map(
-      ({ s }) =>
-        `<a href="#${s.id}">${esc(s.id === "limits" ? "Limits" : s.title)}</a>`,
-    )
-    .join("\n")
   const ext: Record<string, unknown> = {}
   for (const { s } of sections) if (s.data) ext[s.id] = s.data(input)
 
@@ -614,8 +372,11 @@ export async function buildReport(
     join(REPO, "node_modules", "plotly.js-dist-min", "plotly.min.js"),
     "utf8",
   )
-  const css = readFileSync(join(WEB, "theme.css"), "utf8")
-  const tpl = readFileSync(join(WEB, "template.html"), "utf8")
+  const design = buildDesignAssets({
+    vendorRoot: join(REPO, "vendor"),
+    fontsDir: join(REPO, "src", "node", "report", "fonts"),
+    componentCount: sections.length,
+  })
   const g = input.ctx.g173
   const data = {
     meta: {
@@ -637,6 +398,7 @@ export async function buildReport(
     ctxJson: contextToJson(input.ctx),
     workerSrc: scriptSafe(workerJs),
     ext,
+    plotThemes: design.plotThemes,
   }
   let dataText: string
   try {
@@ -649,17 +411,25 @@ export async function buildReport(
       })
     throw e
   }
-  const html = fill(tpl, {
+  const html = reportDocument({
     title: `Spandek screening report ${input.runId}`,
     core: String(input.manifest.core_sha256 ?? "").replace(/[^0-9a-f]/g, ""),
-    css,
-    nav,
-    sections: sections.map((x) => x.html).join("\n"),
-    data: dataText,
-    plotly: scriptSafe(plotly),
-    main: scriptSafe(mainJs),
+    css: `${design.fontCss}\n${design.css}${PAGE_CSS}`,
+    brand: "Spandek screening",
+    sections: sections.map(({ s, html }) => ({
+      id: s.id,
+      label: SECTION_LABEL[s.id] ?? s.title,
+      html,
+      ...(s.nav === false ? { nav: false } : {}),
+    })),
+    scripts: [
+      `window.__SPANDEK__ = ${dataText}`,
+      scriptSafe(plotly),
+      scriptSafe(`${COMPONENT_SCRIPT}\n${mainJs}`),
+    ],
   })
   const bytes = Buffer.byteLength(html)
+  design.done(bytes)
   if (bytes > T_SIZE_MB * 1024 * 1024)
     refuse(
       "size_over_limit",

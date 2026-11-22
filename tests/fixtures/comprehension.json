@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "run_id": "20261121T172730601-6a7a8fba",
+  "pass_mark": 7,
+  "note": "Keys are derived by docs/spikes/plan-06/q6_comprehension_keys.ts from the run files named in derived_from. Never edit by hand; rerun the script.",
+  "answer_format": "A JSON object mapping question id to a string: an id, a number, or one option letter.",
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "id",
+      "text": "Which of the three recommended recipes cools the roof the most? Give its identifier (for example SP-000).",
+      "key": "SP-075",
+      "derived_from": [
+        "results.csv t_max_pred",
+        "candidate_cards/*.md"
+      ]
+    },
+    {
+      "id": "Q2",
+      "type": "number",
+      "digits": 1,
+      "unit": "K",
+      "text": "By how many kelvin does that recipe lower the peak surface temperature compared with bare aluminium (scenario mean)? Give one number with one decimal.",
+      "key": 14.4,
+      "derived_from": [
+        "controls.csv C0 t_max_pred",
+        "results.csv t_max_pred"
+      ]
+    },
+    {
+      "id": "Q3",
+      "type": "choice",
+      "text": "Is the cooling number on the page a measurement?",
+      "options": {
+        "A": "Yes, measured on coated aluminium samples",
+        "B": "Partly measured, partly modelled",
+        "C": "No, it is a prediction of a model for the freshly applied coating, not a measurement",
+        "D": "Yes, measured on real roofs in Indonesia"
+      },
+      "key": "C",
+      "derived_from": [
+        "results.csv columns",
+        "run_manifest.json files"
+      ]
+    },
+    {
+      "id": "Q4",
+      "type": "choice",
+      "text": "What does the label PROXY mean next to a number?",
+      "options": {
+        "A": "A relative ranking index, not a measurement and not a probability",
+        "B": "A calibrated probability that the coating will fail",
+        "C": "A value measured by a proxy instrument",
+        "D": "A value copied from the manufacturer's datasheet"
+      },
+      "key": "A",
+      "derived_from": [
+        "results.csv *_proxy columns within [0,1]"
+      ]
+    },
+    {
+      "id": "Q5",
+      "type": "number",
+      "digits": 2,
+      "unit": "relative cost units",
+      "text": "On the balanced budget curve, at what cost (relative units, not rupiah) does paying more stop buying much, the knee of the curve? Give one number with two decimals.",
+      "key": 0.42,
+      "derived_from": [
+        "refine/budget_table.json tables[balanced].knee_budget"
+      ]
+    },
+    {
+      "id": "Q6",
+      "type": "id",
+      "text": "Which of the five Indonesian sites benefits most from the cooling-pick recipe? Give the site name.",
+      "key": "medan",
+      "derived_from": [
+        "indonesia/indonesia_summary.csv dq_w_m2, initial, weighted"
+      ]
+    },
+    {
+      "id": "Q7",
+      "type": "choice",
+      "text": "Which of these does the report say it does not model or does not know?",
+      "options": {
+        "A": "Sunlight reflected by the coating",
+        "B": "Heat conducted into the building",
+        "C": "Scattering of light by the pigments",
+        "D": "Weathering, ageing and adhesion of the coating"
+      },
+      "key": "D",
+      "derived_from": [
+        "candidate_cards/<pick>.md limits"
+      ]
+    },
+    {
+      "id": "Q8",
+      "type": "choice",
+      "text": "What does the report recommend as the next step for the cooling pick?",
+      "options": {
+        "A": "Coat a real roof now",
+        "B": "Make small coated samples and test them in a laboratory",
+        "C": "Publish the numbers as validated results",
+        "D": "Nothing, the recipe is rejected"
+      },
+      "key": "B",
+      "derived_from": [
+        "candidate_cards/<pick>.md Decision"
+      ]
+    }
+  ],
+  "key_facts": {
+    "Q1": [
+      "SP-\\d{3}"
+    ],
+    "Q2": [
+      "31.2",
+      "31.217",
+      "45.6",
+      "45.59",
+      "14.4"
+    ],
+    "Q3": [
+      "measurement",
+      "measured",
+      "laboratory",
+      "prediction",
+      "initial",
+      "as-applied",
+      "uncalibrated",
+      "scenario model"
+    ],
+    "Q4": [
+      "PROXY",
+      "relative (ranking|index)"
+    ],
+    "Q5": [
+      "knee",
+      "0.4230",
+      "0.42",
+      "budget"
+    ],
+    "Q6": [
+      "Jakarta",
+      "Surabaya",
+      "Medan",
+      "Makassar",
+      "Bandung"
+    ],
+    "Q7": [
+      "weathering",
+      "ageing",
+      "adhesion",
+      "not modelled",
+      "unknown"
+    ],
+    "Q8": [
+      "coupon",
+      "next step",
+      "laboratory",
+      "lab\\b",
+      "\\bgo\\b",
+      "revise"
+    ]
+  },
+  "facts": {
+    "pick": "SP-075",
+    "pick_mean_tmax_c": 31.217,
+    "c0_mean_tmax_c": 45.594,
+    "cooling_k": 14.378,
+    "knee": 0.423,
+    "site": "Medan",
+    "site_benefit_w_m2": 19.39,
+    "decision": "go"
+  }
+}

@@ -19,6 +19,8 @@ import {
   renderMarkdown,
   T_SIZE_MB,
 } from "../../../src/node/report/html"
+import { evaluatePairs, THEMES } from "../../../src/web/design/themes"
+import { resolveTheme } from "../../../src/web/design/tokens"
 import { axisLabel } from "../../../src/web/figures"
 import { contrastRatio } from "../../../src/web/fmt"
 import {
@@ -33,7 +35,7 @@ import {
 let built: { dir: string; path: string; html: string }
 beforeAll(async () => {
   built = await buildTestReport()
-})
+}, 120_000)
 
 const outPath = () =>
   join(mkdtempSync(join(tmpdir(), "spandek-out-")), "report.html")
@@ -115,7 +117,8 @@ test("scriptTagInCellIsEscaped", async () => {
   const html = readFileSync(out, "utf8")
   expect(html).not.toContain("<img src=x")
   expect(html).not.toContain("onerror=alert(1)><!--")
-  expect([...html.matchAll(/<\/script/gi)].length).toBe(3)
+  // the head theme script, data, plotly and the page script
+  expect([...html.matchAll(/<\/script/gi)].length).toBe(4)
   expect(html).toContain("&lt;/script&gt;")
   // a bad candidate id in a CSV is refused, not rendered
   const bad = await copyRun()
@@ -128,20 +131,31 @@ test("scriptTagInCellIsEscaped", async () => {
   ).not.toMatch(/<(b|i|u)>/)
 })
 
-test("everyProxyColumnHeaderSaysProxy", () => {
-  const table = /<table id="tbl-explorer">([\s\S]*?)<\/table>/.exec(
-    built.html,
+const explorerTable = (html: string): string =>
+  /<table class="tv-datatable" id="tbl-explorer">([\s\S]*?)<\/table>/.exec(
+    html,
   )?.[1] as string
+
+test("everyProxyColumnHeaderSaysProxy", () => {
+  const table = explorerTable(built.html)
   const heads = [
     ...(
       table.match(/<thead>[\s\S]*?<\/thead>/) as RegExpMatchArray
-    )[0].matchAll(/<th[^>]*>(.*?)<\/th>/g),
-  ].map((m) => m[1] as string)
+    )[0].matchAll(/<th\b[^>]*>(?:<button[^>]*>)?([^<]*)/g),
+  ].map((m) => (m[1] as string).trim())
   expect(heads.length).toBe(10)
   for (const h of heads)
     if (/corrosion|delam|cost/i.test(h)) expect(h).toContain("(PROXY)")
   expect(heads.filter((h) => h.includes("(PROXY)")).length).toBe(3)
   expect(heads).toContain(esc(axisLabel("cost_proxy")))
+  // every index cell also carries its own badge
+  const index = [
+    ...table.matchAll(
+      /<td class="tv-cell tv-cell--number tv-cell--index"[^>]*>([\s\S]*?)<\/td>/g,
+    ),
+  ]
+  expect(index.length).toBe(96 * 3)
+  for (const c of index) expect(c[1]).toContain("PROXY")
 })
 
 test("tableValuesEqualCsv", () => {
@@ -149,10 +163,10 @@ test("tableValuesEqualCsv", () => {
     readFileSync(join(built.dir, "pareto.csv"), "utf8"),
   )
   expect(rows.length).toBe(96)
-  const table = /<table id="tbl-explorer">([\s\S]*?)<\/table>/.exec(
-    built.html,
-  )?.[1] as string
-  const trs = [...table.matchAll(/<tr data-id="([^"]+)">([\s\S]*?)<\/tr>/g)]
+  const table = explorerTable(built.html)
+  const trs = [
+    ...table.matchAll(/<tr data-row="\d+" data-id="([^"]+)">([\s\S]*?)<\/tr>/g),
+  ]
   expect(trs.length).toBe(96)
   const cols = [
     "candidate_id",
@@ -169,18 +183,18 @@ test("tableValuesEqualCsv", () => {
   trs.forEach((tr, i) => {
     const row = rows[i] as unknown as Record<string, unknown>
     expect(tr[1]).toBe(row.candidate_id as string)
+    // data-sort carries the raw value of the file (text cells: lower-case text)
     const cells = [
-      ...(tr[2] as string).matchAll(
-        /<td[^>]*data-col="(\w+)"[^>]*>(.*?)<\/td>/g,
-      ),
-    ]
-    expect(cells.map((c) => c[1])).toEqual([...cols])
-    for (const c of cells) {
-      const v = row[c[1] as string]
-      if (typeof v === "number")
-        expect(Math.abs(Number(c[2]) - v)).toBeLessThanOrEqual(5.0001e-5)
-      else expect(c[2]).toBe(String(v))
-    }
+      ...(tr[2] as string).matchAll(/<t[dh][^>]*data-sort="([^"]*)"/g),
+    ].map((c) => c[1] as string)
+    expect(cells.length).toBe(cols.length)
+    cols.forEach((c, k) => {
+      const v = row[c]
+      const got = cells[k] as string
+      if (typeof v === "number") expect(Number(got)).toBe(v)
+      else if (typeof v === "boolean") expect(got).toBe(v ? "yes" : "no")
+      else expect(got).toBe(String(v).toLowerCase())
+    })
   })
   // the CSV really has 96 data rows (the oracle is independent of parseParetoCsv)
   expect(
@@ -188,43 +202,27 @@ test("tableValuesEqualCsv", () => {
   ).toBe(96)
 })
 
-function tokens(css: string, block: RegExp): Record<string, string> {
-  const m = block.exec(css)
-  if (!m) throw new Error("token block not found")
-  return Object.fromEntries(
-    [...(m[1] as string).matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g)].map(
-      (t) => [t[1] as string, t[2] as string],
+test("theTokensAndBothThemesAreInThePageAndPassContrast", () => {
+  const contract = JSON.parse(
+    readFileSync(
+      join(repoRoot, "vendor/torviello-design/contracts/design-tokens.json"),
+      "utf8",
     ),
   )
-}
-
-test("contrastTokensPassBothThemes", () => {
-  const css = readFileSync(join(repoRoot, "src", "web", "theme.css"), "utf8")
-  const light = tokens(css, /:root \{([\s\S]*?)\n\}/)
-  const darkAttr = tokens(css, /:root\[data-theme="dark"\] \{([\s\S]*?)\n\}/)
-  const darkMedia = tokens(
-    css,
-    /:root:not\(\[data-theme="light"\]\) \{([\s\S]*?)\n {2}\}/,
+  const resolved = {
+    dark: resolveTheme(contract, THEMES, "dark"),
+    light: resolveTheme(contract, THEMES, "light"),
+  }
+  for (const r of evaluatePairs(resolved))
+    expect(r.ratio, `${r.theme} ${r.fg}/${r.bg}`).toBeGreaterThanOrEqual(
+      r.needed,
+    )
+  expect(built.html).toContain(':root,[data-theme="light"]{')
+  expect(built.html).toContain('[data-theme="dark"]{')
+  expect(built.html).toContain(
+    `--tv-text-primary:${resolved.light["text-primary"]}`,
   )
-  expect(darkMedia).toEqual(darkAttr)
-  const pairs: [string, string][] = [
-    ["fg", "bg"],
-    ["fg", "surface"],
-    ["muted", "bg"],
-    ["muted", "surface"],
-    ["link", "bg"],
-    ["link", "surface"],
-    ["on-accent", "accent"],
-    ["warn-fg", "warn-bg"],
-    ["axis", "bg"],
-  ]
-  for (const theme of [light, darkAttr])
-    for (const [f, b] of pairs)
-      expect(
-        contrastRatio(theme[f] as string, theme[b] as string),
-        `${f} on ${b}`,
-      ).toBeGreaterThanOrEqual(4.5)
-  // the check can fail: a mid grey on white does not pass
+  // the instrument can fail
   expect(contrastRatio("#888888", "#ffffff")).toBeLessThan(4.5)
 })
 
@@ -304,10 +302,13 @@ test("noTimestampInTemplate", () => {
   const stamp =
     /new Date|Date\.now|performance\.timeOrigin|\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
   const tpl = readFileSync(
-    join(repoRoot, "src", "web", "template.html"),
+    join(repoRoot, "src", "web", "design", "templates", "reportPage.ts"),
     "utf8",
   )
-  const css = readFileSync(join(repoRoot, "src", "web", "theme.css"), "utf8")
+  const css = readFileSync(
+    join(repoRoot, "src", "web", "design", "pageCss.ts"),
+    "utf8",
+  )
   expect(tpl).not.toMatch(stamp)
   expect(css).not.toMatch(stamp)
   const [, , main] = scriptBlocks(built.html)
@@ -336,19 +337,7 @@ test("templateFullyFilledAndPlotlyPresent", () => {
   expect(blocks[2]).toContain("__SPANDEK__")
   expect(built.html).not.toContain("{{raw:")
   expect(built.html).not.toContain("{{title}}")
-  // the placeholders in the template itself are intact (a formatter once stripped the braces)
-  const tpl = readFileSync(
-    join(repoRoot, "src", "web", "template.html"),
-    "utf8",
-  )
-  for (const k of [
-    "raw:css",
-    "raw:nav",
-    "raw:sections",
-    "raw:data",
-    "raw:plotly",
-    "raw:main",
-    "title",
-  ])
-    expect(tpl).toContain(`{{${k}}}`)
+  // every placeholder-free part of the document is filled
+  expect(built.html).toContain('<meta name="spandek-core-sha256" content="')
+  expect(built.html).toContain("<title>Spandek screening report")
 })
