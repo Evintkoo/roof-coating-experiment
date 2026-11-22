@@ -12,7 +12,7 @@ Part 1 is the plan (tasks, hypotheses, faults). Part 2 is the test specification
 
 **Spec:** none; derived from this conversation (the user: there are many bugs, check the wiring; there is no animation or living, moving content and it is important to add because this is a parallel simulation). Depends on plan 06 (design system and light default theme and dark toggle) being merged; it reads plan 06's tokens, sheets and tests.
 
-**Status:** 📋 PLANNED
+**Status:** ✅ DONE-LEAN (Tasks 1 to 7 landed; the full proof tier, an animation entry in the component gallery and a main-thread-time-per-frame measurement are not done, see `docs/proofs/plan-07.md`)
 
 ## What the operator does
 
