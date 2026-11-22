@@ -217,8 +217,8 @@ export const verdictSection: ReportSection = {
     return heroVerdict({
       eyebrow: "Spandek coating screening",
       verdict: `Three recipes cool an aluminium roof by ${span} in the models`,
-      lead: `Each card shows how much lower the peak surface temperature of the aluminium sheet itself (not the air indoors) is than bare aluminium, averaged over ${nScen} generic weather scenarios, in model predictions for a freshly applied coating. Bare aluminium has no interval, so each range covers coating parameter uncertainty only. The three differ little in cooling, so cost and the PROXY indices decide between them.`,
-      axisNote: `The three bars share one zoomed axis from ${d.axis.min} K to ${d.axis.max} K; it starts at ${d.axis.min} K, not at zero, so the intervals can be seen.`,
+      lead: `Each card shows how much lower the peak surface temperature of the aluminium sheet itself (not the air indoors) is than bare aluminium, averaged over ${nScen} generic weather scenarios. Bare aluminium has no interval, so each range covers coating parameter uncertainty only. The three differ little in cooling, so cost and the PROXY indices (relative rankings) decide between them.`,
+      axisNote: `One axis for all three bars, from ${d.axis.min} K to ${d.axis.max} K: it starts at ${d.axis.min} K, not at zero, so the intervals can be seen.`,
       ...(tradeoff ? { costNote: tradeoff.sentence } : {}),
       seen: d.seen,
       recipes,

@@ -111,7 +111,7 @@ export const MOLECULE_CSS = {
   intervalBar: `
 .tv-interval{display:grid;gap:${t("space-1")};min-width:0}
 .tv-interval p{margin:0}
-.tv-interval__track{position:relative;height:${t("space-2")};border-radius:${t("radius-pill")};background:${t("surface-raised")};margin:${t("space-2")} 0}
+.tv-interval__track{position:relative;height:${t("space-2")};border-radius:${t("radius-pill")};background:${t("surface-raised")};margin:${t("space-1")} 0}
 .tv-interval__band{position:absolute;top:0;bottom:0;min-width:${t("space-1")};border-radius:${t("radius-pill")};background:color-mix(in srgb,${t("viz-recommended")} 35%,transparent)}
 .tv-interval__cap{position:absolute;top:calc(${t("space-1")} * -1);bottom:calc(${t("space-1")} * -1);width:${t("ring-width")};margin-left:calc(${t("ring-width")} / -2);background:${t("viz-recommended")}}
 .tv-interval__mark{position:absolute;top:50%;width:${t("space-3")};height:${t("space-3")};margin:calc(${t("space-3")} / -2) 0 0 calc(${t("space-3")} / -2);transform:rotate(45deg);background:${t("text-primary")};border:${t("hairline")} solid ${t("surface-base")}}
@@ -231,7 +231,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 `,
   findingList: `
 .tv-findings{display:grid;gap:${t("space-3")};margin:${t("space-4")} 0;padding-inline-start:${t("space-6")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-body")}}
-.tv-finding{max-width:70ch;padding-inline-start:${t("space-2")}}
+.tv-finding{max-width:92ch;padding-inline-start:${t("space-2")}}
 .tv-finding__label{font-weight:${t("weight-semibold")}}
 .tv-finding__src{display:block;margin-top:${t("space-1")};color:${t("text-muted")};font-family:${t("font-mono")};font-size:${t("size-small")};overflow-wrap:anywhere}
 .tv-term{color:${t("link")}}
@@ -268,7 +268,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-provenance dd{margin:0;overflow-wrap:anywhere}
 .tv-provenance__title{margin:${t("space-4")} 0 ${t("space-2")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tv-provenance__licence{margin:0 0 ${t("space-4")};white-space:pre-wrap;overflow-wrap:anywhere;font-family:${t("font-mono")};font-size:${t("size-small")};color:${t("text-muted")}}
-.tv-provenance__note,.tv-provenance__none{max-width:70ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")};overflow-wrap:anywhere}
+.tv-provenance__note,.tv-provenance__none{max-width:92ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")};overflow-wrap:anywhere}
 `,
   siteBenefitPanel: `
 .tv-sites{color:${t("text-primary")};font-family:${t("font-sans")}}
@@ -276,7 +276,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-site{display:grid;gap:${t("space-3")};align-content:start;min-width:0;padding:${t("space-4")};border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};background:${t("surface-glass")}}
 .tv-site__name{margin:0;font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tv-site__scenario{margin:0}
-.tv-sites__loss{max-width:70ch;margin:${t("space-2")} 0 ${t("space-4")};color:${t("text-muted")};font-size:${t("size-small")}}
+.tv-sites__loss{max-width:92ch;margin:${t("space-2")} 0 ${t("space-4")};color:${t("text-muted")};font-size:${t("size-small")}}
 .tv-sites__caveats{display:grid;gap:${t("space-3")}}
 @media print{.tv-site{background:none;border-color:${t("text-primary")};break-inside:avoid}}
 `,
@@ -286,7 +286,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-budget__profiles legend{padding:0;margin:0 0 ${t("space-2")};font-size:${t("size-label")};font-weight:${t("weight-semibold")}}
 .tv-budget__chips{display:flex;flex-wrap:wrap;gap:${t("space-2")}}
 .tv-budget__result{display:grid;gap:${t("space-3")};padding:${t("space-4")};border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};background:${t("surface-glass")}}
-.tv-budget__sentence{max-width:70ch;margin:0;font-size:${t("size-body")}}
+.tv-budget__sentence{max-width:92ch;margin:0;font-size:${t("size-body")}}
 @media print{.tv-budget__result{background:none;border-color:${t("text-primary")}}}
 `,
 }
