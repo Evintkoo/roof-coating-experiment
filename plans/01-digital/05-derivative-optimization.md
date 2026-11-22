@@ -337,3 +337,9 @@ test("toleranceEdgesVerifiedByDirectEvaluation", () => {
   expect(confirmed).toBeGreaterThanOrEqual(7)
 })
 ```
+
+---
+
+## Amendment (plan 07 Task 1, 2026-11-22): the report shows one budget frontier
+
+Evidence (`docs/qa/triage.md`, measured on `tests/fixtures/report-run/refine/budget_table.json`): at every one of the 100 tabulated budgets the three priority profiles select recipes whose five objectives differ by at most 0.60 of the p5 to p95 half-width of that objective (median difference 0; temperature at most 0.0035 K against a band half-width of about 0.07 K; delamination and cost identical), and five of the nine variables are identical in all three profiles at every budget (the others differ by at most 1 um in thickness at three of the cheapest levels and by at most 0.08 um in particle diameter). The profiles differ in the weighted scalar and therefore in the knee budget (0.81, 0.42, 0.34), not in the recipe. The FR-9 to FR-13 tables are unchanged (three profiles are still computed and registered), but the report text of Task 8 changes: the budget panel has no priority chips, the budget curve draws one line ("Modelled recipe for each budget", the balanced table), and a sentence says the three weightings select the same recipes within the uncertainty band. The collapse is data-driven (`profileSpread` in `src/web/optimisation.ts`): if any objective of any profile ever differs by a full half-width at some budget, `singleFrontier` keeps all profiles and the chips return.
