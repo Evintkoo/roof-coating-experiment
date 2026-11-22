@@ -1,4 +1,4 @@
-// Regression for docs/qa/bugs.md M5: the budget slider reaches the dearest tabulated recipe (End key, typed value, chip click).
+// Regression for docs/qa/bugs.md M5: the budget slider reaches the dearest tabulated recipe (End key, typed value; the priority chips were removed by the m5 decision).
 // Pre-fix commit f37a4c2: the rounded range value was 4e-16 below the table's c_max, so the lookup returned the second-highest tier.
 import { afterAll, beforeAll, expect, test } from "bun:test"
 import { type QaBrowser, startQa } from "../../support/qaPage"
@@ -39,8 +39,4 @@ test("endKeyAndTypedMaximumSelectTheDearestRecipe", async () => {
   await num.blur()
   r = await read(page)
   expect(r.head, "typed maximum headroom").toBe(0)
-  // a chip click re-reads the range: it must still be the dearest tier
-  await page.locator('.tv-chip--toggle[data-value="balanced"]').click()
-  r = await read(page)
-  expect(r.head, "after a chip click").toBe(0)
 }, 60_000)

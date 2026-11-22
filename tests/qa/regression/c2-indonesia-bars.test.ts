@@ -30,7 +30,7 @@ test("subtitleLegendAndWhiskers", () => {
   }
   const sub = layout.annotations.find((a) => a.text.startsWith("Aluminium"))
   expect(sub?.text).toBe(
-    "Aluminium roof, state: aged (scenario ageing); whiskers: outer bound of the benefit interval",
+    "Aluminium, scenario ageing: aged state; whiskers: outer bound of the benefit interval",
   )
   expect((sub?.text.match(/scenario ageing/g) ?? []).length).toBe(1)
   const titles = layout.annotations.filter(

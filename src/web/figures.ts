@@ -984,7 +984,7 @@ export function figIndonesiaBars(
           xref: "paper",
           yref: "paper",
           yshift: 80,
-          text: `Aluminium roof, state: ${INDONESIA_STATE_LABEL[state]}; whiskers: outer bound of the benefit interval`,
+          text: `Aluminium, scenario ageing: ${state === "aged" ? "aged state" : "initial state"}; whiskers: outer bound of the benefit interval`,
           showarrow: false,
           xanchor: "left",
           font: { size: 12 },

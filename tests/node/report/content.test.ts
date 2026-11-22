@@ -107,10 +107,10 @@ test("theFigureMessageOfWhyItWorksIsReadFromCurvesJson", () => {
     built.html,
   )?.[0] as string
   const text = visibleText(why)
-  expect(text).toContain(`hottest modelled day (${hot.scenario_id})`)
   expect(text).toContain(
-    `bare aluminium peaks at ${Math.max(...hot.t_c).toFixed(1)} °C`,
+    `the day bare aluminium is hottest (${hot.scenario_id})`,
   )
+  expect(text).toContain(`it peaks at ${Math.max(...hot.t_c).toFixed(1)} °C`)
   // one data-drawn schematic per recipe
   expect([...why.matchAll(/data-layer-schematic="(SP-\d{3})"/g)].length).toBe(3)
 })

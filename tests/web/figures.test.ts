@@ -453,7 +453,7 @@ test("figIndonesiaBarsCarryWhiskersLabelsAndTheChosenState", () => {
   expect(lay.yaxis2?.matches).toBe("y")
   expect(new Set(data.map((d) => d.xaxis)).size).toBe(2)
   expect(lay.annotations.map((a) => a.text).join(" ")).toContain(
-    "state: aged (scenario ageing)",
+    "Aluminium, scenario ageing: aged state",
   )
   expect(lay.annotations.map((a) => a.text).join(" ")).toContain("outer bound")
   // the recipes keep their role colours, the datasheet control is the neutral baseline
