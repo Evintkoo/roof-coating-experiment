@@ -33,6 +33,7 @@ import { emit } from "../logging"
 import { READING_PATH, SECTION_LABEL } from "./content"
 import { buildDesignAssets } from "./design"
 import { indonesiaSection } from "./indonesia"
+import { lintPage, registeredHooks } from "./lint"
 import { optimisationSection } from "./optimisation"
 
 /** T_size_mb: the page must stay well under the 16 MB artifact limit. */
@@ -432,6 +433,18 @@ export async function buildReport(
       scriptSafe(`${COMPONENT_SCRIPT}\n${mainJs}`),
     ],
   })
+  const issues = lintPage(html, registeredHooks(COMPONENT_SCRIPT, mainJs))
+  for (const x of issues)
+    emit("page.lint.failed", "error", { rule: x.rule, id: x.id })
+  if (issues.length > 0) {
+    const first = issues[0] as (typeof issues)[number]
+    throw new SpandekError(
+      4,
+      "report.lint",
+      first.rule,
+      `the generated page has ${issues.length} lint issue(s); first: ${first.rule} ${first.id}`,
+    )
+  }
   const bytes = Buffer.byteLength(html)
   design.done(bytes)
   if (bytes > T_SIZE_MB * 1024 * 1024)
