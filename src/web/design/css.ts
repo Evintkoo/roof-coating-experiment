@@ -267,6 +267,16 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-provenance__title{margin:${t("space-4")} 0 ${t("space-2")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
 .tv-provenance__note,.tv-provenance__none{max-width:70ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")};overflow-wrap:anywhere}
 `,
+  siteBenefitPanel: `
+.tv-sites{color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-sites__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3),1fr));gap:${t("space-4")};margin:${t("space-4")} 0}
+.tv-site{display:grid;gap:${t("space-3")};align-content:start;min-width:0;padding:${t("space-4")};border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};background:${t("surface-glass")}}
+.tv-site__name{margin:0;font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-site__scenario{margin:0}
+.tv-sites__loss{max-width:70ch;margin:${t("space-2")} 0 ${t("space-4")};color:${t("text-muted")};font-size:${t("size-small")}}
+.tv-sites__caveats{display:grid;gap:${t("space-3")}}
+@media print{.tv-site{background:none;border-color:${t("text-primary")};break-inside:avoid}}
+`,
 }
 
 /** The CSS of every atom, in a fixed order, one rule per line. */
