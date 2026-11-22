@@ -1,6 +1,7 @@
 // Report sheet R5: one number with its meaning. The caveat tone is required (FR-4): an index value cannot be rendered without
 // its ProxyBadge, and a model prediction is rendered with its interval.
 import { buildError, esc, finite, fixed, oneOf, tag } from "../html"
+import { intervalBar, intervalText } from "./intervalBar"
 import { type ProxyTone, proxyBadge } from "./proxyBadge"
 
 export const STAT_TONES = ["proxy", "scenario", "nominal", "interval"] as const
@@ -15,23 +16,11 @@ type Common = {
   digits?: number
   note?: string
   interval?: StatInterval
+  /** With an interval: draw it as an IntervalBar on this shared scale (R4) instead of the sentence alone. */
+  axis?: { min: number; max: number }
 }
 export type StatProps = Common &
   ({ tone: ProxyTone } | { tone: "interval"; interval: StatInterval })
-
-/** "parameter uncertainty only: lo to hi unit": the one wording of an interval (R4). */
-export function intervalText(
-  component: string,
-  iv: StatInterval,
-  digits: number | undefined,
-  unit: string | undefined,
-): string {
-  const lo = finite(component, "interval.lo", iv.lo)
-  const hi = finite(component, "interval.hi", iv.hi)
-  if (lo > hi)
-    return buildError(component, "interval.lo must not exceed interval.hi")
-  return `parameter uncertainty only: ${fixed(component, lo, digits)} to ${fixed(component, hi, digits)}${unit ? ` ${unit}` : ""}`
-}
 
 export function stat(p: StatProps): string {
   const tone = oneOf("Stat", STAT_TONES, p.tone)
@@ -47,11 +36,20 @@ export function stat(p: StatProps): string {
   const iv =
     p.interval === undefined
       ? ""
-      : tag(
-          "p",
-          { class: "tv-stat__interval" },
-          esc(intervalText("Stat", p.interval, p.digits, p.unit)),
-        )
+      : p.axis !== undefined
+        ? intervalBar({
+            ...p.interval,
+            value: p.value,
+            ...p.axis,
+            label: p.label,
+            unit: p.unit,
+            digits: p.digits,
+          })
+        : tag(
+            "p",
+            { class: "tv-stat__interval" },
+            esc(intervalText("Stat", p.interval, p.digits, p.unit)),
+          )
   return tag(
     "div",
     { class: "tv-stat", "data-stat": true, "data-tone": tone },

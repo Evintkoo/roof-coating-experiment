@@ -107,6 +107,17 @@ export const MOLECULE_CSS = {
 .tv-stat__unit{font-family:${t("font-sans")};font-size:${t("size-small")};color:${t("text-muted")}}
 .tv-stat__interval,.tv-stat__note{color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-small")}}
 `,
+  intervalBar: `
+.tv-interval{display:grid;gap:${t("space-1")};min-width:0}
+.tv-interval p{margin:0}
+.tv-interval__track{position:relative;height:${t("space-2")};border-radius:${t("radius-pill")};background:${t("surface-raised")};margin:${t("space-2")} 0}
+.tv-interval__band{position:absolute;top:0;bottom:0;min-width:${t("space-1")};border-radius:${t("radius-pill")};background:color-mix(in srgb,${t("viz-recommended")} 35%,transparent)}
+.tv-interval__cap{position:absolute;top:calc(${t("space-1")} * -1);bottom:calc(${t("space-1")} * -1);width:${t("ring-width")};margin-left:calc(${t("ring-width")} / -2);background:${t("viz-recommended")}}
+.tv-interval__mark{position:absolute;top:50%;width:${t("space-3")};height:${t("space-3")};margin:calc(${t("space-3")} / -2) 0 0 calc(${t("space-3")} / -2);transform:rotate(45deg);background:${t("text-primary")};border:${t("hairline")} solid ${t("surface-base")}}
+.tv-interval__axis{display:flex;justify-content:space-between;color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-micro")}}
+.tv-interval__text{color:${t("text-muted")};font-family:${t("font-sans")};font-size:${t("size-small")}}
+@media print{.tv-interval__track{border:${t("hairline")} solid ${t("text-primary")};background:none}.tv-interval__mark{background:${t("text-primary")}}}
+`,
 } as const
 
 /** Organism CSS, keyed by organism name (sheets R14 to R22). */

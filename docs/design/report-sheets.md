@@ -59,3 +59,12 @@ Molecules compose atoms and carry the rules of the plan: an index value never ap
 - contract: `<div class="tv-stat" data-stat data-tone>` with label, value line (number set with `digits`, default 2, unit, badge), an interval line "parameter uncertainty only: lo to hi unit" (the same words everywhere, R4) and an optional note; `lo` must not exceed `hi`; a value that is not a finite number is a build error (exit 4)
 - accessibility: the badge words, not colour, carry the caveat; label, value, badge and interval read in that order; contrast from the pair table
 - do: pass `digits` once per quantity and keep it across the page (R8). don't: format the number outside the call, or render an index value with plain text next to it
+
+### R6 IntervalBar
+
+- purpose: the one way an interval is drawn (R4). A horizontal scale with the interval as a band with end caps and the value as a diamond, always followed by the words "parameter uncertainty only: lo to hi unit". Bars that compare things share one scale (`min`, `max`) so their lengths are comparable.
+- tokens: track `surface-raised`; band `viz-recommended` at 35 % over the track with `viz-recommended` end caps (3:1 graphic pair); marker `text-primary`; axis labels and text `text-muted` at `size-small`; `radius-pill` track, `space-2` height, `space-1` minimum band width
+- states: none (a display component); the shape carries the meaning (band, caps, diamond), never colour alone (R5)
+- contract: `<div class="tv-interval" data-interval-bar>` with a `role="img"` track whose `aria-label` states the value, the interval and the scale, the drawn parts positioned in percent of the scale, a muted axis line with `min` and `max` and the unit, and the interval sentence; `min < max`, `min <= lo <= hi <= max` and `min <= value <= max` or the build fails (exit 4)
+- accessibility: the label is the whole message for a screen reader; the sentence is visible text so the name "parameter uncertainty only" is always on the page; the marker is a rotated square, so the position reads without colour; print keeps the track border
+- do: give every bar of a comparison the same `min` and `max`. don't: draw an interval any other way, or drop the sentence to save room
