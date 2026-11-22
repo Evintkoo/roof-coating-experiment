@@ -247,6 +247,16 @@ export const ORGANISM_CSS: Record<string, string> = {
 [aria-sort="descending"] .tv-table__sort::after{border-color:${t("link")};opacity:1}
 @media print{.tv-table{overflow:visible}.tv-table__sort::after{display:none}}
 `,
+  glossary: `
+.tv-glossary{color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-glossary__list{display:grid;margin:0}
+.tv-glossary__entry{padding:${t("space-3")} ${t("space-2")};border-bottom:${t("hairline")} solid ${t("border-panel")}}
+.tv-glossary__entry:target,.tv-glossary__entry:has(dt:target){background:${t("surface-raised")};border-inline-start:${t("space-1")} solid ${t("link")}}
+.tv-glossary dt{font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-glossary dd{max-width:70ch;margin:${t("space-1")} 0 0;font-size:${t("size-small")}}
+.tv-glossary dd p{margin:0 0 ${t("space-1")}}
+.tv-glossary__unit{color:${t("text-muted")};font-family:${t("font-sans")}}
+`,
 }
 
 /** The CSS of every atom, in a fixed order, one rule per line. */
