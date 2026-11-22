@@ -277,6 +277,15 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-sites__caveats{display:grid;gap:${t("space-3")}}
 @media print{.tv-site{background:none;border-color:${t("text-primary")};break-inside:avoid}}
 `,
+  budgetPanel: `
+.tv-budget{display:grid;gap:${t("space-4")};color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-budget__profiles{margin:0;padding:0;border:0}
+.tv-budget__profiles legend{padding:0;margin:0 0 ${t("space-2")};font-size:${t("size-label")};font-weight:${t("weight-semibold")}}
+.tv-budget__chips{display:flex;flex-wrap:wrap;gap:${t("space-2")}}
+.tv-budget__result{display:grid;gap:${t("space-3")};padding:${t("space-4")};border:${t("hairline")} solid ${t("border-glass")};border-radius:${t("radius-card")};background:${t("surface-glass")}}
+.tv-budget__sentence{max-width:70ch;margin:0;font-size:${t("size-body")}}
+@media print{.tv-budget__result{background:none;border-color:${t("text-primary")}}}
+`,
 }
 
 /** The CSS of every atom, in a fixed order, one rule per line. */
