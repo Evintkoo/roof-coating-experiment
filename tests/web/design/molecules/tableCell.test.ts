@@ -84,3 +84,15 @@ test("cssRightAlignsNumbersAndIsTokenOnly", () => {
   expect(css).toMatch(/\.tv-cell--number\{[^}]*text-align:right/)
   expect(css).toContain("tabular-nums")
 })
+
+test("monoTextCellsCarryTheMonoClass", () => {
+  expect(tableCell({ kind: "text", value: "ab12", mono: true })).toContain(
+    "tv-cell--mono",
+  )
+  expect(tableCell({ kind: "text", value: "ab12" })).not.toContain(
+    "tv-cell--mono",
+  )
+  expect(MOLECULE_CSS.tableCell).toMatch(
+    /\.tv-cell--mono\{[^}]*font-family:var\(--tv-font-mono\)/,
+  )
+})

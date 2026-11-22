@@ -156,3 +156,13 @@ test("scriptIsValidAndCssIsTokenOnly", () => {
   expectTokenOnly(css)
   expect(css).toContain("min-height:var(--tv-target-min)")
 })
+
+test("monoTextColumnsRenderMonoCells", () => {
+  const html = dataTable({
+    id: "t",
+    caption: "c",
+    columns: [{ key: "h", label: "Hash", kind: "text", mono: true }],
+    rows: [{ h: "ab12" }],
+  })
+  expect(html).toContain("tv-cell--mono")
+})

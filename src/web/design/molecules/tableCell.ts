@@ -1,13 +1,13 @@
 // Report sheet R13: one table cell. Numbers right-aligned in the mono face, units in the header, an index value always with its
 // PROXY label (FR-4). `data-sort` carries the raw value so the table can sort without parsing text.
-import { buildError, esc, finite, fixed, oneOf, tag } from "../html"
+import { buildError, cls, esc, finite, fixed, oneOf, tag } from "../html"
 import { type ProxyTone, proxyBadge } from "./proxyBadge"
 
 export const CELL_KINDS = ["text", "number", "index", "empty"] as const
 export type CellKind = (typeof CELL_KINDS)[number]
 
 export type TableCellProps =
-  | { kind: "text"; value: string; header?: boolean }
+  | { kind: "text"; value: string; header?: boolean; mono?: boolean }
   | {
       kind: "number"
       value: number
@@ -27,7 +27,7 @@ export function tableCell(p: TableCellProps): string {
     return tag(
       p.header ? "th" : "td",
       {
-        class: "tv-cell tv-cell--text",
+        class: cls("tv-cell", "tv-cell--text", p.mono && "tv-cell--mono"),
         scope: p.header ? "row" : undefined,
         "data-sort": p.value.toLowerCase(),
       },

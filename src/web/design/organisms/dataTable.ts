@@ -16,7 +16,7 @@ type ColumnBase = {
   rowHeader?: boolean
 }
 export type Column =
-  | (ColumnBase & { kind: "text" })
+  | (ColumnBase & { kind: "text"; mono?: boolean })
   | (ColumnBase & { kind: "number"; digits?: number })
   | (ColumnBase & { kind: "index"; tone: ProxyTone; digits?: number })
 
@@ -45,6 +45,7 @@ function cell(c: Column, v: CellValue): string {
       kind: "text",
       value: v,
       ...(c.rowHeader ? { header: true } : {}),
+      ...(c.mono ? { mono: true } : {}),
     })
   }
   const digits = c.digits === undefined ? {} : { digits: c.digits }

@@ -185,6 +185,7 @@ export const MOLECULE_CSS = {
 .tv-cell{padding:${t("space-2")} ${t("space-3")};border-bottom:${t("hairline")} solid ${t("border-panel")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-small")};line-height:1.5;text-align:left;vertical-align:middle}
 .tv-cell--number{font-family:${t("font-mono")};font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .tv-cell--index .tv-badge{margin-inline-start:${t("space-1")};font-size:${t("size-micro")}}
+.tv-cell--mono{font-family:${t("font-mono")};overflow-wrap:anywhere;word-break:break-all}
 .tv-cell__interval,.tv-cell--empty{color:${t("text-muted")}}
 .tv-visually-hidden{position:absolute;width:${t("hairline")};height:${t("hairline")};margin:calc(${t("hairline")} * -1);padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 `,
@@ -256,6 +257,15 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-glossary dd{max-width:70ch;margin:${t("space-1")} 0 0;font-size:${t("size-small")}}
 .tv-glossary dd p{margin:0 0 ${t("space-1")}}
 .tv-glossary__unit{color:${t("text-muted")};font-family:${t("font-sans")}}
+`,
+  provenance: `
+.tv-provenance{color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-provenance__facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3),1fr));gap:${t("space-3")} ${t("space-6")};margin:0 0 ${t("space-4")}}
+.tv-provenance__fact{min-width:0}
+.tv-provenance dt{color:${t("text-muted")};font-size:${t("size-small")}}
+.tv-provenance dd{margin:0;overflow-wrap:anywhere}
+.tv-provenance__title{margin:${t("space-4")} 0 ${t("space-2")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-provenance__note,.tv-provenance__none{max-width:70ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")};overflow-wrap:anywhere}
 `,
 }
 
