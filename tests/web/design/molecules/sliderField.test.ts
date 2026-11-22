@@ -3,6 +3,7 @@ import { MOLECULE_CSS } from "../../../../src/web/design/css"
 import {
   SLIDER_SCRIPT,
   SLIDER_STATES,
+  snapToBounds,
   sliderField,
 } from "../../../../src/web/design/molecules/sliderField"
 import {
@@ -110,4 +111,12 @@ test("cssIsTokenOnlyWith44pxControlsAndAccentFromAToken", () => {
   expectTokenOnly(css)
   expect(css).toContain("accent-color:var(--tv-link)")
   expect(css).toContain("min-height:var(--tv-target-min)")
+})
+
+test("snapToBoundsTakesTheRoundedBoundAndLeavesTheRest", () => {
+  const max = 0.9254385964912281
+  expect(snapToBounds(0.925438596491228, 0.3114, max)).toBe(max)
+  expect(snapToBounds(0.3114 + 1e-12, 0.3114, max)).toBe(0.3114)
+  expect(snapToBounds(0.5, 0.3114, max)).toBe(0.5)
+  expect(snapToBounds(max - 1e-3, 0.3114, max)).toBe(max - 1e-3)
 })
