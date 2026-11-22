@@ -1,0 +1,36 @@
+{
+  "t_page_px_frozen": 9000,
+  "baseline": {
+    "height": 30240,
+    "sections": {
+      "overview": 528,
+      "live": 1289,
+      "summary": 356,
+      "explorer": 4950,
+      "cards": 9366,
+      "sensitivity": 2888,
+      "optimisation": 3679,
+      "indonesia": 4736,
+      "limits": 1750,
+      "manifest": 597
+    }
+  },
+  "skeleton": {
+    "height_1280": 6623,
+    "height_768": 7917,
+    "height_390": 9660,
+    "sections": {
+      "verdict": 751,
+      "recipes": 666,
+      "why": 874,
+      "climate": 1185,
+      "budget": 879,
+      "explore": 1085,
+      "limits": 781,
+      "provenance": 205
+    },
+    "headroom_px": 2377,
+    "headroom_pct": 26,
+    "reduction_vs_baseline_pct": 78
+  }
+}
