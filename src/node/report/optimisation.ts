@@ -8,6 +8,7 @@ import { callout } from "../../web/design/molecules/callout"
 import { disclosure } from "../../web/design/molecules/disclosure"
 import { figureFrame } from "../../web/design/molecules/figureFrame"
 import { budgetPanel } from "../../web/design/organisms/budgetPanel"
+import { dataTable } from "../../web/design/organisms/dataTable"
 import { findingList } from "../../web/design/organisms/findingList"
 import { axisLabel } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
@@ -141,18 +142,31 @@ export function loadOptimisation(input: ReportInput): Optimisation | null {
   return out
 }
 
-const FRESH_LABEL: Record<string, string> = {
-  s_p90_train_nominal:
-    "Scalar objective S, nominal recipe, p90 over the training draws",
-  s_p90_train_robust:
-    "Scalar objective S, robust recipe, p90 over the training draws",
-  s_p95_fresh_nominal:
-    "Scalar objective S, nominal recipe, p95 over fresh draws",
-  s_p95_fresh_robust: "Scalar objective S, robust recipe, p95 over fresh draws",
-  regret_p95_nominal:
-    "Regret of the nominal recipe against the better of the two, p95 over fresh draws",
-  regret_p95_robust:
-    "Regret of the robust recipe against the better of the two, p95 over fresh draws",
+const FRESH_LABEL: Record<string, { quantity: string; basis: string }> = {
+  s_p90_train_nominal: {
+    quantity: "Scalar objective S",
+    basis: "nominal recipe, p90 over the training draws",
+  },
+  s_p90_train_robust: {
+    quantity: "Scalar objective S",
+    basis: "robust recipe, p90 over the training draws",
+  },
+  s_p95_fresh_nominal: {
+    quantity: "Scalar objective S",
+    basis: "nominal recipe, p95 over fresh draws",
+  },
+  s_p95_fresh_robust: {
+    quantity: "Scalar objective S",
+    basis: "robust recipe, p95 over fresh draws",
+  },
+  regret_p95_nominal: {
+    quantity: "Regret against the better of the two recipes",
+    basis: "nominal recipe, p95 over fresh draws",
+  },
+  regret_p95_robust: {
+    quantity: "Regret against the better of the two recipes",
+    basis: "robust recipe, p95 over fresh draws",
+  },
 }
 
 const cell = (v: string | undefined, digits = 4): string => {
@@ -179,6 +193,32 @@ ${rows.map((r) => `<tr><td class="txt">${esc(roleText(r.role ?? ""))}</td><td cl
 </tbody></table></div>`
 }
 
+function freshTable(fresh: Rec[]): string {
+  return dataTable({
+    id: "tbl-robust-checks",
+    caption: "How the nominal and the robust recipe compare over the draws",
+    columns: [
+      { key: "quantity", label: "Quantity", kind: "text", rowHeader: true },
+      { key: "value", label: "Value", kind: "number", digits: 5 },
+      { key: "basis", label: "Basis", kind: "text" },
+    ],
+    rows: fresh.map((r) => {
+      const name = r.name ?? ""
+      const l = FRESH_LABEL[name] ?? {
+        quantity: name.replaceAll("_", " "),
+        basis: "",
+      }
+      const v = Number(r.value)
+      return {
+        quantity: l.quantity,
+        value:
+          r.value === undefined || r.value === "" || Number.isNaN(v) ? null : v,
+        basis: l.basis,
+      }
+    }),
+  })
+}
+
 function robustTable(rows: Rec[]): string {
   const dist = rows.filter((r) => r.kind === "distribution")
   const byName = (kind: string, name: string) =>
@@ -188,7 +228,7 @@ function robustTable(rows: Rec[]): string {
 <div class="scroll"><table>${th(["Ingredient", "Nominal optimum", "Robust optimum", "p5 over draws", "Median", "p95 over draws"])}<tbody>
 ${dist.map((r) => `<tr><td class="txt">${esc(varLabel(r.name ?? ""))}</td><td>${cell(byName("nominal", r.name ?? "")?.value)}</td><td>${cell(byName("robust", r.name ?? "")?.value)}</td><td>${cell(r.p05)}</td><td>${cell(r.p50)}</td><td>${cell(r.p95)}</td></tr>`).join("\n")}
 </tbody></table></div>
-${fresh.length ? `<ul>${fresh.map((r) => `<li>${esc(FRESH_LABEL[r.name ?? ""] ?? (r.name ?? "").replaceAll("_", " "))}: ${cell(r.value, 5)}</li>`).join("")}</ul>` : ""}`
+${fresh.length ? freshTable(fresh) : ""}`
 }
 
 /** Budget panel and its lookup page data: the exact table lookup, the bare-aluminium peak (nominal) and the shared cooling scale. */

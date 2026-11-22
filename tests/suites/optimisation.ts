@@ -134,6 +134,23 @@ export function optimisationSuite(S: OptimisationScale): void {
     expect(sec).toContain('id="fig-frontier"')
   })
 
+  test("robustChecksAreATableOfQuantityValueBasis", () => {
+    const sec = /<section id="budget"[\s\S]*<section id="explore"/.exec(
+      withOpt.html,
+    )?.[0] as string
+    const t = /<table[^>]*id="tbl-robust-checks"[\s\S]*?<\/table>/.exec(
+      sec,
+    )?.[0] as string
+    expect(t).toBeDefined()
+    for (const h of ["Quantity", "Value", "Basis"]) expect(t).toContain(h)
+    expect(visibleText(t)).toContain("Scalar objective S")
+    expect(visibleText(t)).toContain("p90 over the training draws")
+    expect((t.match(/<tr\b/g) ?? []).length).toBe(7)
+    // no list of "label: value" lines is left in the budget section
+    for (const m of sec.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g))
+      expect(visibleText(m[1] as string)).not.toMatch(/: -?[\d.]+$/)
+  })
+
   test("embeddedTablesCarryAllProfiles", () => {
     const data = JSON.parse(
       (scriptBlocks(withOpt.html)[0] as string).replace(
