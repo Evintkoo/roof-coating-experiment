@@ -1,6 +1,7 @@
 // The reading path of the report (plan 06 FR-2): Verdict, Recipes, How the layers work, Explore all 96, Method and limits, Provenance.
 // Climate and Budget live in indonesia.ts and optimisation.ts. Every number on the page comes from the verified readers of the
 // run directory through `findings()` and the files themselves; the wording is the plan 06 outline.
+import { join } from "node:path"
 import { DataError } from "../../core/errors"
 import { PARETO_COLUMNS, parseControlsCsv } from "../../core/pipeline/tables"
 import {
@@ -39,6 +40,7 @@ import { axisLabel } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
 import { type Design, layerStrings } from "../../web/recipe"
 import { STATIC_LIMITS, scenarioConstants } from "./cards"
+import { loadLicences } from "./design"
 import {
   esc,
   type ReportInput,
@@ -695,6 +697,7 @@ const provenanceSection: ReportSection = {
         extra: extraEntries(i.manifest),
         files,
         extraInDisclosure: true,
+        licences: loadLicences(join(import.meta.dir, "fonts")),
       }),
     )
   },

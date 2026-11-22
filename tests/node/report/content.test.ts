@@ -255,3 +255,38 @@ test("nextStepColumnUsesPlainWordsAndTheCardKeepsTheDecisionWord", () => {
   expect(table).not.toMatch(/>(go|revise|reject)</)
   expect(recipes).toContain("### Decision".replace("### ", ""))
 })
+
+test("provenanceEmbedsTheFullFontLicencesInAClosedDisclosure", () => {
+  const d =
+    /<details[^>]*id="provenance-run-licences"[^>]*>[\s\S]*?<\/details>/.exec(
+      built.html,
+    )?.[0] as string
+  expect(d).toBeDefined()
+  expect(d.slice(0, d.indexOf(">"))).not.toContain("open")
+  const dir = join(
+    import.meta.dir,
+    "..",
+    "..",
+    "..",
+    "src",
+    "node",
+    "report",
+    "fonts",
+  )
+  for (const f of ["OFL-Inter.txt", "OFL-JetBrainsMono.txt"]) {
+    const text = readFileSync(join(dir, f), "utf8")
+    const escaped = text
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;")
+    expect(d).toContain(escaped)
+  }
+  expect(visibleText(d)).toContain("SIL OPEN FONT LICENSE Version 1.1")
+  // offline-safe: the notices add no resource to load (no external src, href, url() or link element) and the page stays under 8 MiB
+  expect(built.html).not.toMatch(/(?:src|href)="https?:/)
+  expect(built.html).not.toMatch(/url\(\s*["']?https?:/)
+  expect(built.html).not.toContain("<link ")
+  expect(Buffer.byteLength(built.html)).toBeLessThan(8 * 1024 * 1024)
+})

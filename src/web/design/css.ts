@@ -267,6 +267,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-provenance dt{color:${t("text-muted")};font-size:${t("size-small")}}
 .tv-provenance dd{margin:0;overflow-wrap:anywhere}
 .tv-provenance__title{margin:${t("space-4")} 0 ${t("space-2")};font-size:${t("size-body")};font-weight:${t("weight-semibold")}}
+.tv-provenance__licence{margin:0 0 ${t("space-4")};white-space:pre-wrap;overflow-wrap:anywhere;font-family:${t("font-mono")};font-size:${t("size-small")};color:${t("text-muted")}}
 .tv-provenance__note,.tv-provenance__none{max-width:70ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")};overflow-wrap:anywhere}
 `,
   siteBenefitPanel: `

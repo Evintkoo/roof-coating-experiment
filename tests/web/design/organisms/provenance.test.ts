@@ -116,3 +116,31 @@ test("badHashesCountsOrIdsAreBuildErrorsF7", () => {
 test("cssIsTokenOnly", () => {
   expectTokenOnly(ORGANISM_CSS.provenance as string)
 })
+
+test("licencesAreOneClosedDisclosureWithTheFullEscapedText", async () => {
+  const lic = [
+    {
+      name: "Inter (SIL Open Font License 1.1)",
+      text: "Copyright <Inter> & co\nLine two",
+    },
+    {
+      name: "JetBrains Mono (SIL Open Font License 1.1)",
+      text: "Copyright JB",
+    },
+  ]
+  const html = provenance({ ...ok, licences: lic })
+  const els = await elementsOf(html)
+  const d = els.find(
+    (e) => e.tag === "details" && e.attrs.id === "provenance-licences",
+  )
+  expect(d).toBeDefined()
+  expect(d?.attrs.open).toBeUndefined()
+  expect(html).toContain("<summary")
+  expect(html).toContain("Copyright &lt;Inter&gt; &amp; co\nLine two")
+  expect(html).toContain("Copyright JB")
+  expect(provenance(ok)).not.toContain("Licences")
+  expectBuildError(
+    () => provenance({ ...ok, licences: [{ name: "x", text: " " }] }),
+    "Provenance",
+  )
+})

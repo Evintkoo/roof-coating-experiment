@@ -148,6 +148,31 @@ export function loadFonts(dir: string): LoadedFont[] {
   })
 }
 
+/** The licence notices (OFL-*.txt) that sit beside the font files, in file-name order; a font without its licence is exit 5, phase design.fonts. */
+export function loadLicences(dir: string): { name: string; text: string }[] {
+  const files = FONT_FILES.map((f) => f.family)
+    .filter((f, i, a) => a.indexOf(f) === i)
+    .map((family) => ({
+      family,
+      file: `OFL-${family.replaceAll(" ", "")}.txt`,
+    }))
+  return files.map(({ family, file }) => {
+    let text: string
+    try {
+      text = readFileSync(join(dir, file), "utf8")
+    } catch {
+      throw new DataError(
+        file,
+        `licence ${file} of the embedded font ${family} is missing`,
+        "design.fonts",
+      )
+    }
+    if (text.trim() === "")
+      throw new DataError(file, `licence ${file} is empty`, "design.fonts")
+    return { name: `${family} (SIL Open Font License 1.1)`, text }
+  })
+}
+
 // ---- contrast gate -----------------------------------------------------------------------------------------------------
 
 /** H4, F3: every token pair of both themes meets its threshold; each failing pair is an event, the first one is the error. */

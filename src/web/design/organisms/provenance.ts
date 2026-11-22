@@ -18,6 +18,8 @@ export type ProvenanceProps = {
   build?: readonly { label: string; value: string }[]
   extra: readonly ExtraFile[]
   files?: readonly HashedFile[]
+  /** Licence notices of what the page embeds (the fonts): each one's full text behind one closed "Licences" disclosure. */
+  licences?: readonly { name: string; text: string }[]
   /** Put the extra files table behind a closed Disclosure (the page does; the sentence about the core hash stays visible). */
   extraInDisclosure?: boolean
   id?: string
@@ -128,9 +130,36 @@ export function provenance(p: ProvenanceProps): string {
             rows: p.files.map((f) => ({ ...f })),
           }),
         )
+  for (const l of p.licences ?? [])
+    if (l.name.trim() === "" || l.text.trim() === "")
+      return buildError(C, "a licence needs its name and its text")
+  const licences =
+    p.licences === undefined || p.licences.length === 0
+      ? ""
+      : disclosure({
+          summary: "Licences",
+          level: "detail",
+          id: `${id}-licences`,
+        })(
+          tag(
+            "p",
+            { class: "tv-provenance__note" },
+            "The page embeds these fonts as data; each is distributed under the licence below.",
+          ) +
+            p.licences
+              .map(
+                (l) =>
+                  tag("h4", { class: "tv-provenance__title" }, esc(l.name)) +
+                  tag("pre", { class: "tv-provenance__licence" }, esc(l.text)),
+              )
+              .join(""),
+        )
   return tag(
     "section",
     { class: "tv-provenance", id, "data-provenance": true },
-    tag("dl", { class: "tv-provenance__facts" }, facts) + extra + manifest,
+    tag("dl", { class: "tv-provenance__facts" }, facts) +
+      extra +
+      manifest +
+      licences,
   )
 }
