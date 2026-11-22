@@ -80,6 +80,8 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
         (t) => document.documentElement.setAttribute("data-theme", t),
         opts.scheme,
       )
+    // buttons transition their background for 120 ms: let the switch finish before anything is measured
+    if (opts.theme !== "none") await page.waitForTimeout(300)
     await page.evaluate(() => document.fonts.ready.then(() => undefined))
     return page
   }
