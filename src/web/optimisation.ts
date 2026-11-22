@@ -235,7 +235,7 @@ export function figFrontier(
       showlegend: false,
       annotations: endLabels(labels, extent(all)),
     },
-    config: { responsive: true, displaylogo: false },
+    config: { responsive: true, displaylogo: false, displayModeBar: false },
   }
 }
 
@@ -279,6 +279,6 @@ export function figRefineFront(
       },
       yaxis: { title: { text: axisLabel("r_solar_pred") } },
     },
-    config: { responsive: true, displaylogo: false },
+    config: { responsive: true, displaylogo: false, displayModeBar: false },
   }
 }

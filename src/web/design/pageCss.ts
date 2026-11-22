@@ -51,6 +51,7 @@ code{font-family:${t("font-mono")};font-size:0.92em;overflow-wrap:anywhere}
 select,input[type="number"]:not(.tv-slider__number){font:inherit;color:${t("text-primary")};background:${t("surface-elevated")};border:${t("hairline")} solid ${t("border-control")};border-radius:${t("radius-control")};min-height:${t("target-min")};padding:${t("space-1")} ${t("space-3")};max-width:100%}
 input[type="range"]{width:100%;accent-color:${t("action-primary")}}
 details#debug{margin:${t("space-3")} 0}
+details#debug>summary{display:flex;align-items:center;min-height:${t("target-min")};cursor:pointer}
 pre{overflow-x:auto;max-width:100%}
 .live{display:grid;grid-template-columns:minmax(0,1fr);gap:${t("space-4")};align-items:start}
 .ctl{border:${t("hairline")} solid ${t("border-panel")};border-radius:${t("radius-panel")};margin:0 0 ${t("space-3")};padding:${t("space-1")} ${t("space-3")} ${t("space-3")};min-width:0}

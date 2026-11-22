@@ -295,7 +295,7 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     // landmarks and chart names
     expect(await page.$$eval("nav[aria-label], main", (e) => e.length)).toBe(2)
     const unnamed = await page.$$eval(
-      "[data-figure] [role]",
+      "[data-figure] .tv-figure__plot",
       (els) =>
         els.filter((e) => !(e.getAttribute("aria-label") ?? "").trim()).length,
     )

@@ -72,6 +72,7 @@ import { fetchIndonesiaData, POWER_URL, writeSums } from "./power"
 import { loadPlan3, runRefine, SCENARIO_SETS } from "./refine"
 import { writeCard } from "./report/cards"
 import { buildCurves, buildSpectra } from "./report/curves"
+import { buildGallery } from "./report/gallery"
 import { buildReport } from "./report/html"
 import {
   checkReport,
@@ -521,6 +522,15 @@ async function reportCommand(ctx: Ctx): Promise<void> {
 }
 
 const REPORT_FILE = "report.html"
+
+const DESIGN_GALLERY_HELP =
+  "design-gallery --out FILE: one offline HTML file with every atom, molecule and organism of the report's design system in every state, in both themes (it follows the system theme; a button switches it), built by the same functions the report uses and byte-identical on every run. A directory that cannot be written is exit 6 and leaves no partial file."
+
+async function designGalleryCommand(ctx: Ctx): Promise<void> {
+  const out = strFlag(ctx.flags, "--out")
+  const digest = buildGallery(out)
+  console.log(`design-gallery: written, sha256 ${digest}`)
+}
 
 const VERIFY_REPORT_HELP =
   "verify-report --in DIR: checks that DIR/report.html belongs to DIR/run_manifest.json: the core hash the page was built against (embedded in the page) must equal the manifest's core_sha256, and the file must match report_sha256. A page that is older than a later `refine`, `budget-table` or `indonesia` run is reported as stale (exit 5, phase report.verify, code stale) with the command that rebuilds it; a changed page or manifest is code tampered; a missing file is code missing."
@@ -977,6 +987,12 @@ const COMMANDS: Record<string, Command> = {
     ],
     switches: [],
     run: indonesiaCommand,
+  },
+  "design-gallery": {
+    help: DESIGN_GALLERY_HELP,
+    valueFlags: ["--out"],
+    switches: [],
+    run: designGalleryCommand,
   },
   "verify-report": {
     help: VERIFY_REPORT_HELP,

@@ -41,7 +41,7 @@ const ROLE_SLOT: Record<string, Slot> = {
 }
 const SEQ_LIGHT = colorScale(L.seq)
 export const UIREVISION = "spandek"
-const CONFIG = { responsive: true, displaylogo: false }
+const CONFIG = { responsive: true, displaylogo: false, displayModeBar: false }
 
 const HUMAN: Record<string, string> = {
   r_solar_pred: "Solar reflectance (0 to 1)",
