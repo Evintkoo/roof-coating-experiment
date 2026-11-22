@@ -465,3 +465,21 @@ export async function unregisterExtra(
   m.core_sha256 = manifestCoreHash(m)
   writeFileSync(p, `${JSON.stringify(m, null, 2)}\n`)
 }
+
+/**
+ * Wall-clock samples for a latency bound that must hold on a loaded machine. Contention only adds time to a deterministic call,
+ * so the bound is judged on the best sample: `sample` is called up to `tries` times and stops at the first value below `limit`.
+ * The caller asserts `Math.min(...samples) < limit`; code that is really too slow exceeds the limit on every try and still fails.
+ */
+export async function samplesUntilUnder(
+  limit: number,
+  tries: number,
+  sample: () => Promise<number> | number,
+): Promise<number[]> {
+  const out: number[] = []
+  for (let i = 0; i < tries; i++) {
+    out.push(await sample())
+    if ((out[out.length - 1] as number) < limit) break
+  }
+  return out
+}
