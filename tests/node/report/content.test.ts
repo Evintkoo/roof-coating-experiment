@@ -1,6 +1,7 @@
 import { beforeAll, expect, test } from "bun:test"
 import {
   appendFileSync,
+  cpSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -10,11 +11,14 @@ import {
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseCsv } from "../../../src/core/csv"
+import { findings } from "../../../src/core/report/findings"
+import { loadFindingsInput } from "../../../src/node/report/findingsInput"
 import { buildReport } from "../../../src/node/report/html"
 import {
   addRefineOutputs,
   buildTestReport,
   copyRun,
+  REPORT_FIXTURE,
   reportOpts,
   visibleText,
 } from "../../helpers"
@@ -173,4 +177,81 @@ test("provenanceStatesTheRunAndKeepsTheVerifyReportLinkage", () => {
   expect(built.html).toContain(
     `<meta name="spandek-core-sha256" content="${m.core_sha256}">`,
   )
+})
+
+const heroOf = (html: string): string =>
+  /<section[^>]*id="verdict"[\s\S]*?<\/section>/.exec(html)?.[0] as string
+
+test("firstScreenSaysWhatTheCoolingNumberIsAndTheIntervalIsVisible", () => {
+  const hero = heroOf(built.html)
+  const text = visibleText(hero).replace(/\s+/g, " ")
+  expect(text).toContain(
+    "peak surface temperature of the aluminium sheet itself",
+  )
+  expect(text).toContain("not the air indoors")
+  expect(text).toMatch(/averaged over \w+ generic weather scenarios/)
+  expect(text).toContain("Bare aluminium has no interval")
+  expect(text).toContain("coating parameter uncertainty only")
+  // PROXY is glossed (linked) on its first use in the lead
+  expect(
+    /<p class="tv-hero__lead">[\s\S]*?<a class="tv-term" href="#[^"]*">PROXY(?: indices)?<\/a>/.test(
+      hero,
+    ),
+  ).toBe(true)
+  // one shared zoomed axis: equal end ticks on the three bars, stated in a note, and each band is wide enough to see
+  const bars = [
+    ...hero.matchAll(
+      /<div class="tv-interval"[\s\S]*?<\/div><\/div>|<div class="tv-interval"[\s\S]*?<p class="tv-interval__text"/g,
+    ),
+  ]
+  expect(bars.length).toBe(3)
+  const ticks = bars.map((b) =>
+    [...b[0].matchAll(/<span>(\d+(?:\.\d+)?) K<\/span>/g)].map((m) => m[1]),
+  )
+  for (const t of ticks) expect(t).toEqual(ticks[0] as string[])
+  const [min, max] = (ticks[0] as string[]).map(Number) as [number, number]
+  expect(min).toBeGreaterThan(0)
+  expect(text).toContain(`from ${min} K to ${max} K`)
+  expect(text).toContain(`starts at ${min} K, not at zero`)
+  for (const b of bars) {
+    const w = Number(
+      /tv-interval__band" style="left:[\d.]+%;width:([\d.]+)%/.exec(b[0])?.[1],
+    )
+    expect(w).toBeGreaterThan(3)
+  }
+})
+
+test("costTradeoffSentenceIsComputedFromTheRefineFilesAndOmittedWithoutThem", async () => {
+  // the fixture run has refine files; the base test run has none
+  expect(heroOf(built.html)).not.toContain("Cost is not decided")
+  const dir = mkdtempSync(join(tmpdir(), "spandek-fixture-page-"))
+  cpSync(REPORT_FIXTURE, dir, { recursive: true })
+  const path = out()
+  await buildReport(dir, path, reportOpts())
+  // glossary links add a space before punctuation in the tag-stripped text
+  const hero = visibleText(heroOf(readFileSync(path, "utf8")))
+    .replace(/\s+/g, " ")
+    .replace(/ ([,.;])/g, "$1")
+  const f = findings(loadFindingsInput(REPORT_FIXTURE)).find(
+    (x) => x.id === "cost-tradeoff",
+  )
+  expect(f).toBeDefined()
+  expect(hero).toContain((f as { sentence: string }).sentence)
+  // every number in the sentence is one registered from the source files
+  expect((f as { numbers: unknown[] }).numbers.length).toBeGreaterThan(3)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test("nextStepColumnUsesPlainWordsAndTheCardKeepsTheDecisionWord", () => {
+  const recipes = /<section[^>]*id="recipes"[\s\S]*?<\/section>/.exec(
+    built.html,
+  )?.[0] as string
+  const table = /<table[^>]*id="tbl-recipes"[\s\S]*?<\/table>/.exec(
+    recipes,
+  )?.[0] as string
+  expect(table).toMatch(
+    /worth a coupon test|revise first|not worth a coupon test/,
+  )
+  expect(table).not.toMatch(/>(go|revise|reject)</)
+  expect(recipes).toContain("### Decision".replace("### ", ""))
 })

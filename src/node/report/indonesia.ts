@@ -373,7 +373,7 @@ ${sentences.length > 0 ? findingList({ items: sentences, seen: d.seen }) : ""}
 ${siteBenefitPanel({ sites: panel.sites, axis: panel.axis, scenario: "Ageing is a scenario", loss: panel.loss, caveats, id: "sites", digits: 1 })}
 ${detail(
   "Weather model: how the five sites were built",
-  `<p>Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three recommended recipes, each as its full three-layer system. Bare aluminium is not aged and C1 uses its own weathered datasheet values.</p>
+  `<p>Three representative days per site and season (hot, typical, overcast) are run for the bare aluminium sheet (C0), the commercial datasheet control (C1) and the three shortlisted recipes, each as its full three-layer system. Bare aluminium is not aged and C1 uses its own weathered datasheet values.</p>
 <p>A month is called wet when its ten-year mean precipitation exceeds 150 mm, a design threshold and not a climate classification; Bandung's June (151 mm) sits right on it.</p>
 <p class="page-hint">Time of wetness (hours per year with relative humidity above 80 % and air above 0 °C, ten-year mean): ${tow}. It is reported beside the unchanged corrosion index (PROXY); no site factor is applied to that index.</p>`,
 )}

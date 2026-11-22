@@ -11,10 +11,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type Browser, chromium } from "playwright"
 import type { BudgetTable } from "../../../src/core/opt/budgetTable"
-import {
-  OVERCLAIM_PATTERN,
-  withoutAllowedLabels,
-} from "../../../src/core/report/outline"
+import { OVERCLAIM_PATTERN } from "../../../src/core/report/outline"
 import { buildReport, EXTRA_SECTIONS } from "../../../src/node/report/html"
 import {
   addRefineOutputs,
@@ -78,7 +75,7 @@ test("presentRefineOutputsAddTheSectionBetweenWhyItWorksAndExplore", () => {
   expect(text).toContain("not a measured optimum (PROXY)")
   expect(text).toContain("relative cost units (not IDR)")
   expect(text).toContain("exact lookup, no interpolation")
-  expect(withoutAllowedLabels(text)).not.toMatch(OVERCLAIM_PATTERN)
+  expect(text).not.toMatch(OVERCLAIM_PATTERN)
 })
 
 test("recipeToleranceAndRobustTablesMatchTheCsv", () => {

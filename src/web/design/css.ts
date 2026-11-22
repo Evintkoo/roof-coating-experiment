@@ -212,6 +212,7 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-hero__verdict{max-width:24ch;margin:0 0 ${t("space-4")};font-size:${t("size-display")};font-weight:${t("weight-semibold")};line-height:1.15}
 .tv-hero__lead{max-width:70ch;margin:0 0 ${t("space-3")};font-size:${t("size-body")}}
 .tv-hero__recipes{display:grid;grid-template-columns:minmax(0,1fr);gap:${t("space-4")};margin:${t("space-6")} 0}
+.tv-hero__note{max-width:70ch;margin:0 0 ${t("space-2")};color:${t("text-muted")};font-size:${t("size-small")}}
 .tv-hero__honesty{margin:${t("space-4")} 0}
 .tv-hero__limits{margin:0}
 @media (min-width:64em){.tv-hero__recipes{grid-template-columns:repeat(3,minmax(0,1fr))}}

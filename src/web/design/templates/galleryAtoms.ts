@@ -72,7 +72,7 @@ export function galleryAtomCells(): GalleryCell[] {
     add(
       "SectionLabel",
       variant,
-      sectionLabel({ label: "Why it works", variant }),
+      sectionLabel({ label: "How the layers work", variant }),
       false,
     )
   for (const tone of BADGE_TONES)

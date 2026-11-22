@@ -54,7 +54,7 @@ const FULL: RecipeCardProps = {
 const NAV = [
   { id: "verdict", label: "Verdict" },
   { id: "recipes", label: "Recipes" },
-  { id: "why", label: "Why it works" },
+  { id: "why", label: "How the layers work" },
   { id: "climate", label: "Climate" },
   { id: "budget", label: "Budget" },
   { id: "explore", label: "Explore all 96" },
@@ -183,7 +183,7 @@ export function galleryOrganismCells(): GalleryCell[] {
       eyebrow: "Spandek aluminium roof coating, digital screening",
       verdict:
         "Three coatings cool aluminium by 13.4 to 14.4 K in the models; none is measured yet",
-      lead: "Best cooling: SP-075 lowers the peak surface temperature against bare aluminium.",
+      lead: "Highest cooling: SP-075 lowers the peak surface temperature against bare aluminium.",
       recipes: HERO3,
       honesty: HONESTY,
       limitsHref: "#limits",

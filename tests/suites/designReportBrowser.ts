@@ -7,10 +7,7 @@ import { cpSync, mkdtempSync, readFileSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type Browser, chromium, type Page } from "playwright"
-import {
-  OVERCLAIM_PATTERN,
-  withoutAllowedLabels,
-} from "../../src/core/report/outline"
+import { OVERCLAIM_PATTERN } from "../../src/core/report/outline"
 import { buildReport } from "../../src/node/report/html"
 import {
   addRefineOutputs,
@@ -191,13 +188,11 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     expect(bareStats.n).toBeGreaterThan(5)
     expect(bareStats.out).toEqual([])
     const text = visibleText(html)
-    expect(withoutAllowedLabels(text)).not.toMatch(OVERCLAIM_PATTERN)
+    expect(text).not.toMatch(OVERCLAIM_PATTERN)
     // the scan can fail: the same text with a claim added is caught, and a label that is not allowed is not let through
-    expect(withoutAllowedLabels(`${text} This coating is proven.`)).toMatch(
-      OVERCLAIM_PATTERN,
-    )
-    expect(withoutAllowedLabels("Best cooling")).not.toMatch(OVERCLAIM_PATTERN)
-    expect(withoutAllowedLabels("the best coating")).toMatch(OVERCLAIM_PATTERN)
+    expect(`${text} This coating is proven.`).toMatch(OVERCLAIM_PATTERN)
+    expect(`${text} a recommended recipe`).toMatch(OVERCLAIM_PATTERN)
+    expect("the best coating").toMatch(OVERCLAIM_PATTERN)
     expect(text).toContain("Provenance")
     expect(text).toMatch(/bare aluminium/i)
     expect(text).toContain("not a laboratory result")

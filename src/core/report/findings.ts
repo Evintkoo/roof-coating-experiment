@@ -58,7 +58,7 @@ export type FindingsInput = {
 export type FindingNumber = { key: string; value: number; digits: number }
 export type Finding = {
   id: string
-  /** Plain-language role name for the recipe lines ("Best cooling", "Balanced", "Lowest cost"); absent elsewhere. */
+  /** Plain-language role name for the recipe lines ("Highest cooling", "Balanced", "Lowest cost"); absent elsewhere. */
   label?: string
   sentence: string
   sources: string[]
@@ -68,7 +68,7 @@ export type Finding = {
 export const ROLES = ["high_performing", "balanced", "low_cost"] as const
 type Role = (typeof ROLES)[number]
 export const ROLE_NAMES: Record<Role, string> = {
-  high_performing: "Best cooling",
+  high_performing: "Highest cooling",
   balanced: "Balanced",
   low_cost: "Lowest cost",
 }
@@ -236,6 +236,56 @@ export function findings(input: FindingsInput): Finding[] {
     })
   }
 
+  // ---- cost trade-off: the first-screen cost positions are not the last word ----
+  {
+    const k = new Nums()
+    const hit = ROLES.filter((r) => {
+      const f = refined[r]
+      // cheaper at the printed precision, and cooling at or above the lower end of the shortlisted recipe's range
+      return (
+        f !== undefined &&
+        Number(fmt(f.cost_proxy, 2)) < Number(fmt(cool[r].cost, 2)) &&
+        c0Mean - f.t_max_pred >= cool[r].lo
+      )
+    })
+    if (hit.length > 0) {
+      const join = (xs: string[]) => xs.join(" and ")
+      const one = hit.length === 1
+      const names = join(hit.map((r) => ids[r]))
+      const cooling = join(
+        hit.map((r) =>
+          k.n(
+            `tradeoff.${r}.cooling`,
+            c0Mean - (refined[r] as RefineRecipe).t_max_pred,
+            1,
+          ),
+        ),
+      )
+      const refinedCost = join(
+        hit.map((r) =>
+          k.n(
+            `tradeoff.${r}.refined_cost`,
+            (refined[r] as RefineRecipe).cost_proxy,
+            2,
+          ),
+        ),
+      )
+      const here = join(
+        hit.map((r) => k.n(`tradeoff.${r}.cost`, cool[r].cost, 2)),
+      )
+      out.push({
+        id: "cost-tradeoff",
+        sentence: `Cost is not decided by these cost positions alone: in the budget section ${one ? "a refined variant" : "refined variants"} of ${names} ${one ? "reaches" : "reach"} ${cooling} K at cost index ${refinedCost} against ${here} here, with cooling at or above the lower bound of the shortlisted recipe's range (PROXY; nominal only, an optimum of the models).`,
+        sources: [
+          RESULT_SRC,
+          CONTROL_SRC,
+          "refine_recipes.csv: role, screened_id, t_max_pred, cost_proxy",
+        ],
+        numbers: k.list,
+      })
+    }
+  }
+
   // ---- Indonesia ----
   const ind = input.indonesia
   if (ind !== undefined) {
@@ -268,9 +318,19 @@ export function findings(input: FindingsInput): Finding[] {
         const k = new Nums()
         const show = (state: string, x: IndonesiaSummaryRow) =>
           `${k.n(`indonesia.${state}.${x.site}.dq`, x.dq_w_m2, 1)} W/m² [${k.n(`indonesia.${state}.${x.site}.lo`, x.dq_lo, 1)}, ${k.n(`indonesia.${state}.${x.site}.hi`, x.dq_hi, 1)}]`
+        // the ranking is by point estimate: say when the top (or bottom) range overlaps its neighbour's
+        let overlaps = ""
+        if (ranked.length >= 2) {
+          const second = ranked[1] as IndonesiaSummaryRow
+          const nextToBottom = ranked[ranked.length - 2] as IndonesiaSummaryRow
+          if (second.dq_hi >= top.dq_lo)
+            overlaps += ` The highest estimate is in ${cap(top.site)}, but the ranges of ${cap(top.site)} and ${cap(second.site)} (${show("initial", second)}) overlap, so the sites are not clearly separated.`
+          if (nextToBottom.dq_lo <= bottom.dq_hi && nextToBottom !== second)
+            overlaps += ` The lowest estimate is in ${cap(bottom.site)}, but its range overlaps that of ${cap(nextToBottom.site)} (${show("initial", nextToBottom)}).`
+        }
         out.push({
           id: "indonesia-initial",
-          sentence: `Across the five Indonesian sites the modelled heat flux into the building falls by the most in ${cap(top.site)} (${show("initial", top)}) and by the least in ${cap(bottom.site)} (${show("initial", bottom)}) for the cooling-priority recipe against bare aluminium, in the initial state, weighted over typical, hot and overcast days (parameter uncertainty only; weather is a model and not a station record).`,
+          sentence: `Across the five Indonesian sites the modelled heat flux into the building falls by the most, as a point estimate, in ${cap(top.site)} (${show("initial", top)}) and by the least in ${cap(bottom.site)} (${show("initial", bottom)}) for the cooling-priority recipe against bare aluminium, in the initial state, weighted over typical, hot and overcast days (parameter uncertainty only; weather is a model and not a station record).${overlaps}`,
           sources: src,
           numbers: k.list,
         })

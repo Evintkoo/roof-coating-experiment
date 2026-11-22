@@ -292,6 +292,20 @@ export type EndLabel = {
   yref?: "y" | "y2"
 }
 
+/** Breaks a direct label into lines of at most `max` characters at spaces (Plotly <br>), so a long name never runs off the plot. */
+export function wrapLabel(text: string, max = 20): string {
+  const lines: string[] = []
+  let cur = ""
+  for (const w of text.split(" ")) {
+    if (cur !== "" && cur.length + 1 + w.length > max) {
+      lines.push(cur)
+      cur = w
+    } else cur = cur === "" ? w : `${cur} ${w}`
+  }
+  if (cur !== "") lines.push(cur)
+  return lines.join("<br>")
+}
+
 /** Direct labels at the right end of the lines (no legend for three series or fewer); labels of the same axis are kept apart. */
 export function endLabels(
   labels: readonly EndLabel[],
@@ -302,9 +316,12 @@ export function endLabels(
     const sel = labels.filter((l) => (l.yref ?? "y") === yref)
     if (sel.length === 0) continue
     const span = yRange[1] - yRange[0] || 1
+    const rows = Math.max(
+      ...sel.map((l) => wrapLabel(l.text).split("<br>").length),
+    )
     const ys = spreadLabels(
       sel.map((l) => l.y),
-      span * 0.075,
+      span * 0.085 * rows,
       yRange[0],
       yRange[1],
     )
@@ -314,7 +331,7 @@ export function endLabels(
         y: ys[i],
         xref: "x",
         yref,
-        text: l.text,
+        text: wrapLabel(l.text),
         showarrow: false,
         xanchor: "left",
         xshift: 8,
@@ -348,7 +365,7 @@ const CONTROL_LABEL: Record<string, string> = {
   C0: "Bare aluminium (nominal only)",
   C1: "Commercial datasheet (nominal only)",
 }
-const RIGHT = 190
+const RIGHT = 150
 
 export type CurveOpts = {
   /** role -> candidate id: the recipes keep their role colour and name. */
@@ -470,7 +487,7 @@ function g173Trace(g173: Spectrum): { trace: object; peak: [number, number] } {
 
 const spectrumLayout = (annotations: object[]): object =>
   baseLayout({
-    margin: { l: 64, r: 64 + RIGHT - 64, t: 16, b: 48 },
+    margin: { l: 64, r: 64 + RIGHT, t: 16, b: 48 },
     xaxis: { title: { text: "Wavelength (nm)" } },
     yaxis: { title: { text: "Reflectance R" }, range: [0, 1.02] },
     yaxis2: {
@@ -784,7 +801,7 @@ export type IndonesiaData = {
 export const INDONESIA_SUBJECT_LABEL: Record<string, string> = {
   C0: "C0 bare aluminium",
   C1: "C1 commercial datasheet",
-  card_high: "Best cooling recipe",
+  card_high: "Highest cooling recipe",
   card_balanced: "Balanced recipe",
   card_low: "Lowest cost recipe",
 }

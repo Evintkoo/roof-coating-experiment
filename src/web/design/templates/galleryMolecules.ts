@@ -257,7 +257,7 @@ export function galleryMoleculeCells(): GalleryCell[] {
   add(
     "TableCell",
     "row header",
-    row(tableCell({ kind: "text", value: "Best cooling", header: true })),
+    row(tableCell({ kind: "text", value: "Highest cooling", header: true })),
   )
   add(
     "TableCell",

@@ -1,4 +1,4 @@
-// The reading path of the report (plan 06 FR-2): Verdict, Recipes, Why it works, Explore all 96, Method and limits, Provenance.
+// The reading path of the report (plan 06 FR-2): Verdict, Recipes, How the layers work, Explore all 96, Method and limits, Provenance.
 // Climate and Budget live in indonesia.ts and optimisation.ts. Every number on the page comes from the verified readers of the
 // run directory through `findings()` and the files themselves; the wording is the plan 06 outline.
 import { DataError } from "../../core/errors"
@@ -55,8 +55,10 @@ export type Derived = {
   c0Mean: number
   ids: Record<Role, string>
   cooling: Record<Role, Cooling>
-  /** The one cooling scale of every recipe on the page. */
+  /** The one cooling scale of the three hero cards: zoomed to the three intervals, so it starts above zero. */
   axis: { min: number; max: number }
+  /** How many weather scenarios the scenario mean averages (distinct scenario ids of the shortlisted recipes). */
+  nScenarios: number
   findings: Finding[]
   /** Terms already linked on the page (each glossary term links once). */
   seen: Set<string>
@@ -117,13 +119,22 @@ export function derive(input: ReportInput): Derived {
   const c0Mean = mean(c0)
   const cooling = {} as Record<Role, Cooling>
   for (const r of ROLES) cooling[r] = coolingOf(ids[r], input.results, c0Mean)
-  const lo = Math.min(0, ...ROLES.map((r) => Math.floor(cooling[r].lo)))
-  const hi = Math.max(...ROLES.map((r) => Math.ceil(cooling[r].hi))) + 1
+  // one shared axis, zoomed to the data: whole kelvin just outside the three intervals (never fewer than two kelvin wide)
+  let lo = Math.min(...ROLES.map((r) => Math.floor(cooling[r].lo)))
+  let hi = Math.max(...ROLES.map((r) => Math.ceil(cooling[r].hi)))
+  if (hi - lo < 2) hi = lo + 2
+  if (lo < 0) lo = 0
+  const nScenarios = new Set(
+    input.results
+      .filter((x) => x.candidate_id === ids.high_performing)
+      .map((x) => x.scenario_id),
+  ).size
   const d: Derived = {
     c0Mean,
     ids,
     cooling,
     axis: { min: lo, max: hi },
+    nScenarios,
     findings: f,
     seen: new Set(),
   }
@@ -145,6 +156,15 @@ function decisionOf(cardText: string): string {
   const m = /### Decision\s+(\w+)/.exec(cardText)
   return m ? (m[1] as string) : "not stated"
 }
+
+/** The comparison table's plain wording of a card's decision word (display only; the card and the data keep the word). */
+const NEXT_STEP: Record<string, string> = {
+  go: "worth a coupon test",
+  revise: "revise first",
+  reject: "not worth a coupon test",
+}
+export const nextStep = (decision: string): string =>
+  NEXT_STEP[decision] ?? decision
 
 function designOf(input: ReportInput, id: string): Design {
   const r = input.results.find((x) => x.candidate_id === id)
@@ -178,11 +198,27 @@ export const verdictSection: ReportSection = {
         ...(r === "high_performing" ? { recommended: true } : {}),
       }),
     ) as [HeroRecipe, HeroRecipe, HeroRecipe]
-    const climate = loadIndonesia(i) !== null
+    const tradeoff = d.findings.find((f) => f.id === "cost-tradeoff")
+    const words = [
+      "zero",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine",
+    ]
+    const nScen = words[d.nScenarios] ?? String(d.nScenarios)
     return heroVerdict({
       eyebrow: "Spandek coating screening",
       verdict: `Three recipes cool an aluminium roof by ${span} in the models`,
-      lead: `Compared with bare aluminium, in model predictions for a freshly applied coating; the three differ little in cooling, so cost and the PROXY indices decide between them. ${d.ids.high_performing} (${ROLE_LABELS.high_performing}) is the recipe followed through ${climate ? "the climate section" : "the page"}.`,
+      lead: `Each card shows how much lower the peak surface temperature of the aluminium sheet itself (not the air indoors) is than bare aluminium, averaged over ${nScen} generic weather scenarios, in model predictions for a freshly applied coating. Bare aluminium has no interval, so each range covers coating parameter uncertainty only. The three differ little in cooling, so cost and the PROXY indices decide between them.`,
+      axisNote: `The three bars share one zoomed axis from ${d.axis.min} K to ${d.axis.max} K; it starts at ${d.axis.min} K, not at zero, so the intervals can be seen.`,
+      ...(tradeoff ? { costNote: tradeoff.sentence } : {}),
+      seen: d.seen,
       recipes,
       honesty: HONESTY_STATEMENT,
       limitsHref: LIMITS_HREF,
@@ -252,7 +288,7 @@ export const recipesSection: ReportSection = {
         corrosion: m("corrosion_proxy").value,
         delam: m("delam_proxy").value,
         cost: d.cooling[r].cost,
-        decision: decisionOf(cardFor(i, id)?.text ?? ""),
+        decision: nextStep(decisionOf(cardFor(i, id)?.text ?? "")),
       }
     })
     const ctl = (id: string, name: string) => ({
@@ -340,7 +376,7 @@ ${cards}`,
   },
 }
 
-// ---- Why it works ----
+// ---- How the layers work ----
 
 /** The scenario of the day-2 figure: the one in which bare aluminium peaks highest. */
 export function whyScenario(i: ReportInput): string {
@@ -360,7 +396,7 @@ export function whyScenario(i: ReportInput): string {
 
 export const whySection: ReportSection = {
   id: "why",
-  title: "Why it works",
+  title: "How the layers work",
   order: 30,
   render: (i) => {
     const d = derive(i)
@@ -403,7 +439,7 @@ export const whySection: ReportSection = {
     })(`<div id="fig-why-tofT" class="fig"></div>`)
     return sec(
       "why",
-      "Why it works",
+      "How the layers work",
       `<p class="page-lead">A recipe is three thin layers on the aluminium sheet. In the models each layer has one job.</p>
 ${layers}
 <div class="page-grid page-grid--3">${schem}</div>
@@ -579,7 +615,7 @@ ${explorer}
 ${curves}
 ${live}
 ${sensitivity}
-<p class="page-hint">The full card of each recommended recipe is under Recipes.</p>`,
+<p class="page-hint">The full card of each shortlisted recipe is under Recipes.</p>`,
     )
   },
   data: () => null,

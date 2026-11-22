@@ -199,7 +199,7 @@ export function renderMarkdown(md: string): string {
 
 // ---- built-in sections ----
 
-/** The built-in reading path (Verdict, Recipes, Why it works, Explore, Method and limits, Provenance); later plans add sections between. */
+/** The built-in reading path (Verdict, Recipes, How the layers work, Explore, Method and limits, Provenance); later plans add sections between. */
 export const BUILTIN_SECTIONS: readonly ReportSection[] = READING_PATH
 
 /**

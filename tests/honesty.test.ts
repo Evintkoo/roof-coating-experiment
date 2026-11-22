@@ -4,10 +4,7 @@ import { beforeAll, expect, test } from "bun:test"
 import { join } from "node:path"
 import type { ModelContext } from "../src/core/pipeline/context"
 import { liveSimulate } from "../src/core/pipeline/live"
-import {
-  OVERCLAIM_PATTERN,
-  withoutAllowedLabels,
-} from "../src/core/report/outline"
+import { OVERCLAIM_PATTERN } from "../src/core/report/outline"
 import { loadContext } from "../src/node/context"
 import {
   figLiveSpectrum,
@@ -92,17 +89,16 @@ test("limitsSectionAndNavLinkPresent", async () => {
 
 test("forbiddenPhrasesAbsent", async () => {
   const { html } = await buildTestReport()
-  // plan 06: "proven" is word-bounded (the section "Provenance" is not a claim); the exact labels "Best cooling" and "Why it works" pass
-  const text = withoutAllowedLabels(visibleText(html))
+  // plan 06: "proven" is word-bounded (the section "Provenance" is not a claim); no label is allow-listed any more
+  const text = visibleText(html)
   expect(text).not.toMatch(OVERCLAIM_PATTERN)
   expect(OVERCLAIM_PATTERN.test("a safe coating")).toBe(true) // the scan can fail
   expect(OVERCLAIM_PATTERN.test("this recipe is proven")).toBe(true)
   expect(OVERCLAIM_PATTERN.test("the best recipe")).toBe(true)
   expect(OVERCLAIM_PATTERN.test("Provenance")).toBe(false)
-  expect(withoutAllowedLabels("Best cooling")).not.toMatch(OVERCLAIM_PATTERN)
-  expect(withoutAllowedLabels("Best cooling is best")).toMatch(
-    OVERCLAIM_PATTERN,
-  )
+  expect("Highest cooling").not.toMatch(OVERCLAIM_PATTERN)
+  expect("Best cooling").toMatch(OVERCLAIM_PATTERN)
+  expect("each recommended recipe").toMatch(OVERCLAIM_PATTERN)
 })
 
 test("pageStatesProxyAndIntervalsUpFront", async () => {
@@ -132,7 +128,7 @@ test("pageStatesProxyAndIntervalsUpFront", async () => {
 test("forbiddenPhrasesAbsentFromTheIndonesiaSection", async () => {
   const { html } = await buildIndonesiaReport()
   const forbidden = OVERCLAIM_PATTERN
-  const text = withoutAllowedLabels(visibleText(html))
+  const text = visibleText(html)
   expect(text).not.toMatch(forbidden)
   const section = visibleText(
     /<section id="climate"[\s\S]*<section id="limits"/.exec(

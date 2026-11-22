@@ -20,12 +20,12 @@ export const OUTLINE: readonly OutlineSection[] = [
   {
     id: "recipes",
     title: "Recipes",
-    question: "What are the three recommended recipes and how do they differ?",
+    question: "What are the three shortlisted recipes and how do they differ?",
     optional: false,
   },
   {
     id: "why",
-    title: "Why it works",
+    title: "How the layers work",
     question: "What do the three layers do?",
     optional: false,
   },
@@ -63,7 +63,7 @@ export const OUTLINE: readonly OutlineSection[] = [
 
 /** Plain-language role names (the code roles are high_performing, balanced, low_cost). */
 export const ROLE_LABELS = {
-  high_performing: "Best cooling",
+  high_performing: "Highest cooling",
   balanced: "Balanced",
   low_cost: "Lowest cost",
 } as const
@@ -106,19 +106,6 @@ export const HONESTY_STATEMENT =
 export const LIMITS_LINK_TEXT = "Limits"
 export const LIMITS_HREF = "#limits"
 
-/** Page-wide forbidden wording ("proven" is word-bounded: the FR-2 section "Provenance" must not trip it): plan 00 honesty list, plan 04 additions, and the plan 06 words (ranks, not measures). */
+/** Page-wide forbidden wording ("proven" is word-bounded: the FR-2 section "Provenance" must not trip it): plan 00 honesty list, plan 04 additions, and the plan 06 words (ranks, not measures). No label is let through: every visible word is scanned. */
 export const OVERCLAIM_PATTERN =
-  /\bproven\b|\bsafe\b|guarantee|\bbest\b|\bproves?\b|\bworks\b|validated|ground[- ]truth|station[- ]measured|measured in Indonesia|field[- ]tested|real[- ]world performance|\d+\s*%\s*(safe|aman|self-clean)/i
-
-/** Exact labels the scan lets through: a role name and a section title fixed by the plan (FR-2), not claims. */
-export const ALLOWED_LABELS: readonly string[] = [
-  "Best cooling",
-  "Why it works",
-]
-
-/** `text` with the allowed labels removed, ready for OVERCLAIM_PATTERN. */
-export function withoutAllowedLabels(text: string): string {
-  let t = text
-  for (const l of ALLOWED_LABELS) t = t.split(l).join(" ")
-  return t
-}
+  /\bproven\b|\bsafe\b|guarantee|\bbest\b|\bproves?\b|\bworks\b|\brecommended\b|validated|ground[- ]truth|station[- ]measured|measured in Indonesia|field[- ]tested|real[- ]world performance|\d+\s*%\s*(safe|aman|self-clean)/i

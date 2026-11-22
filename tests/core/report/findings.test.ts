@@ -13,7 +13,7 @@ import { REPORT_FIXTURE } from "../../helpers"
 
 // plan 00 honesty list plus the plan 06 words (ranks, not measures); outline.ts exports the page-wide twin
 const OVERCLAIM_PATTERN =
-  /\bproven\b|\bsafe\b|guarantee|\bbest\b|\bproves?\b|\bworks\b|validated|measured in Indonesia|field[- ]tested/i
+  /\bproven\b|\bsafe\b|guarantee|\bbest\b|\bproves?\b|\bworks\b|\brecommended\b|validated|measured in Indonesia|field[- ]tested/i
 const RUN = REPORT_FIXTURE
 
 // ---- independent recomputation: its own tiny CSV reader, no code shared with src ----
@@ -110,6 +110,16 @@ function independent(key: string): number {
     const r = raw.refine.find((x) => x.role === p[1]) as Record<string, string>
     return Number(p[2] === "t_max" ? r.t_max_pred : r.cost_proxy)
   }
+  if (p[0] === "tradeoff") {
+    const role = p[1] as string
+    const f = raw.refine.find((x) => x.role === role) as Record<string, string>
+    const r = recipe(role)
+    return {
+      cooling: c0 - Number(f.t_max_pred),
+      refined_cost: Number(f.cost_proxy),
+      cost: r.cost,
+    }[p[2] as "cost"]
+  }
   if (p[0] === "budget") {
     if (p[1] === "knee_share_pct") return 95
     const t = raw.budget.tables.find(
@@ -162,6 +172,7 @@ test("theRealRunProducesTheExpectedSentences", () => {
     "recipe-high_performing",
     "recipe-balanced",
     "recipe-low_cost",
+    "cost-tradeoff",
     "indonesia-initial",
     "indonesia-aged",
     "budget",
@@ -171,7 +182,7 @@ test("theRealRunProducesTheExpectedSentences", () => {
     "about 13 to 14 K",
   )
   expect(f.filter((x) => x.label !== undefined).map((x) => x.label)).toEqual([
-    "Best cooling",
+    "Highest cooling",
     "Balanced",
     "Lowest cost",
   ])
@@ -236,6 +247,8 @@ test("fallbackWithoutRefineFiles", () => {
     "SP-046",
   ])
   for (const s of rec) expect(s.sentence).not.toContain("refined variant")
+  // F2: the cost trade-off sentence needs the refine files and is omitted without them
+  expect(f.some((x) => x.id === "cost-tradeoff")).toBe(false)
   expect(all(f).some((n) => n.key.startsWith("refined."))).toBe(false)
   // the cooling numbers are the same with and without refine files
   const withRefine = findings(real)
@@ -303,4 +316,80 @@ test("absentOptionalPartsAreOmittedWithoutError", () => {
 
 test("isPure", () => {
   expect(findings(real)).toEqual(findings(real))
+})
+
+test("costTradeoffNamesOnlyRecipesWhoseRefinedVariantIsCheaperAndCoolsAtLeastAsWell", () => {
+  const t = findings(real).find((x) => x.id === "cost-tradeoff") as Finding
+  // independent: which roles qualify, from the raw files
+  const c0 = avg(
+    raw.controls
+      .filter((r) => r.control_id === "C0")
+      .map((r) => Number(r.t_max_pred)),
+  )
+  const qualifying = raw.refine.filter((f) => {
+    const rows = raw.results.filter((r) => r.candidate_id === f.screened_id)
+    const lo = c0 - avg(rows.map((r) => Number(r.t_max_hi)))
+    const cost = Number((rows[0] as Record<string, string>).cost_proxy)
+    return (
+      Number(Number(f.cost_proxy).toFixed(2)) < Number(cost.toFixed(2)) &&
+      c0 - Number(f.t_max_pred) >= lo
+    )
+  })
+  expect(qualifying.length).toBeGreaterThan(0)
+  for (const f of qualifying)
+    expect(t.sentence).toContain(f.screened_id as string)
+  for (const f of raw.refine.filter((x) => !qualifying.includes(x)))
+    expect(t.sentence).not.toContain(f.screened_id as string)
+  // a refine file in which nothing is cheaper drops the sentence
+  const dear = (real.refine ?? []).map((r) => ({ ...r, cost_proxy: 9 }))
+  expect(
+    findings({ ...real, refine: dear }).some((x) => x.id === "cost-tradeoff"),
+  ).toBe(false)
+})
+
+test("indonesiaRankingSaysWhenTheTopRangesOverlap", () => {
+  const initial = findings(real).find(
+    (x) => x.id === "indonesia-initial",
+  ) as Finding
+  const rows = raw.ind
+    .filter(
+      (x) =>
+        x.subject === "card_high" &&
+        x.bin === "weighted" &&
+        x.state === "initial",
+    )
+    .sort((a, b) => Number(b.dq_w_m2) - Number(a.dq_w_m2))
+  const [top, second] = rows as [Record<string, string>, Record<string, string>]
+  // independent overlap test from the raw file
+  expect(Number(second.dq_hi) >= Number(top.dq_lo)).toBe(true)
+  const name = (r: Record<string, string>) =>
+    (r.site as string).charAt(0).toUpperCase() + (r.site as string).slice(1)
+  expect(initial.sentence).toContain(
+    `the ranges of ${name(top)} and ${name(second)}`,
+  )
+  expect(initial.sentence).toContain("not clearly separated")
+  // the page still says which site has the highest estimate
+  expect(initial.sentence).toContain(`point estimate, in ${name(top)}`)
+  // separated ranges: no overlap sentence
+  const sep = {
+    ...real,
+    indonesia: {
+      ...(real.indonesia as NonNullable<FindingsInput["indonesia"]>),
+      summary: (real.indonesia?.summary ?? []).map((x) =>
+        x.subject === "card_high" &&
+        x.bin === "weighted" &&
+        x.state === "initial" &&
+        x.site === top.site
+          ? {
+              ...x,
+              dq_w_m2: 40,
+              dq_lo: 39.9,
+              dq_hi: 40.1,
+            }
+          : x,
+      ),
+    },
+  }
+  const s = findings(sep).find((x) => x.id === "indonesia-initial") as Finding
+  expect(s.sentence).not.toContain("not clearly separated")
 })

@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
 import { ROLE_NAMES } from "../../../src/core/report/findings"
 import {
-  ALLOWED_LABELS,
   HONESTY_STATEMENT,
   LAYERS,
   LIMITS_HREF,
@@ -10,7 +9,6 @@ import {
   OVERCLAIM_PATTERN,
   ROLE_BLURBS,
   ROLE_LABELS,
-  withoutAllowedLabels,
 } from "../../../src/core/report/outline"
 import { GLOSSARY, termsIn } from "../../../src/web/design/terms"
 
@@ -18,7 +16,7 @@ test("outlineFollowsFr2InOrder", () => {
   expect(OUTLINE.map((s) => s.title)).toEqual([
     "Verdict",
     "Recipes",
-    "Why it works",
+    "How the layers work",
     "Indonesian climate",
     "Budget",
     "Explore all 96",
@@ -59,7 +57,7 @@ test("honestyStatementCarriesTheStructuralCaveats", () => {
   expect(LIMITS_HREF).toBe("#limits")
 })
 
-test("bodyTextIsFreeOfOverclaimAndOnlyTwoLabelsAreAllowed", () => {
+test("bodyTextAndLabelsAreFreeOfOverclaim", () => {
   const body = [
     HONESTY_STATEMENT,
     ...LAYERS.map((l) => l.why),
@@ -69,13 +67,13 @@ test("bodyTextIsFreeOfOverclaimAndOnlyTwoLabelsAreAllowed", () => {
   ]
   for (const t of body) expect(t).not.toMatch(OVERCLAIM_PATTERN)
   const labels = [...OUTLINE.map((s) => s.title), ...Object.values(ROLE_LABELS)]
-  const flagged = labels.filter((l) => OVERCLAIM_PATTERN.test(l))
-  expect(flagged.sort()).toEqual([...ALLOWED_LABELS].sort())
-  for (const l of labels)
-    expect(withoutAllowedLabels(l)).not.toMatch(OVERCLAIM_PATTERN)
-  expect(withoutAllowedLabels("Why it works and a best guess")).toMatch(
-    OVERCLAIM_PATTERN,
-  )
+  // no label is let through any more: every one passes the scan as it is
+  for (const l of labels) expect(l).not.toMatch(OVERCLAIM_PATTERN)
+  expect(labels).toContain("Highest cooling")
+  expect(labels).toContain("How the layers work")
+  // the scan can fail, including on the two words the old labels used and on "recommended"
+  for (const bad of ["Why it works", "Best cooling", "each recommended recipe"])
+    expect(bad).toMatch(OVERCLAIM_PATTERN)
 })
 
 test("layerAndHonestyTextUseOnlyDefinedTerms", () => {
