@@ -53,6 +53,16 @@ const SECTION_LABEL = `
 .tv-section-label--accent{color:${t("link")}}
 `
 
+const BADGE = `
+.tv-badge{display:inline-flex;align-items:center;padding:${t("space-1")} ${t("space-2")};border:${t("hairline")} solid transparent;border-radius:${t("radius-pill")};font-family:${t("font-sans")};font-size:${t("size-label")};font-weight:${t("weight-semibold")};letter-spacing:0.04em;line-height:1.2;white-space:nowrap;vertical-align:middle}
+.tv-badge--proxy{color:${t("status-proxy")};background:color-mix(in srgb,${t("status-proxy")} 14%,transparent)}
+.tv-badge--go{color:${t("status-go")};background:color-mix(in srgb,${t("status-go")} 14%,transparent)}
+.tv-badge--stop{color:${t("status-stop")};background:color-mix(in srgb,${t("status-stop")} 14%,transparent)}
+.tv-badge--scenario{color:${t("accent-secondary")};border-color:${t("accent-secondary")}}
+.tv-badge--nominal{color:${t("text-muted")};border-color:${t("border-control")}}
+@media print{.tv-badge{background:none;border-color:${t("text-primary")}}}
+`
+
 export const ATOM_CSS = {
   base: BASE,
   button: BUTTON,
@@ -60,6 +70,7 @@ export const ATOM_CSS = {
   logo: LOGO,
   navLink: NAVLINK,
   sectionLabel: SECTION_LABEL,
+  badge: BADGE,
 } as const
 
 export type AtomCssName = keyof typeof ATOM_CSS
