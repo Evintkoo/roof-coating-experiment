@@ -3,7 +3,7 @@
 import { chip } from "../atoms/chip"
 import { buildError, esc, finite, fixed, tag } from "../html"
 import { callout } from "../molecules/callout"
-import { sliderField } from "../molecules/sliderField"
+import { sliderField, snapToBounds } from "../molecules/sliderField"
 import { type RecipeCardProps, recipeCard } from "./recipeCard"
 
 export const BUDGET_UNIT = "relative cost units (not IDR)"
@@ -169,6 +169,8 @@ export function mountBudgetPanel(
     for (const c of root.querySelectorAll(".tv-chip--toggle"))
       c.setAttribute("aria-pressed", c === btn ? "true" : "false")
     root.dataset.profile = btn.dataset.value ?? ""
-    update(Number(range.value))
+    update(
+      snapToBounds(Number(range.value), Number(range.min), Number(range.max)),
+    )
   })
 }
