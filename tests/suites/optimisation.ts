@@ -305,8 +305,7 @@ export function optimisationSuite(S: OptimisationScale): void {
         await page.locator("#fig-refine-front .main-svg").count(),
       ).toBeGreaterThan(0)
       const t = tables.find((x) => x.profile === "balanced") as BudgetTable
-      const lo = Math.min(...tables.map((x) => x.c_min))
-      await page.click('#budget-panel .tv-chip--toggle[data-value="balanced"]')
+      const lo = t.c_min // one merged frontier (no priority chips): the panel shows the balanced table
       const cost2 = (b: number): string => {
         let best = t.entries[0]
         for (const e of t.entries)

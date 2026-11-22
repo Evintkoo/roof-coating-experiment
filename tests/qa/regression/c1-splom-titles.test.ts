@@ -13,7 +13,7 @@ let qa: QaBrowser
 beforeAll(async () => {
   qa = await startQa()
 }, 120_000)
-afterAll(() => qa?.close())
+afterAll(() => qa?.close(), 120_000)
 
 test("splomAxisTitlesAreSeparateAndInsideTheFigure", async () => {
   for (const width of [1280, 390]) {

@@ -39,7 +39,11 @@ export type QaBrowser = {
 /** Starts a Chrome and returns an `open` that waits for the first figure to draw. Call `close` in `afterAll`. */
 export async function startQa(): Promise<QaBrowser> {
   const { path } = await qaReport()
-  const browser = await chromium.launch({ channel: "chrome", headless: true })
+  const browser = await chromium.launch({
+    channel: "chrome",
+    headless: true,
+    timeout: 30_000,
+  })
   const open: QaBrowser["open"] = async (o = {}) => {
     const ctx = await browser.newContext({
       viewport: { width: o.width ?? 1280, height: o.height ?? 800 },

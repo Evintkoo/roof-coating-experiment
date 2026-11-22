@@ -24,7 +24,7 @@ Pre-fix commit: `041ab2d` (main). Every bug has a regression test in `tests/qa/r
 | c3 live temperature y title clipped | cosmetic | fix | title shortened, band stated in the figure note | `c3-live-title.test.ts` | yes |
 | c4 live control labels | cosmetic | fix | `unitText`, `liveLabel`, `liveValue` (pure, unit-tested) | `c4-live-labels.test.ts` | yes |
 | c5 raw ids in user text | cosmetic | fix | role codes shown as words (cards at display time; the card files are unchanged), robust-optimum names explained | `c5-raw-ids.test.ts` | yes |
-| c6 parcoords ticks, title clip, dark SPLOM, checkboxes, debug font | cosmetic | fix, except the dark SPLOM: not reproducible on the current build (the dark theme remaps the colour scale: 0 maps to `#295894`, 1 to `#bedaff`) | `c6-chart-details.test.ts` | yes |
+| c6 parcoords ticks, title clip, dark SPLOM, checkboxes, debug font | cosmetic | fix for ticks, title clip and debug font; the dark SPLOM is not reproducible on the current build (the dark theme remaps the colour scale: 0 maps to `#295894`, 1 to `#bedaff`); the 44 px checkboxes are wontfix: plan 06 `T_tap_px` (frozen) measures the input itself, so a smaller box would break `tapTargetsAreAtLeast44px` | `c6-chart-details.test.ts` | yes |
 | c7 "to scale" drawings differ per recipe | cosmetic | fix (it was a defect: the same stack height for 205 and 104 um) | one shared scale across the three recipes, caption says so | `c7-layer-scale.test.ts` | yes |
 
 Found by `bun run qa`, not in the hunt list: with every disclosure open, the full candidate cards made the page 14 px wider than 320 px (a grid item with `min-width:auto`). Fixed (`.page-cards` single `minmax(0,1fr)` column), test `n1-cards-overflow-320.test.ts`.
