@@ -420,11 +420,11 @@ export function cardHtml(i: ReportInput, text: string): string {
   return renderMarkdown(lines.join("\n"), { levels: CARD_LEVELS })
     .replace(
       "<p>@@LIMITS@@</p>",
-      `<p>The ${STATIC_LIMITS.length} static model limits are the same for every recipe; they are listed once under <a href="#limits">Method and limits</a>.</p>`,
+      `<p>The ${STATIC_LIMITS.length} static model limits are the same for every recipe; they are listed once under <a class="page-jump" href="#limits">Method and limits</a>.</p>`,
     )
     .replace(
       "<p>@@CONSTS@@</p>",
-      `<p>The assumed constants are the same for every recipe; they are tabulated once under <a href="#limits">Method and limits</a>.</p>`,
+      `<p>The assumed constants are the same for every recipe; they are tabulated once under <a class="page-jump" href="#limits">Method and limits</a>.</p>`,
     )
 }
 
