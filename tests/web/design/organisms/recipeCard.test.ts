@@ -79,9 +79,9 @@ test("fullAddsMetricsBadgesAndLayersInOrderFromTheMetal", async () => {
 test("recommendedAndHeadingLevel", async () => {
   const html = recipeCard({ ...base, recommended: true, headingLevel: 2 })
   expect(html).toContain("tv-recipe--recommended")
-  expect(html).toContain(">Recommended<")
+  expect(html).toContain(">Shown in the climate section<")
   expect(html).toContain("<h2")
-  expect(recipeCard(base)).not.toContain("Recommended")
+  expect(recipeCard(base)).not.toContain("Shown in the climate section")
 })
 
 test("escapesEveryFieldF8", async () => {

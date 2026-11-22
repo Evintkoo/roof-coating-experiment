@@ -212,8 +212,15 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
         limits: [...document.querySelectorAll('a[href="#limits"]')].some(vis),
       }
     })
-    for (const needle of ["PROXY", "parameter uncertainty only", "Limits"])
+    for (const needle of [
+      "PROXY",
+      "parameter uncertainty only",
+      "Limits",
+      "Next step: make small coated aluminium samples (a coupon test)",
+      "these numbers only rank which recipes are worth that test",
+    ])
       expect(shown.text).toContain(needle)
+    expect(shown.text).not.toContain("Recommended")
     expect(shown.limits).toBe(true)
   })
 

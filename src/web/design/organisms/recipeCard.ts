@@ -69,7 +69,9 @@ export function recipeCard(p: RecipeCardProps): string {
       { class: "tv-recipe__role" },
       esc(p.roleLabel ?? ROLE_LABELS[role]),
     ) +
-      (p.recommended ? badge({ tone: "go", label: "Recommended" }) : "") +
+      (p.recommended
+        ? badge({ tone: "go", label: "Shown in the climate section" })
+        : "") +
       codeBlock({ code: p.name, variant: "inline", label: "Recipe" }),
   )
   const numbers =

@@ -52,6 +52,7 @@ test("honestyStatementCarriesTheStructuralCaveats", () => {
     "parameter uncertainty only",
     "not a laboratory result",
     "scenario",
+    "Next step: make small coated aluminium samples (a coupon test) of a recipe and test them in a laboratory; these numbers only rank which recipes are worth that test.",
   ])
     expect(HONESTY_STATEMENT).toContain(needle)
   expect(LIMITS_LINK_TEXT).toBe("Limits")

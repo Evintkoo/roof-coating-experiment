@@ -101,7 +101,7 @@ export const LAYERS: readonly Layer[] = [
 
 /** The honesty statement shown on the first screen and kept visible when disclosures are closed (H9). */
 export const HONESTY_STATEMENT =
-  "These are model predictions for a freshly applied coating on bare aluminium, not a laboratory result and not a field measurement. Intervals show parameter uncertainty only. Every PROXY index is a relative ranking, not a measurement and not a probability. Ageing appears only as a labelled scenario."
+  "These are model predictions for a freshly applied coating on bare aluminium, not a laboratory result and not a field measurement. Intervals show parameter uncertainty only. Every PROXY index is a relative ranking, not a measurement and not a probability. Ageing appears only as a labelled scenario. Next step: make small coated aluminium samples (a coupon test) of a recipe and test them in a laboratory; these numbers only rank which recipes are worth that test."
 
 export const LIMITS_LINK_TEXT = "Limits"
 export const LIMITS_HREF = "#limits"
