@@ -50,7 +50,7 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
   afterAll(async () => {
     await browser?.close()
     if (dir) rmSync(dir, { recursive: true, force: true })
-  })
+  }, 120_000)
 
   async function open(opts: {
     scheme: "light" | "dark"

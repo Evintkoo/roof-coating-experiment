@@ -57,7 +57,7 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
   afterAll(async () => {
     for (const c of contexts) await c.close().catch(() => undefined)
     await browser?.close()
-  })
+  }, 120_000)
 
   async function open(
     o: {

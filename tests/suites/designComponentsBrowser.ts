@@ -45,7 +45,7 @@ export function designComponentsBrowserSuite(S: ComponentsBrowserScale): void {
     test(name, fn, PER_TEST_MS)
   }
   beforeAll(() => fx.start(), 120_000)
-  afterAll(() => fx.stop())
+  afterAll(() => fx.stop(), 120_000)
 
   reg("sortableTableSortsFromTheKeyboardAndSetsAriaSort", false, async () => {
     const html = dataTable({
