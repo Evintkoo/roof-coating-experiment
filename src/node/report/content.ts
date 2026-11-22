@@ -364,7 +364,7 @@ export const recipesSection: ReportSection = {
         summary: `Full card of ${id} (${ROLE_LABELS[r]}): every number, the controls and the decision`,
         level: "detail",
       })(
-        `<div class="page-cards" id="card-${esc(c.name.replace(/\.md$/, ""))}"><article>${renderMarkdown(plainCard(c.text), { levels: CARD_LEVELS })}</article></div>`,
+        `<div class="page-cards" id="card-${esc(c.name.replace(/\.md$/, ""))}"><article>${cardHtml(i, c.text)}</article></div>`,
       )
     }).join("\n")
     return sec(
@@ -390,6 +390,42 @@ export function plainCard(text: string): string {
   return text.replace(/\b(high_performing|balanced|low_cost)\b/g, (m) =>
     roleText(m),
   )
+}
+
+/**
+ * One card as page HTML. The static limit statements and the assumed constants are the same on every card, so the page keeps one
+ * copy of each under Method and limits and each card points there; the card file itself still lists them.
+ */
+export function cardHtml(i: ReportInput, text: string): string {
+  const limits = new Set(STATIC_LIMITS.map((l) => `- ${l}`))
+  const consts = new Set(
+    scenarioConstants(i.ctx).map(
+      (k) => `- ${k.path} = ${k.value}${k.unit ? ` ${k.unit}` : ""}`,
+    ),
+  )
+  const seen = new Set<string>()
+  const lines: string[] = []
+  for (const l of plainCard(text).split("\n")) {
+    const kind = limits.has(l)
+      ? "@@LIMITS@@"
+      : consts.has(l)
+        ? "@@CONSTS@@"
+        : ""
+    if (kind === "") lines.push(l)
+    else if (!seen.has(kind)) {
+      seen.add(kind)
+      lines.push(kind)
+    }
+  }
+  return renderMarkdown(lines.join("\n"), { levels: CARD_LEVELS })
+    .replace(
+      "<p>@@LIMITS@@</p>",
+      `<p>The ${STATIC_LIMITS.length} static model limits are the same for every recipe; they are listed once under <a href="#limits">Method and limits</a>.</p>`,
+    )
+    .replace(
+      "<p>@@CONSTS@@</p>",
+      `<p>The assumed constants are the same for every recipe; they are tabulated once under <a href="#limits">Method and limits</a>.</p>`,
+    )
 }
 
 /** The scenario of the day-2 figure: the one in which bare aluminium peaks highest. */
@@ -665,12 +701,23 @@ const limits: ReportSection = {
       summary: "Assumed constants (status: scenario)",
       level: "detail",
     })(
-      `<ul>${scenarioConstants(i.ctx)
-        .map(
-          (k) =>
-            `<li><code>${esc(k.path)}</code> = ${esc(k.value)}${k.unit ? ` ${esc(k.unit)}` : ""}</li>`,
-        )
-        .join("")}</ul>`,
+      dataTable({
+        id: "tbl-constants",
+        caption: "Assumed constants (status: scenario, not measured)",
+        columns: [
+          {
+            key: "path",
+            label: "Parameter",
+            kind: "text",
+            rowHeader: true,
+            mono: true,
+            sortable: true,
+          },
+          { key: "value", label: "Value", kind: "text", mono: true },
+          { key: "unit", label: "Unit", kind: "text" },
+        ],
+        rows: scenarioConstants(i.ctx).map((k) => ({ ...k })),
+      }),
     )
     const gloss = disclosure({
       summary: "Glossary: every term the page uses",
