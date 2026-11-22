@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import fc from "fast-check"
 import { OBJECTIVE_COLUMNS, type ObjRow } from "../../src/core/pipeline/tables"
-import { figParcoords, shortAxisLabel } from "../../src/web/figures"
+import { figParcoords, parcoordsAxisLabel } from "../../src/web/figures"
 import {
   applyBrush,
   emptyBrush,
@@ -155,18 +155,18 @@ test("brushIsReadByLabelAndReinjectedBeforeReact", () => {
       dimensions: { label: string; constraintrange?: unknown }[]
     }
   ).dimensions
-  expect(out.map((d) => d.label)).toEqual(brush.order.map(shortAxisLabel))
+  expect(out.map((d) => d.label)).toEqual(brush.order.map(parcoordsAxisLabel))
   expect(
-    out.find((d) => d.label === shortAxisLabel("t_max_pred"))?.constraintrange,
+    out.find((d) => d.label === parcoordsAxisLabel("t_max_pred"))?.constraintrange,
   ).toEqual([31, 32])
   expect(
-    out.find((d) => d.label === shortAxisLabel("delam_proxy"))?.constraintrange,
+    out.find((d) => d.label === parcoordsAxisLabel("delam_proxy"))?.constraintrange,
   ).toEqual([
     [0, 0.1],
     [0.5, 0.6],
   ])
   expect(
-    out.find((d) => d.label === shortAxisLabel("cost_proxy"))?.constraintrange,
+    out.find((d) => d.label === parcoordsAxisLabel("cost_proxy"))?.constraintrange,
   ).toBeUndefined()
   // the input spec is not mutated, and an empty brush removes ranges
   expect(JSON.stringify(fresh)).toBe(specBefore)

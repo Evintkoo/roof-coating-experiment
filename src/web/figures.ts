@@ -86,6 +86,10 @@ const SHORT: Record<string, string> = {
 export const shortAxisLabel = (column: string): string =>
   SHORT[column] ?? axisLabel(column)
 
+/** The axis title of a parallel-coordinates dimension: two lines at most, so it clears the range number printed under it. */
+export const parcoordsAxisLabel = (column: string): string =>
+  shortAxisLabel(column).replace(/<br>index<br>/, " index<br>")
+
 /** A model input in words (the sensitivity tables carry the code names). */
 export const inputLabel = (id: string): string => INPUT_LABEL[id] ?? id
 
@@ -127,7 +131,7 @@ export function figParcoords(
     const lo = v.length ? Math.min(...v) : 0
     const hi = v.length ? Math.max(...v) : 1
     return {
-      label: shortAxisLabel(c),
+      label: parcoordsAxisLabel(c),
       values: v,
       range: [lo, hi > lo ? hi : lo + 1],
       tickformat: ".3~g",

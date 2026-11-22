@@ -270,7 +270,9 @@ test("axisLabelsMarkProxy", () => {
   const sp = (
     figSplom(obj(5), SHORT).data[0] as { dimensions: { label: string }[] }
   ).dimensions.map((d) => d.label)
-  expect(sp).toEqual(labels)
+  // the parallel-coordinates titles are two lines at most (a third line printed over the range number); the matrix keeps its own
+  expect(labels.every((l) => l.split("<br>").length <= 2)).toBe(true)
+  expect(labels.map((l) => l.replace(" index<br>", "<br>index<br>"))).toEqual(sp)
 })
 
 test("infeasibleRowsAbsentFromFigures", () => {
