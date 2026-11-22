@@ -117,3 +117,7 @@ BLOCKED-13 (`docs/BLOCKED.md`): the Torviello brand is dark-only. The light them
 `bun run check` (biome, tsc, 979 tests in 130 files) took 283.7 s wall at load average 3.8 to 8.4 (another session active), exit 0; a second run with the junit reporter took 268 s for the test phase. The idle baseline in `docs/testing.md` is 155 s for 679 tests. The slowest files are older ones: `node/refine.test.ts` 68 s, `oracle.fixtures.test.ts` 41 s, `core/opt/objective.test.ts` 26 s, `report.browser.test.ts` 26 s. All plan-06 test files together are about 21 s of the 286 s of summed file time (7 %); the largest, `report.design.browser.test.ts`, takes 14.6 s and `design.components.browser.test.ts` 5 s, none is size-dependent, so nothing was moved to the proof tier. See `docs/testing.md`.
 
 Proof-tier files run once each, one at a time: `report.design.browser.proof` 12 of 12 (12.5 s), `design.atoms.browser.proof` 8 of 8 (1.8 s), `design.components.browser.proof` 13 of 13 (4.5 s), `report.browser.proof` 20 of 20 (51.7 s). Fast twins: 12 of 12, 6 of 6, 11 of 11, 11 of 11.
+
+## Final comprehension runs (after the review fix wave, 2026-11-22)
+
+Two fresh readers given only the closed page text (`docs/proofs/plan-06-comprehension/final-page-closed.txt`) scored 8/8 and 8/8 (answers `final-run-a-answers.json`, `final-run-b-answers.json`, scored by `docs/spikes/plan-06/q6_score.ts`). `bun run check` on the final tree: 988 pass, 0 fail, 246.7 s at load 4 to 6 with another session active.
