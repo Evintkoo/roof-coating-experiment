@@ -5,9 +5,9 @@ import {
   loadFindingsInput,
   shortlistFromCards,
 } from "../../../src/node/report/findingsInput"
-import { repoRoot } from "../../helpers"
+import { REPORT_FIXTURE } from "../../helpers"
 
-const RUN = join(repoRoot, "reports", "plan-00-run")
+const RUN = REPORT_FIXTURE
 
 test("readsTheRealRunIntoTypedInput", () => {
   const i = loadFindingsInput(RUN)

@@ -9,12 +9,12 @@ import {
   findings,
 } from "../../../src/core/report/findings"
 import { loadFindingsInput } from "../../../src/node/report/findingsInput"
-import { repoRoot } from "../../helpers"
+import { REPORT_FIXTURE } from "../../helpers"
 
 // plan 00 honesty list plus the plan 06 words (ranks, not measures); outline.ts exports the page-wide twin
 const OVERCLAIM_PATTERN =
   /\bproven\b|\bsafe\b|guarantee|\bbest\b|\bproves?\b|\bworks\b|validated|measured in Indonesia|field[- ]tested/i
-const RUN = join(repoRoot, "reports", "plan-00-run")
+const RUN = REPORT_FIXTURE
 
 // ---- independent recomputation: its own tiny CSV reader, no code shared with src ----
 type Table = Record<string, string>[]

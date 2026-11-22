@@ -12,12 +12,10 @@ import {
   linkTerms,
   termsIn,
 } from "../../../src/web/design/terms"
-import { repoRoot } from "../../helpers"
+import { REPORT_FIXTURE, repoRoot } from "../../helpers"
 
 test("termsAllDefined", () => {
-  const f = findings(
-    loadFindingsInput(join(repoRoot, "reports", "plan-00-run")),
-  )
+  const f = findings(loadFindingsInput(REPORT_FIXTURE))
   const verdictAndRecipes = f.filter(
     (x) => x.id === "verdict" || x.id.startsWith("recipe-"),
   )

@@ -1,0 +1,153 @@
+{
+  "run_id": "20261121T172730601-6a7a8fba",
+  "seed": 20261121,
+  "n_mc": 256,
+  "git_commit": "855ed6350dda6836a27a532aad6e919501f50337",
+  "versions": {
+    "bun": "1.3.14"
+  },
+  "bun_lock_sha256": "0da47b52c9a69b9c8c66b30d0add13cbc031afc611c75d7e0c89105de7cf2be3",
+  "config_sha256": "fa99046645ddd33dfe9324fff81c958e161d77a78ff51fd408b9eded037467c0",
+  "config_files": {
+    "controls.yaml": "c427657c427abcfb6dc82913bc0a01e9ae394228b8ba3f510d9dbdd09d17101d",
+    "material_ranges.yaml": "7ac546043414cd1db4f7506b4406f3884e6d50472d716fc5cc040730d0d25d34",
+    "materials.yaml": "e6c1adb8286c0f25f498d6ff9db7666a17c5f06ff4ecacd6ea4a7a838cec2b9b",
+    "weather_scenarios.yaml": "9ef11b772d633101e10a28c93f0a17b77699ae067fb5ebddaa66f7e284e77288"
+  },
+  "constants_sha256": "f470ef10c3a25e8b0916e33b2cf78fa63f351f80d59af9bea8ed2e2ad86b8a80",
+  "data_sha256": {
+    "g173_global_tilt.csv": "a925ccd35f79bd282beaadd3bb16ccff2e59142a5efb31807f8f8b0936234c88",
+    "raw/ASTMG173.csv": "91964ac23c0ec82dbbda4a7f160a5f5faf551dfe18ffae7e2446d74b57ee7859",
+    "raw/TiO2_Bond-e.yml": "c00a4f91f4891163ba6ecf4eb4dc8093f2654d17da3d69e7d13e6163b01af94f",
+    "raw/TiO2_Bond-o.yml": "0483ad44352fb5e3d94ac33da41339c2ae596c9e5e430f25684578e2196515d0",
+    "raw/TiO2_Siefke.yml": "9b03947949e54cd98f58a989bd031a5fddb1a36a9d9f7fd64d5ff2bd68c2885c",
+    "tio2_ald_film_siefke_0p3_2p5.csv": "0975fd2e1a7f27203d9f69e00ddcb0ff43d5a501d25a19d7da605b3e2f8066ff",
+    "tio2_nk.csv": "31ec1136e53b0c165a4de5c0d47118a218f36cd64d6ed2182fe7a4e290cce27c",
+    "tio2_rutile_bond_e.csv": "590353131c14bf77d7ffb1a58734da0e6d33964d8e60c1733f88e65ed636be20",
+    "tio2_rutile_bond_o.csv": "326884109280a9c9c012400b8f8d04a050e59adc64a580860e0e6d3b1590c2be"
+  },
+  "files": [
+    {
+      "path": "candidate_cards/balanced_SP-031.md",
+      "sha256": "7a19a189d83b8dc37c17725c075b5e4f04240c3954052db4ecce8ab3f20af132",
+      "bytes": 5243
+    },
+    {
+      "path": "candidate_cards/high_performing_SP-075.md",
+      "sha256": "d8591228b8883b9be47d4b7e804156a98505d57e79af7b5961cb31e3bb77d1d1",
+      "bytes": 5257
+    },
+    {
+      "path": "candidate_cards/low_cost_SP-046.md",
+      "sha256": "10d13c3be7288d289427fe48c968eee39c61182684d564ad34c187f5b6b0a17d",
+      "bytes": 5251
+    },
+    {
+      "path": "candidates.csv",
+      "sha256": "8a3448f282655902ff1b5d0354e080cd97d2fc566791ead64c43b7596b1bc40a",
+      "bytes": 14109
+    },
+    {
+      "path": "controls.csv",
+      "sha256": "ad4f20f4c22dd056e72d219a4888366facf0e1da1f07ad7ed056ebfdde54fa1d",
+      "bytes": 10255
+    },
+    {
+      "path": "curves.json",
+      "sha256": "deff969274930bf3136f248a36695d5f190e47850741c6463f28880e7e7186e3",
+      "bytes": 622693
+    },
+    {
+      "path": "draws.csv",
+      "sha256": "9d71c9f88ae3dc8e1b2cbf27d88d54d3fd092842796ceaffae827655fc4653c3",
+      "bytes": 10031
+    },
+    {
+      "path": "pareto.csv",
+      "sha256": "7b0d0e74fc430656990e24adb8e46e5b0fbeb281465aaaafd9c1871fa3f14887",
+      "bytes": 12684
+    },
+    {
+      "path": "results.csv",
+      "sha256": "91ff81c614df7bc6678cd8d0891afa25e10b8621de4829064a301e9c24c35348",
+      "bytes": 472569
+    },
+    {
+      "path": "run_meta.json",
+      "sha256": "e716ec647741a19de7189f4b9c465abaf9dfcd2a550cfcaa1f0bfe7024318e66",
+      "bytes": 81
+    },
+    {
+      "path": "sensitivity.csv",
+      "sha256": "04729ca2a04a7184877d382476963dcea1cdd9e41765f2fa09ebb8f537cb52d6",
+      "bytes": 9370
+    },
+    {
+      "path": "spectra.json",
+      "sha256": "bfb4f82f716ed4b6b0bde67210b1c8bddc6759862b6795e8254e11bb687ed4ec",
+      "bytes": 98461
+    },
+    {
+      "path": "weather.csv",
+      "sha256": "d90b2d8e055b139e70e66a9372054268779376fa157ba4fbda1d8ff0ecef33b6",
+      "bytes": 468
+    }
+  ],
+  "extra": [
+    {
+      "path": "indonesia/indonesia_crosscheck.csv",
+      "sha256": "5c65fbcdb8134ee4cfd8a26c507a4d009bd566dbe50794133f910d9d8ea06cc7",
+      "bytes": 3995,
+      "kind": "indonesia"
+    },
+    {
+      "path": "indonesia/indonesia_days.json",
+      "sha256": "202db0115b6daafaa895950ac65b31933866d55573073b8b583a4903b0d78ad4",
+      "bytes": 86769,
+      "kind": "indonesia"
+    },
+    {
+      "path": "indonesia/indonesia_results.csv",
+      "sha256": "480d8e3806efb053b19c57185e7c7cbed70868e3dc61339da891a46a48222117",
+      "bytes": 655408,
+      "kind": "indonesia"
+    },
+    {
+      "path": "indonesia/indonesia_summary.csv",
+      "sha256": "34b14f8035d6833dc2976dc6e9fd2db48eb9e680eacdc8e9d5df2d8e2d0dd2bc",
+      "bytes": 37719,
+      "kind": "indonesia"
+    },
+    {
+      "path": "refine/budget_table.json",
+      "sha256": "1198dc94a0fe11dbf281d575091fb5cab8d908eb7b1b733b92f22f6cb0df82c6",
+      "bytes": 301019,
+      "kind": "budget_table"
+    },
+    {
+      "path": "refine/refine_front.csv",
+      "sha256": "0754437e5408f962002562eccd6d3b32183d04d82a11e30633b8e7a5213ae4c9",
+      "bytes": 4833,
+      "kind": "refine"
+    },
+    {
+      "path": "refine/refine_recipes.csv",
+      "sha256": "4fed96e781f55029a87a296175e90d7fa66d3c678d545ea13123ee893409f178",
+      "bytes": 5450,
+      "kind": "refine"
+    },
+    {
+      "path": "refine/refine_robust.csv",
+      "sha256": "e8e312afb1b49830f3bae8f48d537af32446975d8aca382b71fb1638b8028f35",
+      "bytes": 1429,
+      "kind": "refine"
+    },
+    {
+      "path": "refine/refine_tolerance.csv",
+      "sha256": "2a55f32690d433be3a0f49554904000ef8aab8a8d47fa077db706430dcbd2803",
+      "bytes": 3832,
+      "kind": "refine"
+    }
+  ],
+  "core_sha256": "757436f1fffba84c493ff340c98aa68d36241ca49a1df534415819512330676e"
+}

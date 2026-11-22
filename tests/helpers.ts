@@ -15,6 +15,9 @@ import { parse, stringify } from "yaml"
 
 export const repoRoot = join(import.meta.dir, "..")
 
+/** The committed compact run directory (real numbers of the seed 20261121 run, draws.csv cut to one draw) that fast tests read instead of the git-ignored reports/. */
+export const REPORT_FIXTURE = join(repoRoot, "tests", "fixtures", "report-run")
+
 /** Recursively list files under dir (relative POSIX paths), [] if dir is missing. */
 export function listFiles(dir: string): string[] {
   const out: string[] = []
