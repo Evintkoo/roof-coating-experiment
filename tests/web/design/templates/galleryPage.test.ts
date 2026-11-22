@@ -32,3 +32,15 @@ test("hasAThemeToggleAndTheTitleIsEscaped", () => {
   expect(html).toContain('id="theme-toggle"')
   expect(html).not.toContain("<img onerror")
 })
+
+test("opensLightAppliesTheStoredThemeFirstAndShowsBothThemesSideBySide", async () => {
+  const html = galleryDocument({ css: "" })
+  expect(html).toContain('<html lang="en" data-theme="light">')
+  expect(html.indexOf("localStorage")).toBeLessThan(html.indexOf("<style>"))
+  expect(html).toContain('aria-pressed="false"')
+  expect(html).not.toContain("prefers-color-scheme")
+  const els = await elementsOf(html)
+  expect(
+    els.filter((e) => e.attrs["data-pane"]).map((e) => e.attrs["data-theme"]),
+  ).toEqual(["light", "dark"])
+})

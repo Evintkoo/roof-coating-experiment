@@ -3,6 +3,7 @@
 import { SpandekError } from "../../../core/errors"
 import { buildError, esc, tag } from "../html"
 import { navRail } from "../organisms/navRail"
+import { THEME_INIT_SCRIPT, themeToggle } from "../theme"
 
 export type PageSection = {
   id: string
@@ -38,20 +39,7 @@ export function reportBody(
       .map((s) => ({ id: s.id, label: s.label })),
     mainId: "main",
   })
-  const tools = tag(
-    "div",
-    { class: "page__tools" },
-    tag(
-      "button",
-      {
-        type: "button",
-        id: "theme-toggle",
-        class: "tv-button tv-button--ghost",
-        "aria-label": "Switch between light and dark theme",
-      },
-      "Theme",
-    ),
-  )
+  const tools = tag("div", { class: "page__tools" }, themeToggle())
   return tag(
     "div",
     { class: "tv-shell" },
@@ -74,10 +62,11 @@ export function reportDocument(p: ReportPageProps): string {
     )
   const [data, plotly, main] = p.scripts
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>${THEME_INIT_SCRIPT}</script>
 <meta name="spandek-core-sha256" content="${p.core}">
 <title>${esc(p.title)}</title>
 <style>${p.css}</style>

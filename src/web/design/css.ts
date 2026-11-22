@@ -13,6 +13,8 @@ const BASE = `
 `
 
 const BUTTON = `
+.tv-theme-toggle__state{display:inline-block;min-width:${t("space-8")};padding:0 ${t("space-2")};border:${t("hairline")} solid ${t("border-control")};border-radius:${t("radius-pill")};font-size:${t("size-small")};text-align:center}
+.tv-theme-toggle[aria-pressed="true"] .tv-theme-toggle__state{background:${t("action-primary")};border-color:${t("action-primary")};color:${t("action-label")}}
 .tv-button{display:inline-flex;align-items:center;justify-content:center;gap:${t("space-2")};min-height:${t("target-min")};min-width:${t("target-min")};padding:${t("space-2")} ${t("space-4")};border:${t("hairline")} solid transparent;border-radius:${t("radius-control")};font-family:${t("font-sans")};font-size:${t("size-body")};font-weight:${t("weight-semibold")};text-decoration:none;cursor:pointer;white-space:nowrap;transition:background-color ${t("motion-fast")} ease,border-color ${t("motion-fast")} ease,transform ${t("motion-fast")} ease}
 .tv-button:active:not([aria-disabled="true"]){transform:scale(0.98)}
 .tv-button[aria-disabled="true"]{cursor:default}

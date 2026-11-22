@@ -18,12 +18,15 @@ afterEach(() => setEventSink(null))
 
 test("everyContractTokenAppearsInCss", () => {
   const { css, names } = compileTokens(contract, THEMES)
-  // dark theme is the default block: the first :root rule
+  // the contract's semantic values are the dark theme: the `[data-theme="dark"]` rule; the theme-independent tokens are in the
+  // first rule (`:root`, which is the light theme: light is the default)
+  const darkStart = css.indexOf(`[data-theme="dark"]{`)
+  const darkRule = css.slice(darkStart, css.indexOf("}", darkStart) + 1)
   const dark = css.slice(0, css.indexOf("}") + 1)
   for (const [k, t] of Object.entries(
     contract.semantic as Record<string, { $value: string }>,
   ))
-    expect(dark, k).toContain(`--tv-${k}:${t.$value};`)
+    expect(darkRule, k).toContain(`--tv-${k}:${t.$value};`)
   for (const [k, t] of Object.entries(
     contract.color as Record<string, { $value: string }>,
   ))
@@ -49,12 +52,14 @@ test("everyContractTokenAppearsInCss", () => {
   expect(new Set(names).size).toBe(names.length)
 })
 
-test("cssHasBothThemesAndFollowsTheSystem", () => {
+test("cssHasBothThemesAndLightIsTheDefaultWhateverTheSystemSays", () => {
   const { css } = compileTokens(contract, THEMES)
-  expect(css).toContain("@media (prefers-color-scheme:light)")
-  expect(css).toContain(`:root:not([data-theme="dark"])`)
-  expect(css).toContain(`:root[data-theme="light"]`)
-  expect(css).toContain("color-scheme:dark")
+  // D3 amended: no system-follow rule at all; `:root` is light, dark needs data-theme="dark"
+  expect(css).not.toContain("prefers-color-scheme")
+  expect(css.startsWith(`:root,[data-theme="light"]{color-scheme:light;`)).toBe(
+    true,
+  )
+  expect(css).toContain(`[data-theme="dark"]{color-scheme:dark;`)
   expect(css).toContain("--tv-link:#be3701;")
   expect(css).toContain("--tv-link:#ff683b;")
 })
@@ -170,7 +175,7 @@ test("theLiteralScanCanFail", () => {
 test("printAlwaysUsesTheLightTheme", () => {
   const { css } = compileTokens(contract, THEMES)
   const print = css.slice(css.indexOf("@media print"))
-  expect(print).toContain(`:root[data-theme="dark"]`)
+  expect(print).toContain(`:root,[data-theme="dark"]`)
   expect(print).toContain("color-scheme:light")
   expect(print).toContain("--tv-surface-base:#f7f8fa;")
   expect(print).toContain("--tv-text-primary:#0b1020;")

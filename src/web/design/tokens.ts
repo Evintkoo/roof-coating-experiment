@@ -171,14 +171,18 @@ export function compileTokens(
     ...shared,
     ...Object.entries(dark),
   ]
+  // and the other way round: a token only the light theme defines would be missing from dark
+  for (const k of Object.keys(themes.light))
+    if (dark[k] === undefined) missing(k, "is missing from the dark theme")
   const lightBlock = `color-scheme:light;${decls(light)}`
+  // light is the default whatever the system scheme says (D3, amended): `:root` carries the light theme and the theme-independent
+  // tokens, `[data-theme="dark"]` the dark values. Both selectors also work on a nested element, so the gallery can show the
+  // two themes side by side.
   const css = [
-    `:root{color-scheme:dark;${decls(darkEntries)}}`,
-    `@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){${lightBlock}}}`,
-    `:root[data-theme="light"]{${lightBlock}}`,
-    `:root[data-theme="dark"]{color-scheme:dark;${decls(Object.entries(dark))}}`,
+    `:root,[data-theme="light"]{color-scheme:light;${decls(darkEntries.filter(([k]) => !(k in dark)))}${decls(light)}}`,
+    `[data-theme="dark"]{color-scheme:dark;${decls(Object.entries(dark))}}`,
     // paper is white: print always uses the light theme, whatever the screen theme is
-    `@media print{:root,:root[data-theme="dark"]{${lightBlock}}}`,
+    `@media print{:root,[data-theme="dark"]{${lightBlock}}}`,
   ].join("\n")
   return { css: `${css}\n`, names: darkEntries.map(([k]) => k) }
 }

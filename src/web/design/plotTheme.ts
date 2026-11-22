@@ -35,6 +35,9 @@ export type PlotTheme = {
   grid: string
   /** Axis lines, ticks and the parcoords axis stroke: never black on dark. */
   axisStroke: string
+  /** Hover label fill and border (surface-elevated, border-control): a label never keeps the other theme's colours. */
+  hoverBg: string
+  hoverBorder: string
   /** viz-1 to viz-6. */
   colorway: readonly string[]
   recommended: string
@@ -44,6 +47,20 @@ export type PlotTheme = {
   /** Seven steps with a neutral midpoint, for deltas. */
   div: readonly string[]
 }
+
+/** Which token each single-colour figure role is read from: the one place the chart roles are tied to tokens (docs/design/theme-mapping.md). */
+export const PLOT_ROLE_TOKENS = {
+  paper: "surface-base",
+  plot: "surface-base",
+  font: "text-primary",
+  muted: "text-muted",
+  grid: "border-panel",
+  axisStroke: "text-muted",
+  hoverBg: "surface-elevated",
+  hoverBorder: "border-control",
+  recommended: "viz-recommended",
+  baseline: "viz-baseline",
+} as const
 
 const need = (t: TokenMap, k: string): string => {
   const v = t[k]
@@ -61,16 +78,18 @@ export function plotTheme(
 ): PlotTheme {
   return {
     mode,
-    paper: need(tokens, "surface-base"),
-    plot: need(tokens, "surface-base"),
-    font: need(tokens, "text-primary"),
+    paper: need(tokens, PLOT_ROLE_TOKENS.paper),
+    plot: need(tokens, PLOT_ROLE_TOKENS.plot),
+    font: need(tokens, PLOT_ROLE_TOKENS.font),
     fontFamily,
-    muted: need(tokens, "text-muted"),
-    grid: need(tokens, "border-panel"),
-    axisStroke: need(tokens, "text-muted"),
+    muted: need(tokens, PLOT_ROLE_TOKENS.muted),
+    grid: need(tokens, PLOT_ROLE_TOKENS.grid),
+    axisStroke: need(tokens, PLOT_ROLE_TOKENS.axisStroke),
+    hoverBg: need(tokens, PLOT_ROLE_TOKENS.hoverBg),
+    hoverBorder: need(tokens, PLOT_ROLE_TOKENS.hoverBorder),
     colorway: run(tokens, "viz-", 6),
-    recommended: need(tokens, "viz-recommended"),
-    baseline: need(tokens, "viz-baseline"),
+    recommended: need(tokens, PLOT_ROLE_TOKENS.recommended),
+    baseline: need(tokens, PLOT_ROLE_TOKENS.baseline),
     seq: run(tokens, "viz-seq-", 7),
     div: run(tokens, "viz-div-", 7),
   }
@@ -118,6 +137,18 @@ export function applyPlotTheme<
   const layout: Rec = { ...(spec.layout as Rec) }
   layout.paper_bgcolor = theme.paper
   layout.plot_bgcolor = theme.plot
+  layout.colorway = [...theme.colorway]
+  layout.hoverlabel = {
+    ...(isRec(layout.hoverlabel) ? layout.hoverlabel : {}),
+    bgcolor: theme.hoverBg,
+    bordercolor: theme.hoverBorder,
+    font: { color: theme.font, family: theme.fontFamily },
+  }
+  layout.modebar = {
+    bgcolor: "transparent",
+    color: theme.muted,
+    activecolor: theme.font,
+  }
   layout.font = {
     ...(isRec(layout.font) ? layout.font : {}),
     color: theme.font,
@@ -152,12 +183,34 @@ export function applyPlotTheme<
   const data = spec.data.map((tr) => {
     const t = tr as Rec
     const m = isRec(t.meta) ? t.meta : undefined
+    const scale = m?.scale === "seq" ? colorScale(theme.seq) : undefined
     const slot = m ? SLOTS.find((s) => s === m.slot) : undefined
-    if (slot === undefined) return tr
-    const c = slotColor(theme, slot)
+    if (slot === undefined && scale === undefined) return tr
+    if (slot === undefined && scale !== undefined) {
+      // a trace coloured by a sequential scale (pareto frequency): the scale and the marker outline come from the theme
+      const o: Rec = { ...t }
+      const edge = SLOTS.find((s) => s === m?.edge)
+      for (const k of ["marker", "line"] as const) {
+        const part = t[k]
+        if (!isRec(part) || part.colorscale === undefined) continue
+        const next: Rec = { ...part, colorscale: scale }
+        if (k === "marker" && edge && isRec(part.line))
+          next.line = { ...part.line, color: slotColor(theme, edge) }
+        o[k] = next
+      }
+      return o
+    }
+    const c = slotColor(theme, slot as Slot)
     const out: Rec = { ...t }
     if (isRec(t.line)) out.line = { ...t.line, color: c }
-    if (isRec(t.marker)) out.marker = { ...t.marker, color: c }
+    if (isRec(t.marker))
+      out.marker = {
+        ...t.marker,
+        color: c,
+        ...(isRec(t.marker.line)
+          ? { line: { ...t.marker.line, color: c } }
+          : {}),
+      }
     if (typeof t.fillcolor === "string") out.fillcolor = withAlpha(c, 0.2)
     if (isRec(t.error_y)) out.error_y = { ...t.error_y, color: c }
     if (isRec(t.error_x)) out.error_x = { ...t.error_x, color: c }

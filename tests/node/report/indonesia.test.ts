@@ -324,11 +324,17 @@ test("indonesiaBarSeriesAreVisibleInBothThemesAndTheYTitleIsNotClipped", async (
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
   }
   for (const scheme of ["dark", "light"] as const) {
+    // the theme comes from the stored choice (the system scheme is ignored): dark and light both start as asked
     const ctx = await browser.newContext({
       offline: true,
-      colorScheme: scheme,
+      colorScheme: scheme === "dark" ? "light" : "dark",
       viewport: { width: 1280, height: 900 },
     })
+    await ctx.addInitScript((t) => {
+      try {
+        localStorage.setItem("spandek:theme", t)
+      } catch {}
+    }, scheme)
     try {
       const page = await ctx.newPage()
       await page.goto(`file://${b.path}`)

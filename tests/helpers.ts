@@ -1,4 +1,5 @@
 // Shared test helpers; later tasks add to this file.
+
 import {
   cpSync,
   existsSync,
@@ -12,6 +13,7 @@ import {
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { parse, stringify } from "yaml"
+import { THEME_INIT_SCRIPT } from "../src/web/design/theme"
 
 export const repoRoot = join(import.meta.dir, "..")
 
@@ -272,11 +274,11 @@ export function claimText(html: string): string {
   )
 }
 
-/** The contents of the page's <script> blocks in order: [data, plotly, main]. */
+/** The contents of the page's <script> blocks in order: [data, plotly, main]; the tiny head script that applies the stored theme is not one of them. */
 export function scriptBlocks(html: string): string[] {
-  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-    (m) => m[1] as string,
-  )
+  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    .map((m) => m[1] as string)
+    .filter((b) => b !== THEME_INIT_SCRIPT)
 }
 
 /**

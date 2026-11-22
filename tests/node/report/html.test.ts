@@ -117,7 +117,8 @@ test("scriptTagInCellIsEscaped", async () => {
   const html = readFileSync(out, "utf8")
   expect(html).not.toContain("<img src=x")
   expect(html).not.toContain("onerror=alert(1)><!--")
-  expect([...html.matchAll(/<\/script/gi)].length).toBe(3)
+  // the head theme script, data, plotly and the page script
+  expect([...html.matchAll(/<\/script/gi)].length).toBe(4)
   expect(html).toContain("&lt;/script&gt;")
   // a bad candidate id in a CSV is refused, not rendered
   const bad = await copyRun()
@@ -216,8 +217,8 @@ test("theTokensAndBothThemesAreInThePageAndPassContrast", () => {
     expect(r.ratio, `${r.theme} ${r.fg}/${r.bg}`).toBeGreaterThanOrEqual(
       r.needed,
     )
-  expect(built.html).toContain(':root[data-theme="light"]{')
-  expect(built.html).toContain(':root[data-theme="dark"]{')
+  expect(built.html).toContain(':root,[data-theme="light"]{')
+  expect(built.html).toContain('[data-theme="dark"]{')
   expect(built.html).toContain(
     `--tv-text-primary:${resolved.light["text-primary"]}`,
   )

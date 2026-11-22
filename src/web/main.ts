@@ -105,12 +105,10 @@ const $ = (id: string): HTMLElement => {
 /** While the browser prepares a print, the figures are drawn with the light theme (white paper). */
 let printing = false
 
-/** The figure theme shown now: the page's data-theme, else the system scheme; print is always light. */
+/** The figure theme shown now: the page's data-theme (light unless the toggle says dark); print is always light. */
 function plotMode(): "dark" | "light" {
   if (printing) return "light"
-  const t = document.documentElement.dataset.theme
-  if (t === "dark" || t === "light") return t
-  return matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light"
 }
 const theme = (): PlotTheme => D.plotThemes[plotMode()]
 
@@ -733,15 +731,8 @@ function installTestHooks(live: LiveApi): void {
 }
 
 function initTheme(): void {
-  const root = document.documentElement
-  $("theme-toggle").addEventListener("click", () => {
-    root.dataset.theme = plotMode() === "dark" ? "light" : "dark"
-    redrawAll()
-  })
-  matchMedia("(prefers-color-scheme: light)").addEventListener(
-    "change",
-    redrawAll,
-  )
+  // the toggle button itself (click, data-theme, storage, aria-pressed) is in the component script; the figures redraw on its event
+  document.addEventListener("spandek-theme", redrawAll)
   const opened: HTMLDetailsElement[] = []
   window.addEventListener("beforeprint", () => {
     printing = true

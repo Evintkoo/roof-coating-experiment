@@ -386,58 +386,71 @@ export function reportBrowserSuite(S: BrowserScale): void {
     expect(await page.textContent("#tbl-count")).toContain("96 of 96")
   })
 
-  reg("darkSchemeBackgroundAndPlotlyColours", true, async () => {
-    const page = await openPage({ colorScheme: "dark" })
-    const lum = (rgb: string): number => {
-      const [r, g, b] = (rgb.match(/\d+/g) as string[]).slice(0, 3).map((x) => {
-        const s = Number(x) / 255
-        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-      }) as [number, number, number]
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b
-    }
-    const state = () =>
-      page.evaluate(() => {
-        const css = getComputedStyle(document.documentElement)
-          .getPropertyValue("--tv-surface-base")
-          .trim()
-        const paper = (id: string) =>
-          (
-            document.getElementById(id) as unknown as {
-              _fullLayout: { paper_bgcolor: string }
-            }
-          )._fullLayout.paper_bgcolor
-        const stroke = getComputedStyle(
-          document.querySelector(
-            "#fig-parcoords .parcoords .axis path.domain",
-          ) as Element,
-        ).stroke
-        return {
-          body: getComputedStyle(document.body).backgroundColor,
-          css,
-          papers: [
-            "fig-parcoords",
-            "fig-splom",
-            "fig-live-tofT",
-            "fig-spectrum",
-          ].map(paper),
-          stroke,
-        }
-      })
-    const dark = await state()
-    expect(lum(dark.body)).toBeLessThan(0.2)
-    for (const p of dark.papers)
-      expect(p.toLowerCase()).toBe(dark.css.toLowerCase())
-    expect(dark.stroke).not.toBe("rgb(0, 0, 0)")
-    // the toggle flips to light: background, Plotly paper and the axis stroke follow
-    await page.click("#theme-toggle")
-    await page.waitForTimeout(400)
-    const light = await state()
-    expect(lum(light.body)).toBeGreaterThan(0.8)
-    expect(light.css).not.toBe(dark.css)
-    for (const p of light.papers)
-      expect(p.toLowerCase()).toBe(light.css.toLowerCase())
-    expect(watch(page).errors).toEqual([])
-  })
+  reg(
+    "lightByDefaultEvenOnADarkSystemThenToggleToDarkAndBack",
+    true,
+    async () => {
+      const page = await openPage({ colorScheme: "dark" })
+      const lum = (rgb: string): number => {
+        const [r, g, b] = (rgb.match(/\d+/g) as string[])
+          .slice(0, 3)
+          .map((x) => {
+            const s = Number(x) / 255
+            return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+          }) as [number, number, number]
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+      }
+      const state = () =>
+        page.evaluate(() => {
+          const css = getComputedStyle(document.documentElement)
+            .getPropertyValue("--tv-surface-base")
+            .trim()
+          const paper = (id: string) =>
+            (
+              document.getElementById(id) as unknown as {
+                _fullLayout: { paper_bgcolor: string }
+              }
+            )._fullLayout.paper_bgcolor
+          const stroke = getComputedStyle(
+            document.querySelector(
+              "#fig-parcoords .parcoords .axis path.domain",
+            ) as Element,
+          ).stroke
+          return {
+            body: getComputedStyle(document.body).backgroundColor,
+            css,
+            papers: [
+              "fig-parcoords",
+              "fig-splom",
+              "fig-live-tofT",
+              "fig-spectrum",
+            ].map(paper),
+            stroke,
+          }
+        })
+      // the system is dark and the page ignores it: light first
+      const first = await state()
+      expect(lum(first.body)).toBeGreaterThan(0.8)
+      for (const p of first.papers)
+        expect(p.toLowerCase()).toBe(first.css.toLowerCase())
+      await page.click("#theme-toggle")
+      await page.waitForTimeout(400)
+      const dark = await state()
+      expect(lum(dark.body)).toBeLessThan(0.2)
+      for (const p of dark.papers)
+        expect(p.toLowerCase()).toBe(dark.css.toLowerCase())
+      expect(dark.stroke).not.toBe("rgb(0, 0, 0)")
+      // the toggle flips back to light: background, Plotly paper and the axis stroke follow
+      await page.click("#theme-toggle")
+      await page.waitForTimeout(400)
+      const light = await state()
+      expect(lum(light.body)).toBeGreaterThan(0.8)
+      expect(light.css).not.toBe(dark.css)
+      for (const p of light.papers)
+        expect(p.toLowerCase()).toBe(light.css.toLowerCase())
+      expect(watch(page).errors).toEqual([])
+    },
+  )
 
   reg("phoneViewportNoHorizontalOverflow", true, async () => {
     const page = await openPage({
@@ -788,6 +801,11 @@ export function reportBrowserSuite(S: BrowserScale): void {
 
   reg("printMediaNoDarkBackground", false, async () => {
     const page = await openPage({ colorScheme: "dark" })
+    await page.click("#theme-toggle")
+    await page.waitForTimeout(400)
+    expect(
+      await page.evaluate(() => document.documentElement.dataset.theme),
+    ).toBe("dark")
     await page.emulateMedia({ media: "print", colorScheme: "dark" })
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor,

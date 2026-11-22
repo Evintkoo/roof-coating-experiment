@@ -3,6 +3,7 @@ import {
   reportBody,
   reportDocument,
 } from "../../../../src/web/design/templates/reportPage"
+import { THEME_INIT_SCRIPT } from "../../../../src/web/design/theme"
 import { elementsOf, expectBuildError } from "../../../support/designComponents"
 
 const S = [
@@ -33,7 +34,7 @@ test("shellHasSkipLinkRailMainAndToggle", async () => {
   expect(links.map((l) => l.attrs.href)).toEqual(["#verdict", "#limits"])
 })
 
-test("documentCarriesTheCoreHashTheTitleAndThreeScriptsInOrder", () => {
+test("documentCarriesTheCoreHashTheTitleAndTheScriptsInOrder", () => {
   const html = reportDocument({
     title: "<b>t</b>",
     core: HEX,
@@ -47,7 +48,10 @@ test("documentCarriesTheCoreHashTheTitleAndThreeScriptsInOrder", () => {
   const blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
     (m) => m[1],
   )
-  expect(blocks).toEqual(["data", "plotly", "main"])
+  // the theme script is first, in <head>, so the stored theme is applied before the first paint
+  expect(blocks).toEqual([THEME_INIT_SCRIPT, "data", "plotly", "main"])
+  expect(html.indexOf(THEME_INIT_SCRIPT)).toBeLessThan(html.indexOf("<style>"))
+  expect(html).toContain('<html lang="en" data-theme="light">')
   expect(
     reportDocument({
       title: "t",

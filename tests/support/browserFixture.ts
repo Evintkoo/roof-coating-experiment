@@ -10,6 +10,7 @@ import { repoRoot } from "../helpers"
 
 export type Watch = { errors: string[]; failed: string[] }
 export type OpenOpts = {
+  /** The theme the page is shown in (its `data-theme`); the system colour scheme is emulated as the OPPOSITE, because the page ignores it. */
   scheme?: "light" | "dark"
   width?: number
   height?: number
@@ -41,17 +42,18 @@ export class BrowserFixture {
     o: OpenOpts = {},
     extraCss = "",
   ): Promise<Page> {
+    const theme = o.scheme ?? "dark"
     const assets = buildDesignAssets({
       vendorRoot: join(repoRoot, "vendor"),
       fontsDir: join(repoRoot, "src/node/report/fonts"),
       componentCount: 1,
     })
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Components</title><style>${assets.fontCss}\n${assets.css}${GALLERY_CSS}${extraCss}body{margin:0;padding:var(--tv-space-8);background:var(--tv-surface-base);color:var(--tv-text-primary);font-family:var(--tv-font-sans)}</style></head><body><main id="main">${body}</main>${scripts.map((s) => `<script>${s}</script>`).join("")}</body></html>`
+    const html = `<!doctype html><html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Components</title><style>${assets.fontCss}\n${assets.css}${GALLERY_CSS}${extraCss}body{margin:0;padding:var(--tv-space-8);background:var(--tv-surface-base);color:var(--tv-text-primary);font-family:var(--tv-font-sans)}</style></head><body><main id="main">${body}</main>${scripts.map((s) => `<script>${s}</script>`).join("")}</body></html>`
     assets.done(Buffer.byteLength(html))
     const path = join(this.dir, `p${this.n++}.html`)
     writeFileSync(path, html)
     const ctx = await this.browser.newContext({
-      colorScheme: o.scheme ?? "dark",
+      colorScheme: theme === "dark" ? "light" : "dark",
       reducedMotion: o.reducedMotion ? "reduce" : "no-preference",
       viewport: { width: o.width ?? 1280, height: o.height ?? 900 },
     })

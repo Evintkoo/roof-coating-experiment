@@ -17,6 +17,7 @@ import {
   reportOpts,
   visibleText,
 } from "../helpers"
+import { registerThemeTests } from "./designThemeBrowser"
 import type { Tier } from "./scale"
 
 export type DesignReportScale = { tier: Tier }
@@ -66,6 +67,10 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
       scheme?: "light" | "dark"
       offline?: boolean
       media?: "print"
+      /** The page's own `#test` hooks (brush ranges, burst). */
+      hash?: string
+      /** A script run in every document before its own scripts (stored theme, blocked storage, observers). */
+      init?: string
     } = {},
   ): Promise<Page> {
     const c = await browser.newContext({
@@ -74,6 +79,7 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
       offline: o.offline ?? false,
     })
     contexts.push(c)
+    if (o.init) await c.addInitScript(o.init)
     const page = await c.newPage()
     const w = { errors: [] as string[], failed: [] as string[] }
     watches.set(page, w)
@@ -81,7 +87,7 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     page.on("pageerror", (e) => w.errors.push(String(e)))
     page.on("requestfailed", (r) => w.failed.push(r.url()))
     if (o.media) await page.emulateMedia({ media: o.media })
-    await page.goto(`file://${path}`)
+    await page.goto(`file://${path}${o.hash ?? ""}`)
     await page.evaluate(() => document.fonts.ready.then(() => undefined))
     await page.waitForFunction(
       () =>
@@ -290,7 +296,12 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     }
   })
   reg("printHasNoDarkBackgroundAndOpensDisclosures", false, async () => {
+    // the system is dark and the page is light; the toggle makes it dark on screen, and print must still be light
     const page = await open({ scheme: "dark" })
+    await page.click("#theme-toggle")
+    expect(
+      await page.evaluate(() => document.documentElement.dataset.theme),
+    ).toBe("dark")
     await page.emulateMedia({ media: "print", colorScheme: "dark" })
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor,
@@ -384,6 +395,7 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
 
   // ---- theme and figures ----
   reg("figuresFollowTheThemeAndTheToggle", false, async () => {
+    // the system scheme is dark and ignored: light first, dark after the toggle
     const page = await open({ scheme: "dark" })
     const paper = () =>
       page.evaluate(() => ({
@@ -396,13 +408,14 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
           }
         )._fullLayout.paper_bgcolor,
       }))
-    const dark = await paper()
-    expect(dark.paper.toLowerCase()).toBe(dark.css.toLowerCase())
-    await page.click("#theme-toggle")
-    await page.waitForTimeout(500)
     const light = await paper()
     expect(light.paper.toLowerCase()).toBe(light.css.toLowerCase())
-    expect(light.paper).not.toBe(dark.paper)
+    expect(light.css.toLowerCase()).toBe("#f7f8fa")
+    await page.click("#theme-toggle")
+    await page.waitForTimeout(500)
+    const dark = await paper()
+    expect(dark.paper.toLowerCase()).toBe(dark.css.toLowerCase())
+    expect(dark.paper).not.toBe(light.paper)
   })
   reg("budgetPanelAnswersFromTheTable", false, async () => {
     const page = await open()
@@ -417,5 +430,6 @@ export function designReportBrowserSuite(S: DesignReportScale): void {
     ).toBe(1)
   })
 
+  registerThemeTests({ reg, open, watches, path: () => path })
   void repoRoot
 }

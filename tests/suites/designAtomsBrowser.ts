@@ -53,13 +53,17 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
   }, 120_000)
 
   async function open(opts: {
+    /** The theme shown (data-theme on <html>); the emulated system scheme is `os`, by default the opposite one (the page ignores it). */
     scheme: "light" | "dark"
+    os?: "light" | "dark"
+    /** "none": leave <html> without data-theme, as the page is first loaded. */
+    theme?: "none"
     width?: number
     reducedMotion?: boolean
     print?: boolean
   }): Promise<Page> {
     const ctx = await browser.newContext({
-      colorScheme: opts.scheme,
+      colorScheme: opts.os ?? (opts.scheme === "dark" ? "light" : "dark"),
       reducedMotion: opts.reducedMotion ? "reduce" : "no-preference",
       viewport: { width: opts.width ?? 1280, height: 900 },
     })
@@ -71,6 +75,11 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
     page.on("requestfailed", (r) => w.failed.push(r.url()))
     if (opts.print) await page.emulateMedia({ media: "print" })
     await page.goto(`file://${path}`)
+    if (opts.theme !== "none")
+      await page.evaluate(
+        (t) => document.documentElement.setAttribute("data-theme", t),
+        opts.scheme,
+      )
     await page.evaluate(() => document.fonts.ready.then(() => undefined))
     return page
   }
@@ -104,7 +113,7 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
         expect(c.w, c.key).toBeGreaterThan(0)
         expect(c.h, c.key).toBeGreaterThan(0)
       }
-      // the page follows the system scheme: the brand dark theme is the default, light is derived
+      // the theme shown is the page's data-theme, not the system scheme (which is emulated as the opposite here)
       const base = await page.evaluate(() =>
         getComputedStyle(document.documentElement)
           .getPropertyValue("--tv-surface-base")
@@ -125,25 +134,35 @@ export function designAtomsBrowserSuite(S: AtomsBrowserScale): void {
     }
   })
 
-  reg("dataThemeOverridesTheSystemScheme", false, async () => {
-    const page = await open({ scheme: "light" })
-    const read = () =>
-      page.evaluate(() =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--tv-text-primary")
-          .trim(),
+  reg(
+    "lightIsTheDefaultWhateverTheSystemSaysAndDataThemeSwitches",
+    false,
+    async () => {
+      // an OS in dark mode and no data-theme: the page is light (D3 amended)
+      const page = await open({ scheme: "light", os: "dark", theme: "none" })
+      expect(
+        await page.evaluate(
+          () => matchMedia("(prefers-color-scheme: dark)").matches,
+        ),
+      ).toBe(true)
+      const read = () =>
+        page.evaluate(() =>
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--tv-text-primary")
+            .trim(),
+        )
+      expect(await read()).toBe("#0b1020")
+      await page.evaluate(() =>
+        document.documentElement.setAttribute("data-theme", "dark"),
       )
-    expect(await read()).toBe("#0b1020")
-    await page.evaluate(() =>
-      document.documentElement.setAttribute("data-theme", "dark"),
-    )
-    expect(await read()).toBe("#f7f8fa")
-    await page.evaluate(() =>
-      document.documentElement.setAttribute("data-theme", "light"),
-    )
-    expect(await read()).toBe("#0b1020")
-    await page.context().close()
-  })
+      expect(await read()).toBe("#f7f8fa")
+      await page.evaluate(() =>
+        document.documentElement.setAttribute("data-theme", "light"),
+      )
+      expect(await read()).toBe("#0b1020")
+      await page.context().close()
+    },
+  )
 
   reg("interactiveTargetsAreAtLeast44px", false, async () => {
     for (const scheme of ["light", "dark"] as const) {
