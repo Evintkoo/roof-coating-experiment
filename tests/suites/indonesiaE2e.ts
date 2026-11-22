@@ -148,8 +148,8 @@ export function indonesiaE2eSuite(S: IndonesiaE2eScale): void {
     // the report: exit 0, includes the section, manifest lists the four files and the report hash
     expect(rep.exitCode).toBe(0)
     const html = readFileSync(join(out, "report.html"), "utf8")
-    expect(html).toContain('<section id="indonesia"')
-    expect(html).toContain('href="#indonesia"')
+    expect(html).toContain('<section id="climate"')
+    expect(html).toContain('href="#climate"')
     const man = JSON.parse(readFileSync(join(out, MANIFEST_FILE), "utf8"))
     const listed = man.extra.map((e: { path: string }) => e.path)
     for (const f of FILES) expect(listed).toContain(`indonesia/${f}`)
