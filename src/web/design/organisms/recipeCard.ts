@@ -32,6 +32,8 @@ export type RecipeMetric = {
 
 export type RecipeCardProps = {
   role: RecipeRole
+  /** Replaces the plain-language role name as the heading (a budget recipe is named by its priority, not by a role). */
+  roleLabel?: string
   /** The candidate id, for example SP-075. */
   name: string
   cooling: RecipeCooling
@@ -62,7 +64,11 @@ export function recipeCard(p: RecipeCardProps): string {
   const head = tag(
     "header",
     { class: "tv-recipe__head" },
-    tag(`h${level}`, { class: "tv-recipe__role" }, esc(ROLE_LABELS[role])) +
+    tag(
+      `h${level}`,
+      { class: "tv-recipe__role" },
+      esc(p.roleLabel ?? ROLE_LABELS[role]),
+    ) +
       (p.recommended ? badge({ tone: "go", label: "Recommended" }) : "") +
       codeBlock({ code: p.name, variant: "inline", label: "Recipe" }),
   )

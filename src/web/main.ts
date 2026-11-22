@@ -13,9 +13,9 @@ import type {
   SensRow,
   SpectraJson,
 } from "../core/pipeline/tables"
+import { applyPlotTheme, type PlotTheme } from "./design/plotTheme"
 import {
   axisLabel,
-  axisThemeKeys,
   type FigureSpec,
   figIndonesiaBars,
   figLiveSpectrum,
@@ -27,9 +27,7 @@ import {
   figSplom,
   figTofT,
   type IndonesiaData,
-  type ThemeTokens,
   themeKeys,
-  themeSeries,
 } from "./figures"
 import { fmtValue } from "./fmt"
 import {
@@ -68,6 +66,7 @@ export type PageData = {
   ctxJson: string
   workerSrc: string
   ext: Record<string, unknown>
+  plotThemes: { dark: PlotTheme; light: PlotTheme }
 }
 type Plotly = {
   newPlot(
@@ -109,50 +108,24 @@ const $ = (id: string): HTMLElement => {
   if (!el) throw new Error(`missing element ${id}`)
   return el
 }
-const css = (name: string): string =>
-  getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-
-/** While the browser prepares a print, the figures are drawn with the print palette (white paper, black ink). */
+/** While the browser prepares a print, the figures are drawn with the light theme (white paper). */
 let printing = false
-const PRINT_TOKENS: ThemeTokens = {
-  paper: "#ffffff",
-  plot: "#ffffff",
-  font: "#000000",
-  grid: "#cccccc",
-  axisStroke: "#000000",
-  colorway: [],
-}
 
-function tokens(): ThemeTokens {
-  if (printing) return PRINT_TOKENS
-  return {
-    paper: css("--bg"),
-    plot: css("--bg"),
-    font: css("--fg"),
-    grid: css("--grid"),
-    axisStroke: css("--axis"),
-    colorway: [],
-  }
+/** The figure theme shown now: the page's data-theme, else the system scheme; print is always light. */
+function plotMode(): "dark" | "light" {
+  if (printing) return "light"
+  const t = document.documentElement.dataset.theme
+  if (t === "dark" || t === "light") return t
+  return matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
 }
+const theme = (): PlotTheme => D.plotThemes[plotMode()]
 
 /** Figures currently on the page: id, spec and whether it is the parcoords trace. */
 const shown = new Map<string, { spec: FigureSpec; parcoords: boolean }>()
 
-function themed(spec: FigureSpec, t: ThemeTokens): FigureSpec {
-  const base = themeKeys(t).relayout
-  const layout = { ...spec.layout } as Record<string, unknown>
-  layout.paper_bgcolor = base.paper_bgcolor
-  layout.plot_bgcolor = base.plot_bgcolor
-  layout.font = {
-    ...((layout.font as object) ?? {}),
-    color: base["font.color"],
-  }
-  for (const [k, v] of Object.entries(axisThemeKeys(layout, t))) {
-    const [axis, prop] = k.split(".") as [string, string]
-    layout[axis] = { ...((layout[axis] as object) ?? {}), [prop]: v }
-  }
-  return themeSeries({ ...spec, layout }, t)
-}
+/** A figure inside a closed disclosure has no size yet: it is drawn when the disclosure opens (or when printing opens it). */
+const hidden = (el: HTMLElement): boolean =>
+  el.closest("details:not([open])") !== null
 
 let brush: BrushState = emptyBrush()
 let selected: Set<string> | undefined
@@ -162,9 +135,10 @@ function draw(
   spec: FigureSpec,
   parcoords = false,
 ): Promise<unknown> {
-  const t = tokens()
+  const t = theme()
   shown.set(id, { spec, parcoords })
-  let s = themed(spec, t)
+  if (hidden($(id))) return Promise.resolve()
+  let s = applyPlotTheme(spec, t)
   if (parcoords) {
     s = applyBrush(s, brush)
     const tr = s.data[0] as Record<string, unknown>
@@ -190,6 +164,19 @@ let bindBrush: (() => void) | undefined
 function redrawAll(): void {
   for (const [id, f] of [...shown]) void draw(id, f.spec, f.parcoords)
 }
+
+/** Draws the figures of a disclosure that has just opened. */
+document.addEventListener(
+  "toggle",
+  (e) => {
+    const d = e.target as HTMLDetailsElement
+    if (!(d instanceof HTMLDetailsElement) || !d.open) return
+    for (const [id, f] of [...shown])
+      if (d.contains($(id)) && !hidden($(id)))
+        void draw(id, f.spec, f.parcoords)
+  },
+  true,
+)
 
 const g173: Spectrum = {
   wl_um: Float64Array.from(D.g173.wl_um),
@@ -808,23 +795,25 @@ function installTestHooks(live: LiveApi): void {
 function initTheme(): void {
   const root = document.documentElement
   $("theme-toggle").addEventListener("click", () => {
-    const dark =
-      root.dataset.theme === "dark" ||
-      (root.dataset.theme !== "light" &&
-        matchMedia("(prefers-color-scheme: dark)").matches)
-    root.dataset.theme = dark ? "light" : "dark"
+    root.dataset.theme = plotMode() === "dark" ? "light" : "dark"
     redrawAll()
   })
-  matchMedia("(prefers-color-scheme: dark)").addEventListener(
+  matchMedia("(prefers-color-scheme: light)").addEventListener(
     "change",
     redrawAll,
   )
+  const opened: HTMLDetailsElement[] = []
   window.addEventListener("beforeprint", () => {
     printing = true
+    for (const d of document.querySelectorAll("details:not([open])")) {
+      ;(d as HTMLDetailsElement).open = true
+      opened.push(d as HTMLDetailsElement)
+    }
     redrawAll()
   })
   window.addEventListener("afterprint", () => {
     printing = false
+    for (const d of opened.splice(0)) d.open = false
     redrawAll()
   })
 }

@@ -13,6 +13,14 @@ import {
 } from "../../src/core/pipeline/tables"
 import { loadContext } from "../../src/node/context"
 import {
+  applyPlotTheme,
+  LIGHT_PLOT,
+  plotTheme,
+  slotColor,
+} from "../../src/web/design/plotTheme"
+import { contrastRatio, THEMES } from "../../src/web/design/themes"
+import { resolveTheme } from "../../src/web/design/tokens"
+import {
   axisLabel,
   axisThemeKeys,
   type FigureSpec,
@@ -25,13 +33,10 @@ import {
   figSpectrum,
   figSplom,
   figTofT,
-  INDONESIA_SERIES_COLORS,
   type IndonesiaSummaryRow,
   type ThemeTokens,
   themeKeys,
-  themeSeries,
 } from "../../src/web/figures"
-import { contrastRatio } from "../../src/web/fmt"
 import { defaultLiveState } from "../../src/web/liveState"
 import { repoRoot } from "../helpers"
 
@@ -171,7 +176,9 @@ test("parcoordsHasFiveDimensionsAndIds", () => {
   expect(new Set(t.ids).size).toBe(96)
   expect(t.dimensions.every((d) => d.values.length === 96)).toBe(true)
   expect(t.line.color.length).toBe(96)
-  expect(JSON.stringify(t.line.colorscale)).toContain("#fde725") // Viridis end
+  expect(JSON.stringify(t.line.colorscale)).toContain(
+    LIGHT_PLOT.seq[6] as string,
+  ) // the sequential scale end
 })
 
 test("everyLineHasBandTrace", () => {
@@ -311,6 +318,7 @@ const T: ThemeTokens = {
   grid: "#dddddd",
   axisStroke: "#333333",
   colorway: ["#E69F00"],
+  seq: LIGHT_PLOT.seq,
 }
 const DARK: ThemeTokens = {
   ...T,
@@ -319,6 +327,7 @@ const DARK: ThemeTokens = {
   font: "#eeeeee",
   grid: "#333a44",
   axisStroke: "#cccccc",
+  seq: [...LIGHT_PLOT.seq].reverse(),
 }
 
 test("themeKeysCoverEachChartType", () => {
@@ -415,127 +424,114 @@ test("figIndonesiaBarsCarryWhiskersLabelsAndTheChosenState", () => {
     ),
   )
   const fig = figIndonesiaBars(rows, "aged")
-  const data = fig.data as {
+  type Bar = {
     name: string
     y: number[]
-    x: string[][]
+    x: string[]
+    xaxis: string
+    yaxis: string
     error_y: { array: number[]; arrayminus: number[]; symmetric: boolean }
-  }[]
-  expect(data.length).toBe(4)
-  const t = data[1] as (typeof data)[number]
-  expect(t.y.length).toBe(8) // 2 sites x 4 day types
-  expect(t.x[0]).toEqual([
-    "Jakarta",
-    "Jakarta",
-    "Jakarta",
-    "Jakarta",
-    "Medan",
-    "Medan",
-    "Medan",
-    "Medan",
-  ])
-  expect(t.x[1]?.[3]).toBe("weighted")
-  // aged values, with whiskers to the outer bound of the row: y + array = hi, y - arrayminus = lo
+    meta: { site: string; id: string; slot: string }
+  }
+  const data = fig.data as Bar[]
+  expect(data.length).toBe(8) // 2 sites x 4 subjects, one panel per site
+  const t = data.find(
+    (d) => d.meta.site === "jakarta" && d.meta.id === "card_high",
+  ) as Bar
+  expect(t.y.length).toBe(4) // four day types
+  expect(t.x[3]).toBe("weighted")
   expect(t.y[0]).toBe(0 + 1 - 3)
   t.y.forEach((y, i) => {
     expect(y + (t.error_y.array[i] as number)).toBeCloseTo(y + 0.5, 12)
     expect(y - (t.error_y.arrayminus[i] as number)).toBeCloseTo(y - 1.5, 12)
   })
   expect(t.error_y.symmetric).toBe(false)
-  const lay = fig.layout as {
-    xaxis: { title: { text: string } }
-    yaxis: { title: { text: string } }
+  // the panels share one y scale
+  const lay = fig.layout as Record<string, { matches?: string }> & {
+    annotations: { text: string }[]
   }
-  expect(lay.xaxis.title.text).toContain(
-    "aluminium, scenario ageing: aged (scenario ageing)",
+  expect(lay.yaxis2?.matches).toBe("y")
+  expect(new Set(data.map((d) => d.xaxis)).size).toBe(2)
+  expect(lay.annotations.map((a) => a.text).join(" ")).toContain(
+    "scenario ageing: aged (scenario ageing)",
   )
-  expect(lay.yaxis.title.text).toContain("PROXY")
-  expect(lay.yaxis.title.text).toContain("outer bound")
-  // the initial view says initial and shows the other numbers
+  expect(lay.annotations.map((a) => a.text).join(" ")).toContain("outer bound")
+  // the recipes keep their role colours, the datasheet control is the neutral baseline
+  expect(data.find((d) => d.meta.id === "card_high")?.meta.slot).toBe(
+    "recommended",
+  )
+  expect(data.find((d) => d.meta.id === "C1")?.meta.slot).toBe("baseline")
   const ini = figIndonesiaBars(rows, "initial")
-  expect((ini.layout as typeof lay).xaxis.title.text).toContain(": initial")
-  expect(((ini.data as typeof data)[1] as (typeof data)[number]).y[0]).toBe(1)
-  // a missing row is a gap (NaN), not a zero bar
+  expect(
+    (ini.layout as typeof lay).annotations.map((a) => a.text).join(" "),
+  ).toContain(": initial")
   const gap = figIndonesiaBars(
     rows.filter((r) => !(r.site === "medan" && r.bin === "hot")),
     "initial",
   )
-  expect(
-    Number.isNaN(((gap.data as typeof data)[0] as (typeof data)[number]).y[4]),
-  ).toBe(true)
+  const m = (gap.data as Bar[]).find(
+    (d) => d.meta.site === "medan" && d.meta.id === "C1",
+  ) as Bar
+  expect(Number.isNaN(m.y[0] as number)).toBe(true)
 })
 
-// ---- S4: series colours in both themes ----
+// ---- series colours in both themes ----
 
-const THEME_BG = (() => {
-  const css = readFileSync(
-    join(import.meta.dir, "../../src/web/theme.css"),
-    "utf8",
+const resolved = (mode: "dark" | "light") => {
+  const contract = JSON.parse(
+    readFileSync(
+      join(repoRoot, "vendor/torviello-design/contracts/design-tokens.json"),
+      "utf8",
+    ),
   )
-  const light = /:root\s*{[^}]*?--bg:\s*(#[0-9a-fA-F]{6})/.exec(
-    css,
-  )?.[1] as string
-  const dark =
-    /:root\[data-theme="dark"\]\s*{[^}]*?--bg:\s*(#[0-9a-fA-F]{6})/.exec(
-      css,
-    )?.[1] as string
-  return { light, dark }
-})()
+  return plotTheme(
+    mode,
+    resolveTheme(contract, THEMES, mode),
+    "Inter, sans-serif",
+  )
+}
 
-test("indonesiaSeriesColoursReach3To1InBothThemes", () => {
-  expect(THEME_BG.light.toLowerCase()).toBe("#ffffff")
-  expect(THEME_BG.dark.toLowerCase()).toBe("#12161b")
-  for (const theme of ["light", "dark"] as const)
-    for (const c of INDONESIA_SERIES_COLORS[theme])
-      expect(contrastRatio(c, THEME_BG[theme])).toBeGreaterThanOrEqual(3)
-  // the old colour is what the test must catch: black on the dark plot is far below 3:1
-  expect(contrastRatio("#000000", THEME_BG.dark)).toBeLessThan(1.5)
-  // the four series differ within a theme
-  for (const theme of ["light", "dark"] as const)
-    expect(new Set(INDONESIA_SERIES_COLORS[theme]).size).toBe(4)
+test("plotThemeColoursReach3To1AndAxisIsNeverBlackOnDark", () => {
+  for (const mode of ["light", "dark"] as const) {
+    const th = resolved(mode)
+    for (const c of [
+      th.recommended,
+      th.baseline,
+      th.axisStroke,
+      ...th.colorway,
+    ])
+      expect(contrastRatio(c, th.paper), `${mode} ${c}`).toBeGreaterThanOrEqual(
+        3,
+      )
+  }
+  expect(contrastRatio("#000000", resolved("dark").paper)).toBeLessThan(1.5)
 })
 
-test("themeSeriesPicksTheColourForThePlotBackground", () => {
-  const rows = [
-    ["jakarta", "hot"],
-    ["jakarta", "weighted"],
-  ].flatMap(([site, bin]) =>
-    ["C1", "card_high", "card_balanced", "card_low"].map((subject) => ({
-      site: site as string,
-      bin: bin as string,
-      subject,
-      state: "initial",
-      t_max_c: 40,
-      t_max_lo: 39,
-      t_max_hi: 41,
-      q_in_mean_w_m2: 10,
-      q_lo: 9,
-      q_hi: 11,
-      dq_w_m2: 1,
-      dq_lo: 0,
-      dq_hi: 2,
-    })),
+test("applyPlotThemeRecolorsSlottedTracesAndAnnotations", () => {
+  const rows = [["jakarta", "hot"]].flatMap(([site, bin]) =>
+    ["C1", "card_high", "card_balanced", "card_low"].map((subject) =>
+      iRow(site as string, bin as string, subject, "initial", 1),
+    ),
   )
   const fig = figIndonesiaBars(rows, "initial")
-  const tok = (plot: string): ThemeTokens => ({
-    paper: plot,
-    plot,
-    font: "#000000",
-    grid: "#cccccc",
-    axisStroke: "#000000",
-    colorway: [],
-  })
-  const colours = (t: ThemeTokens) =>
-    themeSeries(fig, t).data.map(
-      (d) => (d as { marker: { color: string } }).marker.color,
+  const dark = resolved("dark")
+  const light = resolved("light")
+  const col = (th: typeof dark) =>
+    (applyPlotTheme(fig, th).data as { marker: { color: string } }[]).map(
+      (d) => d.marker.color,
     )
-  expect(colours(tok(THEME_BG.light))).toEqual([
-    ...INDONESIA_SERIES_COLORS.light,
-  ])
-  expect(colours(tok(THEME_BG.dark))).toEqual([...INDONESIA_SERIES_COLORS.dark])
-  for (const c of colours(tok(THEME_BG.dark)))
-    expect(contrastRatio(c, THEME_BG.dark)).toBeGreaterThanOrEqual(3)
-  // traces without a palette are left alone
+  expect(col(dark)[1]).toBe(dark.recommended)
+  expect(col(light)[1]).toBe(light.recommended)
+  expect(col(dark)).not.toEqual(col(light))
+  const themed = applyPlotTheme(fig, dark)
+  const lay = themed.layout as {
+    paper_bgcolor: string
+    font: { color: string; family: string }
+  }
+  expect(lay.paper_bgcolor).toBe(dark.paper)
+  expect(lay.font.family).toBe("Inter, sans-serif")
+  expect(slotColor(dark, "ink")).toBe(dark.font)
+  // a trace without a slot is left alone
   const plain = { data: [{ marker: { color: "#123456" } }], layout: {} }
-  expect(themeSeries(plain, tok(THEME_BG.dark)).data[0]).toEqual(plain.data[0])
+  expect(applyPlotTheme(plain, dark).data[0]).toEqual(plain.data[0])
 })

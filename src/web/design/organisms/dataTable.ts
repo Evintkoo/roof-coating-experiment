@@ -32,6 +32,8 @@ export type DataTableProps = {
   caption: string
   columns: readonly Column[]
   rows: readonly Readonly<Record<string, CellValue>>[]
+  /** The text column whose value becomes `data-id` on each row (the page script finds rows by it). */
+  rowIdKey?: string
 }
 
 const C = "DataTable"
@@ -97,11 +99,17 @@ export function dataTable(p: DataTableProps): string {
       )
     })
     .join("")
+  const idKey = p.rowIdKey
+  if (idKey !== undefined && !keys.has(idKey))
+    return buildError(C, "rowIdKey is not a column")
   const body = p.rows
     .map((r, i) =>
       tag(
         "tr",
-        { "data-row": i },
+        {
+          "data-row": i,
+          "data-id": idKey === undefined ? undefined : String(r[idKey] ?? ""),
+        },
         p.columns.map((c) => cell(c, r[c.key])).join(""),
       ),
     )

@@ -288,6 +288,18 @@ export const ORGANISM_CSS: Record<string, string> = {
 `,
 }
 
+export const SCHEMATIC_CSS = `
+.tv-schem{margin:0;display:grid;gap:${t("space-2")};min-width:0;font-family:${t("font-sans")}}
+.tv-schem svg{width:100%;height:auto;max-width:calc(${t("space-16")} * 4.5)}
+.tv-schem__topcoat{fill:${t("viz-1")}}
+.tv-schem__midcoat{fill:${t("text-primary")};fill-opacity:0.22;stroke:${t("text-muted")};stroke-width:1}
+.tv-schem__primer{fill:${t("viz-3")}}
+.tv-schem__substrate{fill:${t("viz-baseline")}}
+.tv-schem__leader{fill:none;stroke:${t("text-muted")};stroke-width:1}
+.tv-schem__label{fill:${t("text-primary")}}
+.tv-schem__caption{color:${t("text-muted")};font-size:${t("size-small")}}
+`
+
 /** The CSS of every atom, in a fixed order, one rule per line. */
 export function atomsCss(): string {
   return Object.values(ATOM_CSS)
@@ -301,6 +313,7 @@ export function componentsCss(): string {
   return [
     atomsCss(),
     ...Object.values(MOLECULE_CSS).map((x) => x.trim()),
+    SCHEMATIC_CSS.trim(),
     ...Object.values(ORGANISM_CSS).map((x) => x.trim()),
   ]
     .join("\n")

@@ -8,8 +8,16 @@ import {
   type SensRow,
   type SpectraJson,
 } from "../core/pipeline/tables"
-import { luminance } from "./fmt"
+import { ROLE_LABELS } from "../core/report/outline"
+import {
+  colorScale,
+  LIGHT_PLOT,
+  type Slot,
+  slotColor,
+  withAlpha,
+} from "./design/plotTheme"
 
+/** The theme fields a figure needs; `PlotTheme` (design/plotTheme.ts) carries the full palette on top of these. */
 export type ThemeTokens = {
   paper: string
   plot: string
@@ -17,40 +25,26 @@ export type ThemeTokens = {
   grid: string
   axisStroke: string
   colorway: readonly string[]
+  /** Sequential scale (seven steps) for pareto frequency; the light scale is used when absent. */
+  seq?: readonly string[]
 }
 export type FigureSpec = { data: object[]; layout: object; config?: object }
 
-/** D6: Okabe-Ito for categories. */
-export const OKABE_ITO = [
-  "#E69F00",
-  "#56B4E9",
-  "#009E73",
-  "#F0E442",
-  "#0072B2",
-  "#D55E00",
-  "#CC79A7",
-  "#000000",
-] as const
-/** Viridis stops for pareto_freq; the dark variant starts lighter so the low end stays visible on a dark paper. */
-const VIRIDIS_LIGHT: [number, string][] = [
-  [0, "#440154"],
-  [0.25, "#3b528b"],
-  [0.5, "#21918c"],
-  [0.75, "#5ec962"],
-  [1, "#fde725"],
-]
-const VIRIDIS_DARK: [number, string][] = [
-  [0, "#8e7cf0"],
-  [0.25, "#5a8bd8"],
-  [0.5, "#21b8a8"],
-  [0.75, "#7fe07a"],
-  [1, "#fde725"],
-]
+/** Colours of every trace come from slots (`meta.slot`), resolved against the theme shown (applyPlotTheme). */
+const L = LIGHT_PLOT
+const slotHex = (s: Slot): string => slotColor(L, s)
+/** The three recipes of the shortlist keep one colour on every figure: the recommended one is the brand orange, the others categorical. */
+const ROLE_SLOT: Record<string, Slot> = {
+  high_performing: "recommended",
+  balanced: "series-3",
+  low_cost: "series-1",
+}
+const SEQ_LIGHT = colorScale(L.seq)
 export const UIREVISION = "spandek"
 const CONFIG = { responsive: true, displaylogo: false }
 
 const HUMAN: Record<string, string> = {
-  r_solar_pred: "Solar reflectance r_solar",
+  r_solar_pred: "Solar reflectance (0 to 1)",
   t_max_pred: "Peak surface temperature (°C)",
   corrosion_proxy: "Corrosion index",
   corrosion_risk: "Corrosion index",
@@ -81,7 +75,7 @@ const drawable = (obj: readonly ObjRow[]): ObjRow[] => obj.filter(finite)
 const baseLayout = (extra: object = {}): object => ({
   uirevision: UIREVISION,
   margin: { l: 56, r: 16, t: 24, b: 48 },
-  colorway: [...OKABE_ITO],
+  colorway: [...L.colorway],
   ...extra,
 })
 
@@ -91,7 +85,7 @@ const roleOf = (
 ): string | undefined =>
   Object.entries(shortlist).find(([, v]) => v === id)?.[0]
 
-/** Parallel coordinates of the five objectives; line colour = pareto_freq (Viridis); `ids` carries the candidate ids. */
+/** Parallel coordinates of the five objectives; line colour = pareto_freq (sequential scale); `ids` carries the candidate ids. */
 export function figParcoords(
   obj: readonly ObjRow[],
   _shortlist: Record<string, string>,
@@ -114,11 +108,14 @@ export function figParcoords(
         ids: rows.map((r) => r.candidate_id),
         line: {
           color: rows.map((r) => r.pareto_freq),
-          colorscale: VIRIDIS_LIGHT,
+          colorscale: SEQ_LIGHT,
           cmin: 0,
           cmax: 1,
           showscale: true,
-          colorbar: { title: { text: "Pareto frequency" }, thickness: 12 },
+          colorbar: {
+            title: { text: "Share of draws on the Pareto front" },
+            thickness: 12,
+          },
         },
         dimensions,
       },
@@ -158,15 +155,15 @@ export function figSplom(
         })),
         marker: {
           color: rows.map((r) => r.pareto_freq),
-          colorscale: VIRIDIS_LIGHT,
+          colorscale: SEQ_LIGHT,
           cmin: 0,
           cmax: 1,
-          size: rows.map((r) => (roleOf(r.candidate_id, shortlist) ? 9 : 5)),
+          size: rows.map((r) => (roleOf(r.candidate_id, shortlist) ? 10 : 5)),
           symbol: rows.map(
             (r) => SYMBOL[roleOf(r.candidate_id, shortlist) ?? ""] ?? "circle",
           ),
           opacity: rows.map((r) => (isSel(r.candidate_id) ? 0.95 : 0.12)),
-          line: { width: 0.5, color: "#444444" },
+          line: { width: 0.5, color: slotHex("baseline") },
         },
         showupperhalf: false,
         diagonal: { visible: false },
@@ -181,7 +178,7 @@ export function figSplom(
 }
 
 type Kind = "predicted" | "nominal_only" | "reference" | "band"
-const meta = (kind: Kind, id: string) => ({ kind, id })
+const meta = (kind: Kind, id: string, slot?: Slot) => ({ kind, id, slot })
 
 /** One predicted line with its p5-p95 band: lower bound (invisible), upper bound filled "tonexty", then the line. */
 function lineWithBand(
@@ -191,10 +188,11 @@ function lineWithBand(
   y: ArrayLike<number>,
   lo: ArrayLike<number>,
   hi: ArrayLike<number>,
-  color: string,
+  slot: Slot,
   extra: object = {},
 ): object[] {
   const X = Array.from(x)
+  const color = slotHex(slot)
   return [
     {
       type: "scatter",
@@ -205,7 +203,7 @@ function lineWithBand(
       hoverinfo: "skip",
       showlegend: false,
       legendgroup: id,
-      meta: meta("band", id),
+      meta: meta("band", id, slot),
       ...extra,
     },
     {
@@ -215,11 +213,11 @@ function lineWithBand(
       y: Array.from(hi),
       line: { width: 0, color },
       fill: "tonexty",
-      fillcolor: `${color}33`,
+      fillcolor: withAlpha(color, 0.2),
       hoverinfo: "skip",
       showlegend: false,
       legendgroup: id,
-      meta: meta("band", id),
+      meta: meta("band", id, slot),
       ...extra,
     },
     {
@@ -228,9 +226,10 @@ function lineWithBand(
       x: X,
       y: Array.from(y),
       name,
-      line: { width: 2, color },
+      showlegend: false,
+      line: { width: 2.5, color },
       legendgroup: id,
-      meta: meta("predicted", id),
+      meta: meta("predicted", id, slot),
       ...extra,
     },
   ]
@@ -241,7 +240,7 @@ function nominalLine(
   name: string,
   x: ArrayLike<number>,
   y: ArrayLike<number>,
-  color: string,
+  slot: Slot,
   dash: string,
   extra: object = {},
 ): object {
@@ -251,64 +250,196 @@ function nominalLine(
     x: Array.from(x),
     y: Array.from(y),
     name: `${name} (nominal only, no interval)`,
-    line: { width: 1.5, color, dash },
+    showlegend: false,
+    line: { width: 1.5, color: slotHex(slot), dash },
     legendgroup: id,
-    meta: meta("nominal_only", id),
+    meta: meta("nominal_only", id, slot),
     ...extra,
   }
 }
 
+/** Moves labels apart (top to bottom order kept) until neighbours are at least `gap` apart; the values stay inside [lo, hi]. */
+export function spreadLabels(
+  ys: readonly number[],
+  gap: number,
+  lo: number,
+  hi: number,
+): number[] {
+  const order = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y)
+  const out = order.map((o) => o.y)
+  for (let k = 1; k < out.length; k++)
+    out[k] = Math.max(out[k] as number, (out[k - 1] as number) + gap)
+  const over = (out[out.length - 1] as number) - hi
+  if (over > 0)
+    for (let k = 0; k < out.length; k++) out[k] = (out[k] as number) - over
+  if ((out[0] as number) < lo) {
+    const up = lo - (out[0] as number)
+    for (let k = 0; k < out.length; k++) out[k] = (out[k] as number) + up
+  }
+  const res: number[] = new Array(ys.length)
+  order.forEach((o, k) => {
+    res[o.i] = out[k] as number
+  })
+  return res
+}
+
+export type EndLabel = {
+  text: string
+  slot: Slot
+  /** Where the line ends. */
+  x: number
+  y: number
+  yref?: "y" | "y2"
+}
+
+/** Direct labels at the right end of the lines (no legend for three series or fewer); labels of the same axis are kept apart. */
+export function endLabels(
+  labels: readonly EndLabel[],
+  yRange: [number, number],
+): object[] {
+  const out: object[] = []
+  for (const yref of ["y", "y2"] as const) {
+    const sel = labels.filter((l) => (l.yref ?? "y") === yref)
+    if (sel.length === 0) continue
+    const span = yRange[1] - yRange[0] || 1
+    const ys = spreadLabels(
+      sel.map((l) => l.y),
+      span * 0.075,
+      yRange[0],
+      yRange[1],
+    )
+    sel.forEach((l, i) => {
+      out.push({
+        x: l.x,
+        y: ys[i],
+        xref: "x",
+        yref,
+        text: l.text,
+        showarrow: false,
+        xanchor: "left",
+        xshift: 8,
+        align: "left",
+        name: l.slot,
+        font: { size: 12, color: slotHex(l.slot) },
+      })
+    })
+  }
+  return out
+}
+
+export const extent = (
+  arrs: readonly (readonly number[])[],
+): [number, number] => {
+  let lo = Number.POSITIVE_INFINITY
+  let hi = Number.NEGATIVE_INFINITY
+  for (const a of arrs)
+    for (const v of a)
+      if (Number.isFinite(v)) {
+        lo = Math.min(lo, v)
+        hi = Math.max(hi, v)
+      }
+  return lo <= hi ? [lo, hi] : [0, 1]
+}
+
 const hours = (time_s: ArrayLike<number>): number[] =>
   Array.from(time_s, (t) => t / 3600)
-const colorOf = (i: number): string =>
-  OKABE_ITO[i % (OKABE_ITO.length - 1)] as string // the last colour (black) is for controls
-const CONTROL_COLOR = "#000000"
 const DASHES = ["dash", "dot", "dashdot", "longdash"]
+const CONTROL_LABEL: Record<string, string> = {
+  C0: "Bare aluminium (nominal only)",
+  C1: "Commercial datasheet (nominal only)",
+}
+const RIGHT = 190
 
-/** Day-2 surface temperature (°C) of one scenario: predicted candidates with p5-p95 bands, controls as nominal-only lines. */
-export function figTofT(curves: CurvesJson, scenarioId: string): FigureSpec {
+export type CurveOpts = {
+  /** role -> candidate id: the recipes keep their role colour and name. */
+  shortlist?: Record<string, string>
+  /** Draw only these series ids (default: all of the scenario). */
+  only?: readonly string[]
+}
+
+function candidateSlot(
+  id: string,
+  shortlist: Record<string, string> | undefined,
+  nth: number,
+): Slot {
+  const role = shortlist ? roleOf(id, shortlist) : undefined
+  if (role !== undefined) return ROLE_SLOT[role] ?? "series-1"
+  return `series-${(nth % 3) + 1}` as Slot
+}
+function candidateLabel(
+  id: string,
+  shortlist: Record<string, string> | undefined,
+): string {
+  const role = shortlist ? roleOf(id, shortlist) : undefined
+  return role !== undefined
+    ? `${id} ${ROLE_LABELS[role as keyof typeof ROLE_LABELS] ?? role}`
+    : id
+}
+
+/** Day-2 surface temperature (°C) of one scenario: predicted candidates with p5-p95 bands, controls as nominal-only lines, direct labels. */
+export function figTofT(
+  curves: CurvesJson,
+  scenarioId: string,
+  opts: CurveOpts = {},
+): FigureSpec {
   const x = hours(curves.time_s)
   const data: object[] = []
+  const labels: EndLabel[] = []
+  const ys: number[][] = []
   let ci = 0
   let ki = 0
-  for (const s of curves.series.filter((q) => q.scenario_id === scenarioId)) {
+  const last = (a: ArrayLike<number>): number => a[a.length - 1] as number
+  for (const s of curves.series.filter(
+    (q) =>
+      q.scenario_id === scenarioId &&
+      (opts.only === undefined || opts.only.includes(q.id)),
+  )) {
     if (s.kind === "candidate" && s.t_lo_c && s.t_hi_c) {
-      data.push(
-        ...lineWithBand(
-          s.id,
-          s.id,
-          x,
-          s.t_c,
-          s.t_lo_c,
-          s.t_hi_c,
-          colorOf(ci++),
-        ),
-      )
-    } else
+      const slot = candidateSlot(s.id, opts.shortlist, ci++)
+      data.push(...lineWithBand(s.id, s.id, x, s.t_c, s.t_lo_c, s.t_hi_c, slot))
+      ys.push(s.t_c, s.t_lo_c, s.t_hi_c)
+      labels.push({
+        text: candidateLabel(s.id, opts.shortlist),
+        slot,
+        x: last(x),
+        y: last(s.t_c),
+      })
+    } else {
       data.push(
         nominalLine(
           s.id,
           s.id,
           x,
           s.t_c,
-          CONTROL_COLOR,
+          "baseline",
           DASHES[ki++ % DASHES.length] as string,
         ),
       )
+      ys.push(s.t_c)
+      labels.push({
+        text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
+        slot: "baseline",
+        x: last(x),
+        y: last(s.t_c),
+      })
+    }
   }
+  const range = extent(ys)
   return {
     data,
     layout: baseLayout({
+      margin: { l: 64, r: RIGHT, t: 16, b: 48 },
       xaxis: { title: { text: "Hour of day 2" }, dtick: 4 },
       yaxis: { title: { text: "Surface temperature (°C)" } },
-      legend: { orientation: "h", y: -0.25 },
+      showlegend: false,
+      annotations: endLabels(labels, range),
     }),
     config: CONFIG,
   }
 }
 
 /** The ASTM G173 reference on a secondary axis (a reference spectrum, not a prediction), limited to 0.3-2.5 µm. */
-function g173Trace(g173: Spectrum): object {
+function g173Trace(g173: Spectrum): { trace: object; peak: [number, number] } {
   const x: number[] = []
   const y: number[] = []
   for (let i = 0; i < g173.wl_um.length; i++) {
@@ -318,57 +449,98 @@ function g173Trace(g173: Spectrum): object {
       y.push(g173.irradiance_w_m2_um[i] as number)
     }
   }
+  const top = y.indexOf(Math.max(...y))
   return {
-    type: "scatter",
-    mode: "lines",
-    x,
-    y,
-    yaxis: "y2",
-    name: "AM1.5G irradiance (reference, not a prediction)",
-    line: { width: 1, color: "#888888" },
-    fill: "tozeroy",
-    fillcolor: "#88888822",
-    meta: meta("reference", "G173"),
+    trace: {
+      type: "scatter",
+      mode: "lines",
+      x,
+      y,
+      yaxis: "y2",
+      name: "Sunlight, AM1.5G (reference, not a prediction)",
+      showlegend: false,
+      line: { width: 1, color: slotHex("baseline") },
+      fill: "tozeroy",
+      fillcolor: withAlpha(slotHex("baseline"), 0.13),
+      meta: meta("reference", "G173", "baseline"),
+    },
+    peak: [x[top] as number, y[top] as number],
   }
 }
 
-const spectrumLayout = (): object =>
+const spectrumLayout = (annotations: object[]): object =>
   baseLayout({
+    margin: { l: 64, r: 64 + RIGHT - 64, t: 16, b: 48 },
     xaxis: { title: { text: "Wavelength (nm)" } },
     yaxis: { title: { text: "Reflectance R" }, range: [0, 1.02] },
     yaxis2: {
-      title: { text: "Irradiance (W m⁻² µm⁻¹)" },
+      title: { text: "Sunlight (W m⁻² µm⁻¹)" },
       overlaying: "y",
       side: "right",
       showgrid: false,
     },
-    legend: { orientation: "h", y: -0.25 },
+    showlegend: false,
+    annotations,
   })
 
-/** Reflectance spectra: predicted candidates with p5-p95 bands, controls nominal only, G173 as reference. */
-export function figSpectrum(spec: SpectraJson, g173: Spectrum): FigureSpec {
+/** Reflectance spectra: predicted candidates with p5-p95 bands, controls nominal only, G173 as reference, direct labels. */
+export function figSpectrum(
+  spec: SpectraJson,
+  g173: Spectrum,
+  opts: CurveOpts = {},
+): FigureSpec {
   const x = spec.wl_um.map((w) => w * 1000)
-  const data: object[] = [g173Trace(g173)]
+  const ref = g173Trace(g173)
+  const data: object[] = [ref.trace]
+  const labels: EndLabel[] = []
   let ci = 0
   let ki = 0
+  const xEnd = x[x.length - 1] as number
   for (const s of spec.series) {
-    if (s.kind === "candidate" && s.r_lo && s.r_hi)
-      data.push(
-        ...lineWithBand(s.id, s.id, x, s.r, s.r_lo, s.r_hi, colorOf(ci++)),
-      )
-    else
+    if (opts.only !== undefined && !opts.only.includes(s.id)) continue
+    if (s.kind === "candidate" && s.r_lo && s.r_hi) {
+      const slot = candidateSlot(s.id, opts.shortlist, ci++)
+      data.push(...lineWithBand(s.id, s.id, x, s.r, s.r_lo, s.r_hi, slot))
+      labels.push({
+        text: candidateLabel(s.id, opts.shortlist),
+        slot,
+        x: xEnd,
+        y: s.r[s.r.length - 1] as number,
+      })
+    } else {
       data.push(
         nominalLine(
           s.id,
           s.id,
           x,
           s.r,
-          CONTROL_COLOR,
+          "baseline",
           DASHES[ki++ % DASHES.length] as string,
         ),
       )
+      labels.push({
+        text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
+        slot: "baseline",
+        x: xEnd,
+        y: s.r[s.r.length - 1] as number,
+      })
+    }
   }
-  return { data, layout: spectrumLayout(), config: CONFIG }
+  const notes = endLabels(labels, [0, 1])
+  notes.push({
+    x: ref.peak[0],
+    y: ref.peak[1],
+    xref: "x",
+    yref: "y2",
+    text: "Sunlight (right axis)",
+    showarrow: false,
+    xanchor: "left",
+    xshift: 6,
+    yshift: 6,
+    name: "baseline",
+    font: { size: 12, color: slotHex("baseline") },
+  })
+  return { data, layout: spectrumLayout(notes), config: CONFIG }
 }
 
 const sensRows = (
@@ -377,11 +549,11 @@ const sensRows = (
   method: SensRow["method"],
 ): SensRow[] => sens.filter((s) => s.output === output && s.method === method)
 
-/** Sobol S1 and ST bars per variable; the error bars are the stored confidence half-widths. */
+/** Sobol S1 and ST bars per variable; the error bars are the stored confidence half-widths. Two series: labelled in the plot, no legend. */
 export function figSobol(sens: readonly SensRow[], output: string): FigureSpec {
   const rows = sensRows(sens, output, "sobol")
   const vars = [...new Set(rows.map((r) => r.variable))]
-  const bar = (index: "S1" | "ST", color: string, name: string) => {
+  const bar = (index: "S1" | "ST", slot: Slot, name: string) => {
     const by = new Map(
       rows.filter((r) => r.index === index).map((r) => [r.variable, r]),
     )
@@ -390,24 +562,42 @@ export function figSobol(sens: readonly SensRow[], output: string): FigureSpec {
       name,
       x: vars,
       y: vars.map((v) => by.get(v)?.value ?? 0),
+      showlegend: false,
       error_y: {
         type: "data",
         array: vars.map((v) => by.get(v)?.conf ?? 0),
         visible: true,
       },
-      marker: { color },
+      marker: { color: slotHex(slot) },
+      meta: { kind: "predicted", id: index, slot },
     }
   }
+  const key = (text: string, slot: Slot, x: number) => ({
+    x,
+    y: 1.1,
+    xref: "paper",
+    yref: "paper",
+    text,
+    showarrow: false,
+    xanchor: "left",
+    name: slot,
+    font: { size: 12, color: slotHex(slot) },
+  })
   return {
     data: [
-      bar("S1", OKABE_ITO[1], "S1 (first order)"),
-      bar("ST", OKABE_ITO[5], "ST (total)"),
+      bar("S1", "series-3", "S1 (first order)"),
+      bar("ST", "series-4", "ST (total)"),
     ],
     layout: baseLayout({
       barmode: "group",
       xaxis: { title: { text: "Input variable" }, tickangle: -35 },
       yaxis: { title: { text: `Sobol index of ${axisLabel(output)}` } },
-      margin: { l: 56, r: 16, t: 24, b: 110 },
+      margin: { l: 56, r: 16, t: 40, b: 110 },
+      showlegend: false,
+      annotations: [
+        key("S1: first-order effect", "series-3", 0),
+        key("ST: total effect", "series-4", 0.3),
+      ],
     }),
     config: CONFIG,
   }
@@ -431,13 +621,16 @@ export function figMorris(
         y: vars.map((v) => get(v, "sigma")?.value ?? 0),
         text: vars,
         textposition: "top center",
+        textfont: { color: slotHex("series-3") },
         error_x: {
           type: "data",
           array: vars.map((v) => get(v, "mu_star")?.conf ?? 0),
           visible: true,
         },
-        marker: { color: OKABE_ITO[4], size: 9 },
+        marker: { color: slotHex("series-3"), size: 9 },
         name: "Morris",
+        showlegend: false,
+        meta: { kind: "predicted", id: "morris", slot: "series-3" },
       },
     ],
     layout: baseLayout({
@@ -445,6 +638,7 @@ export function figMorris(
         title: { text: `mu* (mean absolute effect) on ${axisLabel(output)}` },
       },
       yaxis: { title: { text: "sigma (spread of effect)" } },
+      showlegend: false,
     }),
     config: CONFIG,
   }
@@ -452,53 +646,62 @@ export function figMorris(
 
 const K = 273.15
 
-/** Live day-2 temperature: nominal with p5-p95 band over the live draws; C0 and C1 as nominal-only reference lines. */
+/** Live day-2 temperature: nominal with p5-p95 band over the live draws; C0 and C1 as nominal-only reference lines; direct labels. */
 export function figLiveTofT(r: LiveResult): FigureSpec {
   const x = Array.from(
     { length: r.series.t_k.length },
     (_, i) => (i * 600) / 3600,
   )
   const c = (a: ArrayLike<number>) => Array.from(a, (v) => v - K)
+  const t = c(r.series.t_k)
+  const lo = c(r.series.lo)
+  const hi = c(r.series.hi)
   const data: object[] = [
-    ...lineWithBand(
-      "live",
-      "This recipe",
-      x,
-      c(r.series.t_k),
-      c(r.series.lo),
-      c(r.series.hi),
-      OKABE_ITO[1],
-    ),
+    ...lineWithBand("live", "This recipe", x, t, lo, hi, "series-3"),
   ]
   const ctl = r.controls
+  const c0 = c(ctl.C0.t_surface_k as Float64Array)
+  const c1 = c(ctl.C1.t_surface_k as Float64Array)
   data.push(
-    nominalLine(
-      "C0",
-      "C0 bare substrate",
-      x,
-      c(ctl.C0.t_surface_k as Float64Array),
-      CONTROL_COLOR,
-      "dash",
-    ),
-    nominalLine(
-      "C1",
-      "C1 commercial datasheet",
-      x,
-      c(ctl.C1.t_surface_k as Float64Array),
-      CONTROL_COLOR,
-      "dot",
-    ),
+    nominalLine("C0", "C0 bare substrate", x, c0, "baseline", "dash"),
+    nominalLine("C1", "C1 commercial datasheet", x, c1, "baseline", "dot"),
   )
+  const xe = x[x.length - 1] as number
+  const range = extent([t, lo, hi, c0, c1])
   return {
     data,
     layout: baseLayout({
+      margin: { l: 64, r: RIGHT, t: 16, b: 48 },
       xaxis: { title: { text: "Hour of day 2" }, dtick: 4 },
       yaxis: {
         title: {
           text: `Surface temperature (°C), band = p5-p95 of ${r.nDraws} draws`,
         },
       },
-      legend: { orientation: "h", y: -0.3 },
+      showlegend: false,
+      annotations: endLabels(
+        [
+          {
+            text: "This recipe",
+            slot: "series-3",
+            x: xe,
+            y: t[t.length - 1] as number,
+          },
+          {
+            text: "Bare aluminium (nominal)",
+            slot: "baseline",
+            x: xe,
+            y: c0[c0.length - 1] as number,
+          },
+          {
+            text: "Datasheet control (nominal)",
+            slot: "baseline",
+            x: xe,
+            y: c1[c1.length - 1] as number,
+          },
+        ],
+        range,
+      ),
     }),
     config: CONFIG,
   }
@@ -507,20 +710,46 @@ export function figLiveTofT(r: LiveResult): FigureSpec {
 /** Live reflectance spectrum with the p5-p95 band and the G173 reference. */
 export function figLiveSpectrum(r: LiveResult, g173: Spectrum): FigureSpec {
   const x = Array.from(makeWlGrid(), (w) => w * 1000)
+  const ref = g173Trace(g173)
+  const nom = r.spectrum.nominal
+  const notes = endLabels(
+    [
+      {
+        text: "This recipe",
+        slot: "series-3",
+        x: x[x.length - 1] as number,
+        y: nom[nom.length - 1] as number,
+      },
+    ],
+    [0, 1],
+  )
+  notes.push({
+    x: ref.peak[0],
+    y: ref.peak[1],
+    xref: "x",
+    yref: "y2",
+    text: "Sunlight (right axis)",
+    showarrow: false,
+    xanchor: "left",
+    xshift: 6,
+    yshift: 6,
+    name: "baseline",
+    font: { size: 12, color: slotHex("baseline") },
+  })
   return {
     data: [
-      g173Trace(g173),
+      ref.trace,
       ...lineWithBand(
         "live",
         "This recipe",
         x,
-        r.spectrum.nominal,
+        nom,
         r.spectrum.lo,
         r.spectrum.hi,
-        OKABE_ITO[1],
+        "series-3",
       ),
     ],
-    layout: spectrumLayout(),
+    layout: spectrumLayout(notes),
     config: CONFIG,
   }
 }
@@ -555,9 +784,9 @@ export type IndonesiaData = {
 export const INDONESIA_SUBJECT_LABEL: Record<string, string> = {
   C0: "C0 bare aluminium",
   C1: "C1 commercial datasheet",
-  card_high: "High-performing card",
-  card_balanced: "Balanced card",
-  card_low: "Low-cost card",
+  card_high: "Best cooling recipe",
+  card_balanced: "Balanced recipe",
+  card_low: "Lowest cost recipe",
 }
 export const INDONESIA_BIN_LABEL: Record<string, string> = {
   hot: "hot day",
@@ -565,31 +794,12 @@ export const INDONESIA_BIN_LABEL: Record<string, string> = {
   overcast: "overcast day",
   weighted: "weighted",
 }
-/**
- * Series colours of the Indonesia bars (C1, high, balanced, low card) for the light (#ffffff) and the dark (#12161b) plot
- * background; each is at least 3:1 against its background (tested), so the datasheet control is not black on a dark plot.
- */
-export const INDONESIA_SERIES_COLORS = {
-  light: ["#000000", "#0072B2", "#007A58", "#C04F00"],
-  dark: ["#F2F2F2", "#56B4E9", "#009E73", "#E69F00"],
-} as const
-
-/** Applies the theme to traces that carry a `meta.palette` {light, dark}: the colour for the plot background of `tokens`. */
-export function themeSeries(spec: FigureSpec, tokens: ThemeTokens): FigureSpec {
-  const dark = luminance(tokens.plot) < 0.4
-  return {
-    ...spec,
-    data: spec.data.map((tr) => {
-      const t = tr as {
-        meta?: { palette?: { light: string; dark: string } }
-        marker?: object
-      }
-      const pal = t.meta?.palette
-      return pal
-        ? { ...t, marker: { ...t.marker, color: dark ? pal.dark : pal.light } }
-        : tr
-    }),
-  }
+/** The colour role of each subject of the Indonesia bars: the datasheet control is the neutral baseline, the recipes keep their role colours. */
+export const INDONESIA_SUBJECT_SLOT: Record<string, Slot> = {
+  C1: "baseline",
+  card_high: "recommended",
+  card_balanced: "series-3",
+  card_low: "series-1",
 }
 
 export const INDONESIA_STATE_LABEL: Record<string, string> = {
@@ -600,8 +810,9 @@ export const siteLabel = (id: string): string =>
   id.charAt(0).toUpperCase() + id.slice(1)
 
 /**
- * Heat-flux benefit against bare aluminium (C0 minus the subject, mean flux into the building) per site and day type,
- * one bar per subject with whiskers to the outer bound of the benefit interval (not a p5-p95 of the benefit), for one state. The weighted view is the last group of each site.
+ * Heat-flux benefit against bare aluminium (C0 minus the subject, mean flux into the building) per day type, one panel per site
+ * on one shared y axis, one bar per subject with whiskers to the outer bound of the benefit interval (not a p5-p95 of the
+ * benefit), for one state. The weighted view is the last group of each panel.
  */
 export function figIndonesiaBars(
   rows: readonly IndonesiaSummaryRow[],
@@ -610,77 +821,114 @@ export function figIndonesiaBars(
   const subjects = ["C1", "card_high", "card_balanced", "card_low"]
   const sites = [...new Set(rows.map((r) => r.site))]
   const bins = ["hot", "typical", "overcast", "weighted"]
-  const cells = sites.flatMap((s) => bins.map((b) => [s, b] as const))
-  const data = subjects.map((subject, i) => {
-    const pick = cells.map(([s, b]) =>
-      rows.find(
-        (r) =>
-          r.site === s &&
-          r.bin === b &&
-          r.subject === subject &&
-          r.state === state,
-      ),
-    )
-    const y = pick.map((r) => r?.dq_w_m2 ?? Number.NaN)
-    return {
-      type: "bar",
-      name: INDONESIA_SUBJECT_LABEL[subject],
-      x: [
-        cells.map(([s]) => siteLabel(s)),
-        cells.map(([, b]) => INDONESIA_BIN_LABEL[b] ?? b),
-      ],
-      y,
-      error_y: {
-        type: "data",
-        symmetric: false,
-        array: pick.map((r, k) => (r ? r.dq_hi - (y[k] as number) : 0)),
-        arrayminus: pick.map((r, k) => (r ? (y[k] as number) - r.dq_lo : 0)),
-        thickness: 1.2,
-      },
-      marker: { color: INDONESIA_SERIES_COLORS.light[i] },
-      meta: {
-        kind: "predicted",
-        id: subject,
-        palette: {
-          light: INDONESIA_SERIES_COLORS.light[i],
-          dark: INDONESIA_SERIES_COLORS.dark[i],
+  const cols = Math.min(3, Math.max(1, sites.length))
+  const nrows = Math.ceil(sites.length / cols)
+  const gapX = 0.03
+  const gapY = 0.2
+  const data: object[] = []
+  const layout: Record<string, unknown> = {}
+  const notes: object[] = []
+  sites.forEach((site, si) => {
+    const col = si % cols
+    const row = Math.floor(si / cols)
+    const ax = si === 0 ? "" : String(si + 1)
+    const w = (1 - gapX * (cols - 1)) / cols
+    const h = (1 - gapY * (nrows - 1)) / nrows
+    const x0 = col * (w + gapX)
+    const y1 = 1 - row * (h + gapY)
+    layout[`xaxis${ax}`] = {
+      domain: [x0, x0 + w],
+      anchor: `y${ax}`,
+      tickangle: -40,
+    }
+    layout[`yaxis${ax}`] = {
+      domain: [y1 - h, y1],
+      anchor: `x${ax}`,
+      ...(si === 0 ? {} : { matches: "y" }),
+      ...(col === 0
+        ? { title: { text: "Benefit, W/m² (PROXY)", standoff: 8 } }
+        : { showticklabels: false }),
+      automargin: true,
+    }
+    notes.push({
+      x: x0 + w / 2,
+      y: y1,
+      xref: "paper",
+      yref: "paper",
+      text: siteLabel(site),
+      showarrow: false,
+      yanchor: "bottom",
+      font: { size: 13 },
+    })
+    for (const subject of subjects) {
+      const pick = bins.map((b) =>
+        rows.find(
+          (r) =>
+            r.site === site &&
+            r.bin === b &&
+            r.subject === subject &&
+            r.state === state,
+        ),
+      )
+      const y = pick.map((r) => r?.dq_w_m2 ?? Number.NaN)
+      const slot = INDONESIA_SUBJECT_SLOT[subject] as Slot
+      data.push({
+        type: "bar",
+        name: INDONESIA_SUBJECT_LABEL[subject],
+        x: bins.map((b) => INDONESIA_BIN_LABEL[b] ?? b),
+        y,
+        xaxis: `x${ax}`,
+        yaxis: `y${ax}`,
+        legendgroup: subject,
+        showlegend: si === 0,
+        error_y: {
+          type: "data",
+          symmetric: false,
+          array: pick.map((r, k) => (r ? r.dq_hi - (y[k] as number) : 0)),
+          arrayminus: pick.map((r, k) => (r ? (y[k] as number) - r.dq_lo : 0)),
+          thickness: 1.2,
         },
-      },
+        marker: { color: slotHex(slot) },
+        meta: { kind: "predicted", id: subject, slot, site },
+      })
     }
   })
   return {
     data,
     layout: baseLayout({
+      ...layout,
       barmode: "group",
-      margin: { l: 72, r: 16, t: 24, b: 96 },
-      xaxis: {
-        title: {
-          text: `Site and day type; aluminium, scenario ageing: ${INDONESIA_STATE_LABEL[state]}`,
+      margin: { l: 72, r: 16, t: 64, b: 96 },
+      height: 300 * nrows + 120,
+      annotations: [
+        ...notes,
+        {
+          x: 0,
+          y: 1.0,
+          xref: "paper",
+          yref: "paper",
+          yshift: 44,
+          text: `Aluminium, scenario ageing: ${INDONESIA_STATE_LABEL[state]}; whiskers: outer bound`,
+          showarrow: false,
+          xanchor: "left",
+          font: { size: 12 },
         },
-      },
-      yaxis: {
-        automargin: true,
-        title: {
-          text: "Benefit, W/m² (PROXY)<br>whiskers: outer bound",
-          standoff: 8,
-        },
-      },
-      legend: { orientation: "h", y: -0.45 },
+      ],
+      legend: { orientation: "h", x: 0, y: 1.0, yanchor: "bottom", yshift: 8 },
     }),
     config: CONFIG,
   }
 }
 
-const isDark = (t: ThemeTokens): boolean => luminance(t.paper) < 0.4
-
 /**
  * D7 (verified, spike Q3): `relayout` for every chart type, `restyleParcoords` for the parcoords trace only
- * (applied as Plotly.restyle(gd, restyleParcoords, [0])); the black axis strokes of parcoords need the CSS override in theme.css.
+ * (applied as Plotly.restyle(gd, restyleParcoords, [0])); the black axis strokes of parcoords need the CSS override in the page CSS.
  */
 export function themeKeys(tokens: ThemeTokens): {
   relayout: Record<string, string>
   restyleParcoords: Record<string, unknown>
 } {
+  const seq = tokens.seq ?? L.seq
   return {
     relayout: {
       paper_bgcolor: tokens.paper,
@@ -691,7 +939,7 @@ export function themeKeys(tokens: ThemeTokens): {
       "labelfont.color": tokens.font,
       "tickfont.color": tokens.font,
       "rangefont.color": tokens.font,
-      "line.colorscale": [isDark(tokens) ? VIRIDIS_DARK : VIRIDIS_LIGHT],
+      "line.colorscale": [colorScale(seq)],
     },
   }
 }

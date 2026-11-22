@@ -50,7 +50,7 @@ test("fragmentIsDeterministicOutlinedAndUsesDistinctIds", async () => {
     galleryMoleculeCells().length,
   )
   expect(els.filter((e) => e.tag === "h2").length).toBe(1)
-  expect(els.filter((e) => e.tag === "h3").length).toBe(10)
+  expect(els.filter((e) => e.tag === "h3").length).toBe(11)
   const ids = els.map((e) => e.attrs.id).filter(Boolean) as string[]
   expect(new Set(ids).size).toBe(ids.length)
   expect(els.some((e) => e.tag === "script")).toBe(false)

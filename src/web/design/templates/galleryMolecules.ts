@@ -5,6 +5,7 @@ import { CALLOUT_TONES, callout } from "../molecules/callout"
 import { disclosure } from "../molecules/disclosure"
 import { FIGURE_SIZES, figureFrame } from "../molecules/figureFrame"
 import { intervalBar } from "../molecules/intervalBar"
+import { layerSchematic } from "../molecules/layerSchematic"
 import { LEGEND_SHAPES, legend } from "../molecules/legend"
 import { PROXY_TONES, proxyBadge } from "../molecules/proxyBadge"
 import { SLIDER_STATES, sliderField } from "../molecules/sliderField"
@@ -95,6 +96,26 @@ export function galleryMoleculeCells(): GalleryCell[] {
       tone: "interval",
       interval: { lo: 14.3, hi: 14.5 },
       axis: { min: 0, max: 20 },
+    }),
+  )
+  add(
+    "LayerSchematic",
+    "three layers",
+    layerSchematic({
+      name: "SP-075",
+      primer_um: 11.6,
+      midcoat_um: 175,
+      topcoat_um: 9.7,
+    }),
+  )
+  add(
+    "LayerSchematic",
+    "thin midcoat",
+    layerSchematic({
+      name: "SP-031",
+      primer_um: 40,
+      midcoat_um: 60,
+      topcoat_um: 40,
     }),
   )
   add("IntervalBar", "narrow", intervalBar(IV))
@@ -273,6 +294,7 @@ const ORDER = [
   "ProxyBadge",
   "Stat",
   "IntervalBar",
+  "LayerSchematic",
   "Callout",
   "Disclosure",
   "FigureFrame",
