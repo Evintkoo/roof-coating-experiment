@@ -10,6 +10,7 @@
       "!tests/fixtures/oracle",
       "!oracle",
       "!reports",
+      "!vendor",
       "!data",
       "!docs/spikes/plan-04",
       "!src/web/template.html",

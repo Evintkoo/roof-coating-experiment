@@ -1,0 +1,51 @@
+/*
+ * Copyright (c) 2026 Torviello.
+ * Document-level base and the one shared type atom (section title + subline).
+ * Everything else is styled in a <style> block beside its component. Consumes
+ * ONLY the semantic tokens from tokens.css; a raw value here is a review
+ * finding.
+ */
+
+body {
+  background: var(--tv-surface-base);
+  color: var(--tv-text-primary);
+  font-family: var(--tv-font-sans);
+  font-size: var(--tv-size-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--tv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Brand-tinted text selection — small, but it reads as craft */
+::selection {
+  background: color-mix(in srgb, var(--tv-action-primary) 32%, transparent);
+  color: var(--tv-text-primary);
+}
+
+/* Smooth anchor travel only where motion is welcome (F-01, house rule 8) */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Shared section heading */
+.tv-section__title {
+  margin: 0;
+  color: var(--tv-text-primary);
+  font-family: var(--tv-font-sans);
+  font-size: clamp(30px, 3.8vw, 48px);
+  font-weight: var(--tv-weight-semibold);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.tv-section__sub {
+  margin: var(--tv-space-4) 0 var(--tv-space-8);
+  max-width: 52ch;
+  color: var(--tv-text-muted);
+  font-size: var(--tv-size-body);
+  line-height: 1.65;
+}
