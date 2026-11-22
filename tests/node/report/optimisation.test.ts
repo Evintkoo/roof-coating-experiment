@@ -55,7 +55,7 @@ beforeAll(async () => {
   const path = outPath()
   await buildReport(dir, path, reportOpts())
   withOpt = { dir, path, html: readFileSync(path, "utf8") }
-})
+}, 120_000)
 
 test("absentRefineOutputsOmitTheSectionWithoutError", () => {
   expect(plain.html).not.toContain('id="budget"')

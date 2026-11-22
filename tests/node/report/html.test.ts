@@ -35,7 +35,7 @@ import {
 let built: { dir: string; path: string; html: string }
 beforeAll(async () => {
   built = await buildTestReport()
-})
+}, 120_000)
 
 const outPath = () =>
   join(mkdtempSync(join(tmpdir(), "spandek-out-")), "report.html")

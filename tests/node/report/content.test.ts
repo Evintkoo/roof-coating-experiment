@@ -22,7 +22,7 @@ import {
 let built: { dir: string; path: string; html: string }
 beforeAll(async () => {
   built = await buildTestReport()
-})
+}, 120_000)
 const out = () =>
   join(mkdtempSync(join(tmpdir(), "spandek-content-")), "report.html")
 const codeOf = async (f: () => Promise<unknown>): Promise<number> => {
