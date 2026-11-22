@@ -145,7 +145,7 @@ No stub, TODO, skip, xfail or "decide later". The Task 1 spike ends in written a
 
 - D1 Vendor by copy, pinned and drift-checked; the unit has no component code, so the Svelte atoms from `torviello-landing` are the reference for atoms and the design sheets for tokens and states.
 - D2 Pure TS component functions, not Svelte (alternatives table).
-- D3 Default theme follows `prefers-color-scheme`; dark is the brand, light is derived and documented as BLOCKED-13 for approval; the manual toggle persists nothing (as plan 00).
+- D3 Default theme is LIGHT regardless of the operating system's colour-scheme setting; a visible "Dark mode" toggle (aria-pressed, remembered in localStorage inside try/catch, applied before first paint) switches to the Torviello dark brand and back; print is always light. The light theme is derived (the brand is dark-only) and documented as BLOCKED-13. Amended 2026-11-22 (was: follow `prefers-color-scheme`).
 - D4 Fonts: embed subsets if within budget (Task 1), else system fallback stacks from the tokens; never a network font.
 - D5 Report levels: *Summary* (what the page opens on) and *Details* (disclosures and the explorer); the live simulator and explorer are Details and stay fully functional.
 - D6 The chart palette: the brand orange for the recommended recipe and the aluminium baseline in neutral; categorical series from a colour-blind-safe set validated in Task 2; sequential and diverging scales for heat and benefit validated for both themes.
