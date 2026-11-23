@@ -67,7 +67,20 @@ function sanitize(v: string | number | boolean): string | number | boolean {
   return v
 }
 
+let stderrGuarded = false
+/**
+ * A write to stderr can fail asynchronously (EBADF when a test runner or parent closes the descriptor). That error is emitted on
+ * the stream, outside emit's try/catch, and surfaced as a failure of whichever test happened to run next. Logging must never
+ * fail its caller, so the stream gets one swallowing error listener.
+ */
+function guardStderr(): void {
+  if (stderrGuarded) return
+  stderrGuarded = true
+  process.stderr.on("error", () => {})
+}
+
 export function emit(event: string, level: Level, fields: Fields): void {
+  guardStderr()
   try {
     if (RANK[level] < RANK[minLevel]) return
     const base: Record<string, unknown> = {
