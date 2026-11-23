@@ -321,3 +321,8 @@ test("lintFailsOnSeededDefects", () => {
   for (const [rule, html] of seededDefects()) expect(lintPage(html, HOOKS).map((d) => d.rule)).toContain(rule)
 })
 ```
+
+
+## Amendment: total animation JS cap raised to 125 KiB
+
+Owner said 'continue the progress' on the recommendation (owner-delegate decision). `T_js_kib`, the cap on the TOTAL animation JS (inline lane included), is 125 KiB, was 100. Reason: plan 08 measured 120.0 KiB total (delta 43.6 KiB, minified 64.9 KiB total), the page is 6.14 of 8 MiB, and the added code is the comparison and sweep panels the owner asked for. The plan 08 delta pin stays at 45 KiB; plan 09 keeps its own delta cap of 10 KiB and must keep the total at or under 125.

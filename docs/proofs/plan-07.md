@@ -29,7 +29,7 @@ The new section first measured 810 px (9,488 px page). Reclaimed per D8: the thr
 | H11 | `fanLinesAreTheDrawsAndMatchTheBandH11`; mutant M4 killed |
 | H12 | `report.design.browser.proof` 24 of 24 (height 7,267); plan 00 `report.browser.proof` 20 of 20, live latency over 200 moves median 82.6 ms, p95 92.0 ms, max 141.6 ms against `T_live_ms` 100 (loaded machine, 8 ms headroom); honesty and qa regression files pass. Comprehension rerun: two fresh readers, 8 of 8 and 8 of 8 (`docs/proofs/plan-07-comprehension/`, scorer `docs/spikes/plan-06/q6_score.ts` exit 0), fixture not edited. |
 | H13 | `tween.test.ts` (fast-check), page `tilesGlideAndEndExactly`: 32.4 to 32.8 through 5 distinct values over 91 frames, ends exactly on `data-nominal`; mutant M7 killed |
-| H14 | heights above; animation JS under frozen `T_js_kib` 100 (`animationJsStaysUnderTheFrozenSizeH14`) |
+| H14 | heights above; animation JS under frozen `T_js_kib` 125 (amended from 100) (`animationJsStaysUnderTheFrozenSizeH14`) |
 
 Faults: F1 to F4 lint tests; F5 page test (`delete window.Worker`, single lane, check passes); F6 above; F7 page test (truncated context: live status, day-status alert, screening failure message, no hang); F8 `hiddenTabStillCorrect`; F9 and F10 component tests (closed unions, escaping); F11 `seekClampsF11`.
 
