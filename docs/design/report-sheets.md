@@ -398,3 +398,13 @@ The live physics scene follows the plan 07 and 08 rules: motion is explanatory o
 - accessibility: the SVG has a name that says what is drawn; the numbers of every arrow and the temperature are text; the label "Illustrative scale: layers are not to scale" is inside the drawing
 - motion rule: rays move only while the panel plays and are absent under reduced motion; arrows and numbers change with the stepper frame
 - do: take every count and length from the bands and the stepper. don't: draw a scattering mark, a temperature per layer or a ray count that is not a quota of the spectrum
+
+### R40 DropProfile
+
+- purpose: the temperature drop from the surface to the inside of the roof, as the model has it: two temperatures joined by the model's straight conduction law.
+- tokens: line and dots `status-stop`, axis `border-panel`, notes `text-muted` and numbers `text-primary` at `size-small`
+- states: none beyond finite numbers; R_total must be positive (else a build error, exit 4); the temperature axis is fixed (7 to 87 degC) so the two dots move honestly
+- contract: `dropProfile({ tSurfaceK, tInsideK, rTotal, source })` returns `<svg class="tv-drop" data-drop-profile>` holding exactly two temperature numbers (`drop-surface-text`, `drop-inside-text`), two dots with `data-source="<source>:t_k"` and `:t_inside_k`, the line (`drop-law`) and the drawing's own `data-source="<source>:r_total"`; no number per layer exists
+- accessibility: the SVG has a name that says it is illustrative; both temperatures are text
+- motion rule: only the two dots and the line move, with the stepper frame
+- do: say "Illustrative scale: one surface temperature, none per layer". don't: draw a gradient, a layer temperature or a curve through the thickness (BLOCKED-19)

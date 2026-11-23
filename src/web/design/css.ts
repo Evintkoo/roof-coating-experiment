@@ -132,6 +132,14 @@ export const MOLECULE_CSS = {
 .tv-scene__arrow--conducted line{stroke:${t("status-stop")}}
 .tv-scene__head{fill:${t("text-primary")}}
 `,
+  dropProfile: `
+.tv-drop{display:block;width:100%;height:auto;font-family:${t("font-sans")}}
+.tv-drop__axis{stroke:${t("border-panel")};stroke-width:1}
+.tv-drop__law{stroke:${t("status-stop")};stroke-width:2}
+.tv-drop__dot{fill:${t("status-stop")};stroke:${t("surface-base")};stroke-width:1}
+.tv-drop__note{fill:${t("text-muted")};font-size:${t("size-small")}}
+.tv-drop__value{fill:${t("text-primary")};font-size:${t("size-small")};font-family:${t("font-mono")}}
+`,
   dayChart: `
 .tv-daychart-frame{margin:0;min-width:0}
 .tv-daychart{display:block;width:100%;height:auto;font-family:${t("font-sans")}}
