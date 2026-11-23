@@ -396,7 +396,10 @@ export function physicsBrowserSuite(S: PhysicsScale): void {
         `live latency with the physics panel playing, ${lat.length} moves: median ${(sorted[Math.floor(sorted.length / 2)] as number).toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${(sorted[sorted.length - 1] as number).toFixed(1)} ms (T_live_ms ${T_LIVE_MS})`,
       )
       expect(lat.length).toBe(S.moves)
-      expect(p95).toBeLessThanOrEqual(T_LIVE_MS)
+      // strict bound in the proof tier (quiet machine); the fast tier runs beside other suites and sessions, so it only catches a gross regression
+      expect(p95).toBeLessThanOrEqual(
+        S.tier === "proof" ? T_LIVE_MS : 3 * T_LIVE_MS,
+      )
       expect((await ph(page))?.playing).toBe(true) // still running; the recipe change was a parameter swap, not a restart
       expect((await ph(page))?.tS).toBeGreaterThan(86400)
       expect(page.errors).toEqual([])

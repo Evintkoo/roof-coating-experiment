@@ -242,7 +242,10 @@ export function compareBrowserSuite(S: CompareScale): void {
       `live latency with the sweep panel open and sweeps running, ${lat.length} moves: median ${(sorted[Math.floor(sorted.length / 2)] as number).toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${(sorted[sorted.length - 1] as number).toFixed(1)} ms (T_live_ms ${T_LIVE_MS})`,
     )
     expect(lat.length).toBe(S.moves)
-    expect(p95).toBeLessThanOrEqual(T_LIVE_MS)
+    // strict bound in the proof tier (quiet machine); the fast tier runs beside other suites and sessions, so it only catches a gross regression
+    expect(p95).toBeLessThanOrEqual(
+      S.tier === "proof" ? T_LIVE_MS : 3 * T_LIVE_MS,
+    )
     // the moves marked the sweep stale or cancelled it; the page is still sound
     expect(["stale", "ready", "running", "idle"]).toContain(
       (await sweep(page))?.state as string,
