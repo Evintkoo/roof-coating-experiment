@@ -133,10 +133,18 @@ export type RunResult = {
   runDir: string
 }
 
-/** Run the real CLI in a subprocess; logs go to a fresh reports dir (SPANDEK_REPORTS_DIR). */
+/** A CLI subprocess that has not exited after this long is a hang, not a slow run (the longest proof run is about 10 minutes). */
+export const RUN_TIMEOUT_MS = 20 * 60_000
+
+/**
+ * Run the real CLI in a subprocess; logs go to a fresh reports dir (SPANDEK_REPORTS_DIR). A child still running after
+ * `timeoutMs` is killed (only the one this call started) and the call rejects with its arguments and stderr, so a hung child
+ * fails in minutes with a reason instead of holding a test hook for an hour.
+ */
 export async function run(
   args: string[],
   env: Record<string, string> = {},
+  timeoutMs: number = RUN_TIMEOUT_MS,
 ): Promise<RunResult> {
   const reports = mkdtempSync(join(tmpdir(), "spandek-rep-"))
   const p = Bun.spawn(["bun", "run", "src/node/cli.ts", ...args], {
@@ -145,11 +153,20 @@ export async function run(
     stdout: "pipe",
     stderr: "pipe",
   })
+  let hung = false
+  const timer = setTimeout(() => {
+    hung = true
+    p.kill()
+  }, timeoutMs)
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(p.stdout).text(),
     new Response(p.stderr).text(),
     p.exited,
-  ])
+  ]).finally(() => clearTimeout(timer))
+  if (hung)
+    throw new Error(
+      `cli hung: killed after ${timeoutMs} ms: ${args.slice(0, 3).join(" ")} ... stderr tail: ${stderr.slice(-400)}`,
+    )
   const sub = readdirSync(reports)[0]
   return { exitCode, stdout, stderr, runDir: sub ? join(reports, sub) : "" }
 }
