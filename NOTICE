@@ -6,22 +6,40 @@ only, no distribution, no modification. Commercial use needs the owner's separat
 
 The licence above covers the owner's own work. The following material is included under its own terms and is not relicensed:
 
-1. Fonts embedded in the report (src/node/report/fonts/): Inter and JetBrains Mono subsets under the SIL Open Font License 1.1.
-   The licence texts are in OFL-Inter.txt and OFL-JetBrainsMono.txt in that directory and are also shown inside every built report
-   (Licences disclosure).
+1. Fonts embedded in the report (src/node/report/fonts/): subsets of Inter ("Copyright (c) 2016 The Inter Project Authors",
+   https://github.com/rsms/inter) and JetBrains Mono ("Copyright 2020 The JetBrains Mono Project Authors",
+   https://github.com/JetBrains/JetBrainsMono), both under the SIL Open Font License 1.1. Neither declares a Reserved Font Name.
+   The licence texts are in OFL-Inter.txt and OFL-JetBrainsMono.txt in that directory and are shown inside every built report
+   (Licences disclosure). The fonts are not sold by themselves; the OFL does not extend to the rest of this repository.
 
 2. vendor/: design tokens, brand assets and Svelte atoms copied from the owner's own repository Evintkoo/torch-inference
    (torviello-design and torviello-landing), recorded in vendor/VENDORED.md with the source commit. That repository carries an MIT
    licence for these files; the owner is its copyright holder.
 
-3. Data in data/literature/ and the downloads made by `fetch-data` (provenance and hashes in data/literature/SHA256SUMS and
-   data/indonesia/SHA256SUMS): the ASTM G173 reference solar spectrum, TiO2 optical constants from the refractiveindex.info
-   database (Bond, Siefke), NASA POWER hourly weather, and TMYx typical-year files. Each source has its own terms of use. They have
-   not been reviewed for redistribution inside this repository; check each source's terms before publishing the data files or a
-   derived dataset.
+3. Optical constants for TiO2 (data/literature/raw/TiO2_*.yml and the CSV files derived from them): from the refractiveindex.info
+   database (https://github.com/polyanskiy/refractiveindex.info-database), released under CC0 1.0 (public domain). No attribution is
+   legally required; the maintainer asks for citation: M. N. Polyanskiy, Refractiveindex.info database of optical constants,
+   Sci. Data 11, 94 (2024), doi:10.1038/s41597-023-02898-2. Original sources of the entries used: W. L. Bond, J. Appl. Phys. 36,
+   1674 (1965), doi:10.1063/1.1703106 (rutile, ordinary and extraordinary); T. Siefke et al., Adv. Opt. Mater. 4, 1780 (2016),
+   doi:10.1002/adom.201600250 (TiO2 thin film; numerical data kindly provided by Thomas Siefke).
 
-4. Third-party packages (yaml, zod, plotly.js-dist-min, playwright and the dev tools) keep their own licences; see bun.lock for
+4. Reference solar spectrum (data/literature/raw/ASTMG173.csv and data/literature/g173_global_tilt.csv): "ASTM G173-03 Reference
+   Spectra Derived from SMARTS v. 2.9.2", distributed by NREL. ASTM International holds copyright in the standard. The terms for
+   redistributing this file could not be verified (the NREL and ASTM pages were not readable when this notice was written), so the
+   file is included here on the basis of its wide public distribution by NREL, and its status is UNVERIFIED. If you hold or learn of
+   different terms, they govern. A request to remove the file will be honoured.
+
+5. Weather data downloaded at run time by `fetch-data` and never committed (data/indonesia/raw and data/indonesia/tmyx are
+   git-ignored):
+   - NASA POWER hourly data, https://power.larc.nasa.gov. No licence is stated; the project asks users to acknowledge the service,
+     version and access date: "The data was obtained from the POWER Project's Hourly 2.x.x version on YYYY/MM/DD", and to cite
+     NASA Langley Research Center's POWER Project, funded through the NASA Earth Science Division.
+   - TMYx typical meteorological years, https://climate.onebuilding.org ("Copyright 2014-2026 Climate.OneBuilding. All Rights
+     Reserved."; solar data from ERA5, courtesy of Oikolab). No licence is stated, so the files are not redistributed here.
+     Citation requested: Lawrie, Linda K., and Drury B. Crawley, Development of Global Typical Meteorological Years (TMYx).
+
+6. Third-party packages (yaml, zod, plotly.js-dist-min, playwright and the dev tools) keep their own licences; see bun.lock for
    the exact versions.
 
-5. oracle/ contains the public-domain xoshiro128** and f2x reference sources fetched from https://prng.di.unimi.it/ (see
+7. oracle/ contains the public-domain xoshiro128** and f2x reference sources fetched from https://prng.di.unimi.it/ (see
    oracle/README.md).
