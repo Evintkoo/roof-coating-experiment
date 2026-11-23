@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.csv text eol=lf
+*.woff2 binary
+*.png binary
+*.docx binary
+bun.lock linguist-generated
+uv.lock linguist-generated
+vendor/** linguist-vendored

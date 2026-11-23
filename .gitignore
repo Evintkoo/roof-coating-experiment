@@ -4,3 +4,10 @@ oracle/.venv/
 .superpowers/
 data/indonesia/raw/
 data/indonesia/tmyx/
+.DS_Store
+*.log
+.env
+.env.*
+.claude/worktrees/
+.claude/settings.local.json
+coverage/
