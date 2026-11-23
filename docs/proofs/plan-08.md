@@ -16,8 +16,8 @@ Machine: shared, load average 2.5 to 10 from other sessions; Chrome headless (Pl
 | Open disclosure, One variable at a time (computed) | 818 px | 900 |
 | `report.html` | 6,442,138 bytes (6.14 MiB) | `T_size_mib` 8 |
 | Animation JS, plan 07 entry | 76.4 KiB unminified | `T_js_kib` 100 (`animationJsStaysUnderTheFrozenSizeH14` passes) |
-| Animation JS, with plan 08 | 118.8 KiB unminified (64.9 minified) | 100 total |
-| Delta added by plan 08 | **42.3 KiB** unminified (25.6 minified) | hard cap 20; frozen at 45 |
+| Animation JS, with plan 08 | 120.0 KiB unminified after the review fixes (118.8 before; 64.9 minified before) | 100 total |
+| Delta added by plan 08 | **43.6 KiB** unminified after the review fixes (42.3 before; 25.6 minified before) | hard cap 20; frozen at 45 |
 
 The panels first opened at 987 px (compare) and 967 px (sweep); reclaimed by laying the lanes and charts out three to a row (minimum width 240 px) and moving the readout and notes into the sixth grid cell, not by editing `T_open_px`. The first CSS guess for the sweep readout was a full-width line.
 
@@ -40,7 +40,7 @@ The panels first opened at 987 px (compare) and 967 px (sweep); reclaimed by lay
 | H13 | `liveLatencyHoldsWithThePanelOpenAndASweepRunningH13`: **200 moves with a sweep restarted every 700 ms on its own pool: median 48.6 ms, p95 92.0 ms, max 136.0 ms against 100** (40 moves in the fast tier: p95 62.8 to 70.8 ms). Headroom is 8 ms, as in plan 07. Plan 07 H7 (864 values) unchanged (pool tests). Text contrast of both new panels in light and dark: 150 text elements each, all at least 4.5 (`textContrastOfTheNewPanelsMeetsAABothThemesH13`). Comprehension on the final page: two fresh reader agents, **8 of 8 and 8 of 8** (`docs/proofs/plan-08-comprehension/`, scorer `docs/spikes/plan-06/q6_score.ts`), fixture not edited. |
 | H14 | `noRecommendedBestOptimalH14` in the organism tests, `honestyAndBandLabelH14` in the chart tests, page `wordingAndNoNaNOnTheBuiltPageH9H14` (`OVERCLAIM_PATTERN` and "optimal" absent; PROXY badge on corrosion, delamination and cost and not on peak temperature; "relative cost units", "parameter uncertainty only", the US datasheet product and "ageing is not shown" present). |
 | H15 | `sweepCancelPaintsNothingAndNoLeakH15` (20 cycles, live worker count equals the pool size), `startAndCancel20TimesLeavesNoWorkerBehindH15` (and a cancel returns inside 500 ms), `aLiveChangeCancelsPaintsNothingAndMarksStaleH15`, page `aLiveMoveCancelsARunningSweepAndMarksItStaleH15`. |
-| H16 | **FALSIFIED.** Delta 42.3 KiB against the hard cap of 20, total with the inline lane 118.8 against 100 (see the table and `docs/spikes/plan-08.md`). The test pins the measured delta (45) so it cannot grow. Owner decision needed: raise the cap (the page is 6.14 of 8 MiB, the minified delta is 25.6 KiB) or cut features. |
+| H16 | **FALSIFIED.** Delta 43.6 KiB against the hard cap of 20, total with the inline lane 120.0 against 100 (see the table and `docs/spikes/plan-08.md`). The test pins the measured delta (45) so it cannot grow. Owner decision needed: raise the cap (the page is 6.14 of 8 MiB, the minified delta is 25.6 KiB) or cut features. |
 
 ## Faults
 
@@ -63,4 +63,4 @@ Claims C1 (every value is a model output), C2 (one clock), C3 (point equals live
 - The design gallery (`components.html`) has no entries for the four new components (sheet entries R35 to R38 and component tests exist; as in plan 07, the gallery was not extended).
 - Mutations beyond M1 to M4; a sweep started while the tab is hidden (F7) beyond the frozen cursor; Space toggling in the sweep panel not pressed in a test; the number-box typing path of the sweep value is covered only by its handler.
 - Blob-worker timing in Chrome is the pool test above (4 workers 510 ms), not a separate spike run.
-- `bun run check`: see the final line of the task report (counts recorded there, not in this file, so the log does not claim a run it cannot contain).
+- `bun run check` (once, foreground, nice 10, load average 10 to 25 from other sessions): biome and tsc clean; tests **1292 pass, 4 fail** of 1296 in 193 files. The 4 were load failures: `c3-live-title` (beforeAll hook timeout, 120 s) and the two `dayPlayer` frame-clock tests pass alone (1 of 1 and 14 of 14); `liveLatencyHoldsWithThePanelOpenAndASweepRunningH13` did **not** pass again alone: at load 5 to 10 its p95 was 105 to 130 ms (at load 3 to 4 it passed: 62.8 to 70.8 ms in the fast tier, p95 92.0 ms over 200 moves in the proof tier). An A/B of the pre-review commit `7976706` against `HEAD` at the same load gave 95 to 164 ms against 117 to 140 ms, so the failure is the load of the shared machine and a deliberately harsh test (a sweep restarted every 700 ms for the whole measurement), not the review fixes. It is reported as an unresolved load flake: a clean confirmation needs a quiet machine. `bun run check` is therefore not green on this machine.
