@@ -7,10 +7,12 @@ import { liveSimulate } from "../../core/pipeline/live"
 import { toCompareProps } from "../../web/anim/comparePanel"
 import { dayDataOf } from "../../web/anim/dayData"
 import { fluxAt, fluxRefs } from "../../web/anim/flux"
+import { idlePane, physicsProps } from "../../web/anim/physicsView"
 import { esc } from "../../web/design/html"
 import { disclosure } from "../../web/design/molecules/disclosure"
 import { watchCompare } from "../../web/design/organisms/watchCompare"
 import { watchDay } from "../../web/design/organisms/watchDay"
+import { watchPhysics } from "../../web/design/organisms/watchPhysics"
 import { watchScreening } from "../../web/design/organisms/watchScreening"
 import { watchSweep } from "../../web/design/organisms/watchSweep"
 import { defaultLiveState, LIVE_SEED, N_LIVE } from "../../web/liveState"
@@ -42,7 +44,7 @@ export const watchSection: ReportSection = {
     })
     const screening = disclosure({
       summary:
-        "More ways to watch: screening, controls, one variable at a time",
+        "More ways to watch: screening, controls, one variable at a time, live physics",
       level: "detail",
       id: "details-screening",
     })(
@@ -62,6 +64,18 @@ export const watchSection: ReportSection = {
             selected: "midcoat_dft_um",
             state: "idle",
           }),
+          physics: watchPhysics(
+            physicsProps(
+              i.ctx,
+              inputs,
+              r,
+              {
+                recipe: idlePane(i.ctx, inputs, r, "recipe"),
+                c0: idlePane(i.ctx, inputs, r, "c0"),
+              },
+              { state: "idle", speed: 1, reduced: false, lane: "worker" },
+            ),
+          ),
         },
       })}`,
     )

@@ -19,28 +19,35 @@ export type WatchScreeningProps = {
   draws: number
   id?: string
   /** Plan 08 D2: when given, the panel is the first of three tabs (Screening, Against the controls, One variable at a time). */
-  tabsHost?: { id: string; compare: string; sweep: string }
+  tabsHost?: { id: string; compare: string; sweep: string; physics?: string }
 }
 
 export const TAB_LABELS = {
   screening: "Screening",
   compare: "Against the controls",
   sweep: "One variable at a time",
+  physics: "Live physics",
 } as const
 
 export function watchScreening(p: WatchScreeningProps): string {
   const screen = watchScreeningPanel(p)
   if (!p.tabsHost) return screen
   const h = p.tabsHost
-  return tabs({
-    id: h.id,
-    label: "More ways to watch",
-    tabs: [
-      { id: "screening", label: TAB_LABELS.screening },
-      { id: "compare", label: TAB_LABELS.compare },
-      { id: "sweep", label: TAB_LABELS.sweep },
-    ],
-  })([screen, h.compare, h.sweep])
+  const list = [
+    { id: "screening", label: TAB_LABELS.screening },
+    { id: "compare", label: TAB_LABELS.compare },
+    { id: "sweep", label: TAB_LABELS.sweep },
+    ...(h.physics === undefined
+      ? []
+      : [{ id: "physics", label: TAB_LABELS.physics }]),
+  ]
+  const panels = [
+    screen,
+    h.compare,
+    h.sweep,
+    ...(h.physics === undefined ? [] : [h.physics]),
+  ]
+  return tabs({ id: h.id, label: "More ways to watch", tabs: list })(panels)
 }
 
 function watchScreeningPanel(p: WatchScreeningProps): string {

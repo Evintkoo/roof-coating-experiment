@@ -29,7 +29,7 @@ export const PHYSICS_NOTES = {
 export const TRANSIENT_NOTE =
   "Transient after your change, not the settled day."
 export const STATE_WORDS: Record<PhysicsState, string> = {
-  idle: "Press Play to start the day. Nothing moves until you do.",
+  idle: "Press Play to start the day at 00:00. Nothing moves until you do; the sun rises at 06:00.",
   playing: "Running the model live in your browser.",
   paused: "Paused.",
   transient: TRANSIENT_NOTE,

@@ -56,3 +56,33 @@ test("badInputIsABuildErrorF9", () => {
 test("cssIsTokenOnly", () => {
   expectTokenOnly(ORGANISM_CSS.watchScreening as string)
 })
+
+test("fourthTabLivePhysicsInTheSameDisclosureRowPlan09", async () => {
+  const base = { candidates: 96, scenarios: 9, draws: 32 }
+  const three = await elementsOf(
+    watchScreening({
+      ...base,
+      tabsHost: { id: "watch-tabs", compare: "<p>c</p>", sweep: "<p>s</p>" },
+    }),
+  )
+  expect(three.filter((e) => e.attrs.role === "tab").length).toBe(3)
+  const four = await elementsOf(
+    watchScreening({
+      ...base,
+      tabsHost: {
+        id: "watch-tabs",
+        compare: "<p>c</p>",
+        sweep: "<p>s</p>",
+        physics: "<p>p</p>",
+      },
+    }),
+  )
+  const tabs = four.filter((e) => e.attrs.role === "tab")
+  expect(tabs.map((t) => t.attrs["data-tab"])).toEqual([
+    "screening",
+    "compare",
+    "sweep",
+    "physics",
+  ])
+  expect(four.filter((e) => e.attrs.role === "tabpanel").length).toBe(4)
+})
