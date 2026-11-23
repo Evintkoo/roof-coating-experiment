@@ -5,6 +5,7 @@ import {
   type ScreeningData,
   screenChunk,
 } from "../core/anim/screening"
+import { type SweepVar, sweepChunkSafe } from "../core/anim/sweep"
 import type { Scenario } from "../core/design"
 import { SpandekError } from "../core/errors"
 import { type Level, setEventSink } from "../core/events"
@@ -24,6 +25,16 @@ type In =
       type: "screen"
       id: number
       tasks: { index: number; candidate: number; scenario: number }[]
+    }
+  | {
+      type: "sweep"
+      id: number
+      base: LiveInputs
+      v: SweepVar
+      values: number[]
+      idx: number[]
+      nDraws: number
+      seed: number
     }
   | { type: "run"; id: number; inputs: LiveInputs }
 type EventFields = Record<string, string | number | boolean>
@@ -86,6 +97,37 @@ w.onmessage = (e) => {
         error: {
           code: err instanceof SpandekError ? err.code : 0,
           phase: "screen",
+          key: "",
+        },
+      })
+    }
+    return
+  }
+  if (m.type === "sweep") {
+    try {
+      if (ctx === null) throw new Error("sweep used before init")
+      const out = sweepChunkSafe(
+        ctx,
+        m.base,
+        m.v,
+        m.values,
+        m.idx,
+        m.nDraws,
+        m.seed,
+      ).map((o) => ({ index: o.index, value: o.value }))
+      w.postMessage({
+        type: "screened",
+        id: m.id,
+        out,
+        ms: performance.now() - t0,
+      })
+    } catch (err) {
+      w.postMessage({
+        type: "error",
+        id: m.id,
+        error: {
+          code: err instanceof SpandekError ? err.code : 0,
+          phase: "sweep",
           key: "",
         },
       })

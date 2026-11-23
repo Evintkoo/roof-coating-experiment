@@ -5,10 +5,13 @@ import {
   screenChunk,
 } from "../../src/core/anim/screening"
 import { contextFromJson } from "../../src/core/pipeline/contextJson"
+import type { SweepKind } from "../../src/web/pool"
 import {
   createPool,
+  inlineSweepLane,
   type Pool,
   type PoolOpts,
+  sweepTasks,
   type Task,
 } from "../../src/web/pool"
 
@@ -119,6 +122,61 @@ const url = (src: string) =>
         reason: (e as { reason?: string }).reason ?? "",
       }
     }
+  },
+  // ---- plan 08: a pool that only runs sweeps (no screening data) ----
+  async makeSweep(
+    workerSrc: string,
+    ctxJson: string,
+    size: number,
+    o: { withInline?: boolean; hangMs?: number } = {},
+  ) {
+    const events: Ev[] = []
+    const pool = await createPool(size, url(workerSrc), ctxJson, {
+      ...(o.withInline ? { inlineSweep: inlineSweepLane } : {}),
+      ...(o.hangMs ? { hangMs: o.hangMs } : {}),
+      onEvent: (name, level, f) => events.push({ name, level, f }),
+    })
+    ;(window as unknown as { P: Pool; E: Ev[] }).P = pool
+    ;(window as unknown as { E: Ev[] }).E = events
+    return { size: pool.size, mode: pool.mode }
+  },
+  async sweep(k: SweepKind["sweep"]) {
+    const w = window as unknown as { P: Pool }
+    const t0 = performance.now()
+    const v = await w.P.run(sweepTasks(k.values.length), () => {}, {
+      sweep: k,
+    }).done
+    return { json: JSON.stringify(v), ms: performance.now() - t0, n: v.length }
+  },
+  async sweepCancelAfter(k: SweepKind["sweep"], ms: number) {
+    const w = window as unknown as { P: Pool }
+    let painted = 0
+    const r = w.P.run(
+      sweepTasks(k.values.length),
+      () => {
+        painted++
+      },
+      { sweep: k },
+    )
+    const why = r.done.then(
+      () => "done",
+      (e) => (e as { reason?: string }).reason ?? "error",
+    )
+    await new Promise((a) => setTimeout(a, ms))
+    const atCancel = painted
+    r.cancel()
+    const live = w.P.stats().live
+    const reason = await why
+    await new Promise((a) => setTimeout(a, 400))
+    return { atCancel, after: painted, live, why: reason }
+  },
+  async sweepKill(k: SweepKind["sweep"], killAfterMs: number, victim: number) {
+    const w = window as unknown as { P: Pool }
+    const r = w.P.run(sweepTasks(k.values.length), () => {}, { sweep: k })
+    await new Promise((a) => setTimeout(a, killAfterMs))
+    w.P.killLane(victim)
+    const v = await r.done
+    return { json: JSON.stringify(v), lanes: w.P.lanes(), n: v.length }
   },
   events: () => (window as unknown as { E: Ev[] }).E,
   stats: () => (window as unknown as { P: Pool }).P.stats(),

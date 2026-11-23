@@ -4,7 +4,7 @@
 
 import { DESIGN_KEYS } from "../../web/liveState"
 import type { MaterialRanges, WeatherConfig } from "../config"
-import { SpandekError } from "../errors"
+import { PhysicsRangeError, SpandekError } from "../errors"
 import { VARS } from "../opt/vars"
 import type { ModelContext } from "../pipeline/context"
 import {
@@ -219,6 +219,41 @@ export function sweepChunk(
         c0: plain(r.controls.C0),
         c1: plain(r.controls.C1),
       },
+    }
+  })
+}
+
+/** A point the model refused (a value outside a model range, F3): reported, never drawn, never a hang. */
+export type SweepFailure = { failed: true; value: number; reason: "physics_range" }
+export type SweepOutcome = SweepPoint | SweepFailure
+export const isFailure = (o: SweepOutcome): o is SweepFailure =>
+  (o as SweepFailure).failed === true
+
+/** `sweepChunk` one point at a time, so a `PhysicsRangeError` fails that point only (F3). Any other error still throws. */
+export function sweepChunkSafe(
+  ctx: ModelContext,
+  base: LiveInputs,
+  v: SweepVar,
+  values: readonly number[],
+  idx: readonly number[],
+  nDraws: number,
+  seed: number,
+): { index: number; value: SweepOutcome }[] {
+  return idx.map((index) => {
+    try {
+      const o = sweepChunk(ctx, base, v, values, [index], nDraws, seed)[0]
+      return { index, value: (o as { point: SweepPoint }).point }
+    } catch (e) {
+      if (e instanceof PhysicsRangeError)
+        return {
+          index,
+          value: {
+            failed: true as const,
+            value: values[index] as number,
+            reason: "physics_range" as const,
+          },
+        }
+      throw e
     }
   })
 }

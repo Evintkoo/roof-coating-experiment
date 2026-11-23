@@ -396,3 +396,59 @@ test("controlsAre44pxAndKeyboardOperableInBothThemes", async () => {
     expect(fx.watch(p).errors).toEqual([])
   }
 }, 120000)
+
+test("onFrameFiresOnSeekStepPlayTickH4", async () => {
+  const p = await open({ clock: true })
+  await p.evaluate(() => {
+    ;(window as unknown as { SEEN: number[] }).SEEN = []
+    window.P.onFrame((t) =>
+      (window as unknown as { SEEN: number[] }).SEEN.push(t),
+    )
+  })
+  const seen = () =>
+    p.evaluate(() => (window as unknown as { SEEN: number[] }).SEEN)
+  await p.evaluate(() => window.P.seek(7.5))
+  expect((await seen()).at(-1)).toBe(7.5)
+  await p.evaluate(() => window.P.step(1))
+  expect((await seen()).at(-1)).toBe(9) // a step rounds to the hour
+  const n0 = (await seen()).length
+  await p.evaluate(() => window.P.play())
+  expect((await seen()).length).toBe(n0 + 1) // play renders once at once
+  await p.clock.runFor(500)
+  const after = await seen()
+  expect(after.length).toBeGreaterThan(n0 + 5) // and once per tick
+  expect(after.at(-1)).toBe((await state(p)).tH)
+  await p.evaluate(() => window.P.pause())
+  expect((await seen()).at(-1)).toBe((await state(p)).tH)
+  await p.evaluate((d) => window.P.setData(d as unknown as DayData), day2)
+  expect((await seen()).length).toBeGreaterThan(after.length)
+  await p.context().close()
+}, 60000)
+
+test("onFrameUnsubscribes", async () => {
+  const p = await open()
+  const r = await p.evaluate(() => {
+    let n = 0
+    const off = window.P.onFrame(() => n++)
+    window.P.seek(3)
+    off()
+    window.P.seek(4)
+    window.P.seek(5)
+    return n
+  })
+  expect(r).toBe(1)
+  await p.context().close()
+}, 60000)
+
+test("noExtraTickerOnSubscribe", async () => {
+  const p = await open({ clock: true })
+  await p.evaluate(() => {
+    window.P.onFrame(() => {})
+    window.P.onFrame(() => {})
+    window.P.seek(2)
+  })
+  await p.clock.runFor(300)
+  expect(await frames(p)).toBe(0) // nothing is playing, so the loop has not run a single frame
+  expect((await state(p)).playing).toBe(false)
+  await p.context().close()
+}, 60000)

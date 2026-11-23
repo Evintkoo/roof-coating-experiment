@@ -10,6 +10,7 @@ import { weatherL9 } from "../../src/core/design"
 import { contextToJson } from "../../src/core/pipeline/contextJson"
 import { parseResultsCsv, type ResultRow } from "../../src/core/schema"
 import { loadContext } from "../../src/node/context"
+import type { SweepKind } from "../../src/web/pool"
 import { REPORT_FIXTURE, repoRoot } from "../helpers"
 
 type Ev = { name: string; level: string }
@@ -54,6 +55,22 @@ export type PageT = {
     data: ScreeningData,
     size: number,
   ): Promise<{ ok: boolean; reason: string; events: Ev[]; ms: number }>
+  makeSweep(
+    workerSrc: string,
+    ctxJson: string,
+    size: number,
+    o?: { withInline?: boolean; hangMs?: number },
+  ): Promise<{ size: number; mode: string }>
+  sweep(k: SweepKind["sweep"]): Promise<{ json: string; ms: number; n: number }>
+  sweepCancelAfter(
+    k: SweepKind["sweep"],
+    ms: number,
+  ): Promise<{ atCancel: number; after: number; live: number; why: string }>
+  sweepKill(
+    k: SweepKind["sweep"],
+    killAfterMs: number,
+    victim: number,
+  ): Promise<{ json: string; lanes: { state: string }[]; n: number }>
   events(): Ev[]
   stats(): { created: number; terminated: number; live: number }
   lanes(): { state: string; inline: boolean }[]

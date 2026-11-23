@@ -40,6 +40,8 @@ export type DayPlayer = {
   step(hours: number): void
   setSpeed(s: Speed): void
   setData(d: DayData): void
+  /** Plan 08 D1: `cb` runs at the end of every render (play, pause, seek, step, tick, setData); returns the unsubscribe. No ticker is added. */
+  onFrame(cb: (tH: number) => void): () => void
   autoplayOnce(): boolean
   state(): { tH: number; playing: boolean; speed: Speed; autoplayed: boolean }
   destroy(): void
@@ -65,6 +67,7 @@ export function mountDayPlayer(
   let autoplayed = false
   let source: "user" | "auto" = "user"
   let off: (() => void) | null = null
+  const frameCbs = new Set<(tH: number) => void>()
   let t: Float64Array
   let series: {
     recipe: Float64Array
@@ -152,6 +155,7 @@ export function mountDayPlayer(
       const txt = btn.querySelector(".tv-play__text")
       if (txt) txt.textContent = PLAY_WORDS[state].label
     }
+    for (const cb of [...frameCbs]) cb(clock.tH)
   }
 
   const giveSpeedBack = (): void => {
@@ -231,6 +235,12 @@ export function mountDayPlayer(
       prep()
       render()
     },
+    onFrame(cb) {
+      frameCbs.add(cb)
+      return () => {
+        frameCbs.delete(cb)
+      }
+    },
     autoplayOnce() {
       if (autoplayed || deps.reduced()) return false
       autoplayed = true
@@ -243,6 +253,7 @@ export function mountDayPlayer(
     },
     state: () => ({ tH: clock.tH, playing: clock.playing, speed, autoplayed }),
     destroy() {
+      frameCbs.clear()
       off?.()
       off = null
       root.removeEventListener("click", onClick)

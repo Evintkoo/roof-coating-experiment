@@ -3,6 +3,9 @@
 // missing Worker API falls back to one inline lane. No clock decides a number: the schedule changes only who computes what, when.
 import type { ScreeningData, ScreenValue } from "../core/anim/screening"
 import { mergeOrdered } from "../core/anim/screening"
+import { type SweepVar, sweepChunkSafe } from "../core/anim/sweep"
+import { contextFromJson } from "../core/pipeline/contextJson"
+import type { LiveInputs } from "../core/pipeline/live"
 
 export type Task = { index: number; candidate: number; scenario: number }
 export type Run<T> = { done: Promise<T[]>; cancel(): void }
@@ -18,9 +21,20 @@ export type PoolStats = { created: number; terminated: number; live: number }
 type Fields = Record<string, string | number | boolean>
 export type Evaluator = (
   tasks: readonly Task[],
-) => { index: number; value: ScreenValue }[]
+) => { index: number; value: unknown }[]
+/** Plan 08 D4: the sweep payload of a run; one task per sweep point (`task.index` indexes `values`). */
+export type SweepKind = {
+  sweep: {
+    base: LiveInputs
+    v: SweepVar
+    values: readonly number[]
+    nDraws: number
+    seed: number
+  }
+}
 export type PoolOpts = {
-  screening: ScreeningData
+  /** Absent for a pool that only runs sweeps (plan 08). */
+  screening?: ScreeningData
   /** null: nominal only (fast); a number: that many material draws per cell (honest "with uncertainty" run). */
   draws?: number | null
   /** The inline lane (F5 and the last resort after every worker failed); built by the page from the same pure functions. */
@@ -29,6 +43,8 @@ export type PoolOpts = {
     data: ScreeningData,
     draws: number | null,
   ) => Evaluator
+  /** The inline lane for sweeps (plan 08 F6), built by the page from the same pure functions. */
+  inlineSweep?: (ctxJson: string, k: SweepKind["sweep"]) => Evaluator
   onEvent?: (name: string, level: "debug" | "info" | "error", f: Fields) => void
   onLane?: (lanes: readonly LaneInfo[]) => void
   /** T_hang_s: a chunk or a start that makes no progress for this long fails its lane (default 10 000 ms). */
@@ -40,6 +56,7 @@ export type Pool = {
   run<T = ScreenValue>(
     tasks: readonly Task[],
     onResult: (index: number, v: T) => void,
+    kind?: SweepKind,
   ): Run<T>
   lanes(): readonly LaneInfo[]
   stats(): PoolStats
@@ -56,6 +73,33 @@ export class PoolError extends Error {
     super(message)
     this.name = "PoolError"
   }
+}
+
+/** One task per sweep point (plan 08 D4): task `i` is point `i`, so a chunk of one candidate is one point. */
+export function sweepTasks(n: number): Task[] {
+  return Array.from({ length: n }, (_, i) => ({
+    index: i,
+    candidate: i,
+    scenario: 0,
+  }))
+}
+
+/** The inline lane of a sweep (plan 08 F6): the same pure function the worker calls. */
+export const inlineSweepLane: NonNullable<PoolOpts["inlineSweep"]> = (
+  ctxJson,
+  k,
+) => {
+  const ctx = contextFromJson(ctxJson)
+  return (tasks) =>
+    sweepChunkSafe(
+      ctx,
+      k.base,
+      k.v,
+      k.values,
+      tasks.map((t) => t.index),
+      k.nDraws,
+      k.seed,
+    )
 }
 
 /** D10: `min(hardwareConcurrency - 1, 6)`, floor 1. */
@@ -92,7 +136,7 @@ type Msg =
   | {
       type: "screened"
       id: number
-      out: { index: number; value: ScreenValue }[]
+      out: { index: number; value: unknown }[]
       ms: number
     }
   | { type: "error"; id: number }
@@ -112,7 +156,7 @@ export async function createPool(
       ? autoSize(globalThis.navigator?.hardwareConcurrency)
       : Math.max(1, Math.floor(size))
   const hasWorker = typeof Worker !== "undefined"
-  if (!hasWorker && !opts.inline)
+  if (!hasWorker && !opts.inline && !opts.inlineSweep)
     throw new PoolError("no_worker", "this browser cannot start workers")
   const n = hasWorker ? want : 1
   const stats = { created: 0, terminated: 0 }
@@ -152,16 +196,11 @@ export async function createPool(
   const spawn = (id: number): Promise<Lane> =>
     new Promise((resolve, reject) => {
       if (!hasWorker) {
-        const ev = (opts.inline as NonNullable<PoolOpts["inline"]>)(
-          ctxJson,
-          opts.screening,
-          draws,
-        )
         emit("pool.fallback", "info", { reason: "no_worker" })
         resolve({
           id,
           worker: null,
-          evaluator: ev,
+          evaluator: null,
           state: "idle",
           inflight: null,
           timer: null,
@@ -208,7 +247,9 @@ export async function createPool(
       w.postMessage({
         type: "init",
         ctxJson,
-        screening: { data: opts.screening, draws },
+        ...(opts.screening
+          ? { screening: { data: opts.screening, draws } }
+          : {}),
       })
     })
 
@@ -266,8 +307,23 @@ export async function createPool(
     run<T = ScreenValue>(
       tasks: readonly Task[],
       onResult: (index: number, v: T) => void,
+      kind?: SweepKind,
     ): Run<T> {
       active?.cancel() // newest wins
+      // the inline evaluator of this run (built on first use): screening cells, or sweep points when `kind` is given
+      let inlineEval: Evaluator | null = null
+      const evaluatorOf = (): Evaluator => {
+        if (inlineEval) return inlineEval
+        if (kind) {
+          if (!opts.inlineSweep) throw new Error("no inline sweep lane")
+          inlineEval = opts.inlineSweep(ctxJson, kind.sweep)
+        } else {
+          if (!opts.inline || !opts.screening)
+            throw new Error("no inline screening lane")
+          inlineEval = opts.inline(ctxJson, opts.screening, draws)
+        }
+        return inlineEval
+      }
       const runId = ++seq
       let cancelled = false
       let finished = false
@@ -299,7 +355,7 @@ export async function createPool(
       }
       const accept = (
         l: Lane,
-        out: { index: number; value: ScreenValue }[],
+        out: { index: number; value: unknown }[],
         ms: number,
       ) => {
         if (l.timer) clearTimeout(l.timer)
@@ -346,14 +402,22 @@ export async function createPool(
         publish()
         if (l.worker) {
           l.timer = setTimeout(() => failLane(l, "hang"), hangMs)
-          l.worker.postMessage({ type: "screen", id: runId, tasks: chunk })
+          l.worker.postMessage(
+            kind
+              ? {
+                  type: "sweep",
+                  id: runId,
+                  ...kind.sweep,
+                  idx: chunk.map((c) => c.index),
+                }
+              : { type: "screen", id: runId, tasks: chunk },
+          )
         } else {
-          const ev = l.evaluator as Evaluator
           setTimeout(() => {
             if (cancelled || finished) return
             const t0 = performance.now()
             try {
-              accept(l, ev(chunk), performance.now() - t0)
+              accept(l, evaluatorOf()(chunk), performance.now() - t0)
             } catch {
               fail("inline lane failed")
             }
@@ -375,13 +439,13 @@ export async function createPool(
         if (chunk) queue.unshift(chunk)
         const alive = lanes.filter((x) => x.state !== "failed")
         if (alive.length === 0) {
-          if (!opts.inline) return fail("every worker failed")
-          const ev = opts.inline(ctxJson, opts.screening, draws)
+          if (kind ? !opts.inlineSweep : !opts.inline)
+            return fail("every worker failed")
           emit("pool.fallback", "info", { reason: "all_failed" })
           const il: Lane = {
             id: Math.max(...lanes.map((x) => x.id)) + 1,
             worker: null,
-            evaluator: ev,
+            evaluator: null,
             state: "idle",
             inflight: null,
             timer: null,
