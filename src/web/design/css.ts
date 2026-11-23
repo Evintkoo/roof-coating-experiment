@@ -306,6 +306,19 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-watchday__read dd{margin:0;font-family:${t("font-mono")}}
 @media (max-width:640px){.tv-watchday__stage{grid-template-columns:minmax(0,1fr)}}
 `,
+  watchCompare: `
+.tv-watchcompare{display:grid;gap:${t("space-3")};min-width:0;color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-watchcompare__label{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-4")};font-size:${t("size-small")}}
+.tv-watchcompare__key::before{content:"";display:inline-block;width:${t("space-4")};height:0;margin-inline-end:${t("space-1")};border-top:${t("ring-width")} solid ${t("viz-recommended")};vertical-align:middle}
+.tv-watchcompare__key--c0::before{border-top-style:dashed;border-top-color:${t("viz-baseline")}}
+.tv-watchcompare__key--c1::before{border-top-style:dotted;border-top-color:${t("viz-3")}}
+.tv-watchcompare__time{margin-inline-start:auto;font-family:${t("font-mono")}}
+.tv-watchcompare__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:${t("space-3")} ${t("space-4")}}
+.tv-watchcompare__lane{display:grid;gap:${t("space-1")};min-width:0}
+.tv-watchcompare__diff{display:flex;flex-wrap:wrap;gap:${t("space-1")} ${t("space-3")};margin:0;font-size:${t("size-small")};color:${t("text-muted")}}
+.tv-watchcompare__diff output{color:${t("text-primary")};font-family:${t("font-mono")}}
+@media (max-width:640px){.tv-watchcompare__grid{grid-template-columns:minmax(0,1fr)}}
+`,
   watchScreening: `
 .tv-watchscreen__stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:${t("space-4")};align-items:start}
 .tv-watchscreen__draws input{width:${t("target-min")};height:${t("target-min")};margin:0;flex:none;accent-color:${t("action-primary")}}

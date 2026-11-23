@@ -364,3 +364,13 @@ The comparison and the sweep reuse the plan 07 rules: motion is explanatory only
 - motion rule: the cursor and dot move along a curve that was computed before; playing never recomputes
 - do: draw the control as a curve when it varies with the swept variable. don't: assume a control is fixed, draw a C1 line for a quantity the datasheet does not give, or show a band without its label
 
+### R37 WatchCompare
+
+- purpose: the comparison panel: five lanes (surface temperature, reflected, absorbed and conducted flux, cumulative heat into the building) of the recipe against bare aluminium (C0) and the commercial datasheet product (C1), and under each lane the difference at the cursor.
+- tokens: the molecules' tokens; two columns above 640 px and one below; differences in `font-family-mono`, labels `text-muted` at `size-small`
+- states: one drawing per live result; a lane without a C1 series says "C1 not available" in the chart and "not available" in the strip; `lanes` must be the five lanes and every lane needs a finite difference to C0 (else a build error, exit 4)
+- contract: `watchCompare({ lanes, diff, tH, id? })` returns `<div class="tv-watchcompare" data-watch-compare role="group">` with the honesty badge "Model output, not a measurement", a key for the three lines, the cursor time (`data-anim="compare-time"`), five `data-anim="lane-slot"` cells each holding a LaneChart and two `data-anim="diff"` outputs (`data-control` `c0`, `c1`, exact value in `data-value`), and the notes (US datasheet product, initial values, no ageing); `formatDiff` is the one number format (one decimal, real minus sign, K for a temperature difference)
+- accessibility: no control and no clock of its own; the differences are text; every lane chart has a name
+- motion rule: cursors follow the day player's clock only; the day player's pause control is the pause control
+- do: say that C1 is a US datasheet product with thermal values only. don't: add a play button, a second clock or a number that is not a difference of two drawn series
+
