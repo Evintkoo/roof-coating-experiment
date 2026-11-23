@@ -128,6 +128,18 @@ export const MOLECULE_CSS = {
 .tv-daychart__key--bare::before{border-top-style:dashed;border-top-color:${t("viz-baseline")}}
 .tv-daychart__key--band::before{height:${t("space-2")};border-top:0;background:${t("viz-3")};opacity:0.35}
 `,
+  laneChart: `
+.tv-lane-frame{margin:0;min-width:0}
+.tv-lane{display:block;width:100%;height:auto;font-family:${t("font-sans")}}
+.tv-lane__grid{stroke:${t("border-panel")};stroke-width:1}
+.tv-lane__tick,.tv-lane__missing{fill:${t("text-muted")};font-size:${t("size-small")}}
+.tv-lane__title{fill:${t("text-primary")};font-size:${t("size-small")};font-weight:${t("weight-semibold")}}
+.tv-lane__line{fill:none;stroke-width:2}
+.tv-lane__line--recipe{stroke:${t("viz-recommended")}}
+.tv-lane__line--c0{stroke:${t("viz-baseline")};stroke-dasharray:6 4}
+.tv-lane__line--c1{stroke:${t("viz-3")};stroke-dasharray:2 3}
+.tv-lane__cursor{stroke:${t("text-primary")};stroke-width:1}
+`,
   fluxSchematic: `
 .tv-flux{display:block;width:100%;max-width:calc(${t("space-16")} * 4.75);justify-self:center;height:auto;font-family:${t("font-sans")}}
 .tv-flux__roof{fill:${t("viz-baseline")};fill-opacity:0.5;stroke:${t("text-muted")};stroke-width:1}

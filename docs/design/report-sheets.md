@@ -339,3 +339,18 @@ Motion is explanatory only (D5): the day (heat over time), rays and arrows (what
 - accessibility: the summary is a polite live region; the time shown is this machine's measurement, labelled as such; a failed run says so in words
 - motion rule: lanes and cells change only when results arrive; the computing bar is the only moving element
 - do: state the measured time and what was run (nominal only, or with draws). don't: promise a time or show a cell that was not computed
+
+## Animation (plan 08)
+
+The comparison and the sweep reuse the plan 07 rules: motion is explanatory only, every moving region has a pause control, every moving element declares its source (`data-source`) and sits inside a container labelled "Model output, not a measurement". The bare aluminium (C0) line is dashed grey, the commercial datasheet product (C1) line is dotted blue, the recipe is the solid accent line; line style, not colour, tells them apart.
+
+### R35 LaneChart
+
+- purpose: one lane of the comparison: the live recipe, bare aluminium (C0) and, where the datasheet gives it, the commercial product (C1) over the 24 h day, with a time cursor.
+- tokens: recipe `viz-recommended`, C0 `viz-baseline` dashed, C1 `viz-3` dotted, grid `border-panel`, ticks and the missing-C1 words `text-muted` at `size-small`, title `text-primary`, cursor `text-primary`
+- states: one drawing per lane; `lane` is a closed union (`surface_c`, `reflected`, `absorbed`, `conducted`, `cumulative_wh`); series of equal length, at least two points, all finite (else a build error, exit 4); `c1` null draws no C1 line and says "C1 not available" in the chart
+- contract: `laneChart({ lane, unit, recipe, c0, c1, tH, source })` returns `<figure class="tv-lane-frame" data-lane><svg data-lane-chart role="img">`; each series carries `data-source="<source>:recipe"`, `:c0`, `:c1` and the cursor `clock:t_h`; `laneChartGeometry` and `lanePath` are the one geometry
+- accessibility: the SVG has a name that says what is drawn; the three series differ by dash as well as colour; the numbers at the cursor are in the difference strip of WatchCompare as text
+- motion rule: the cursor moves with the day player's clock only; nothing else moves
+- do: take every value from the solved series. don't: draw a C1 line the datasheet does not give, smooth, or give a lane its own clock
+

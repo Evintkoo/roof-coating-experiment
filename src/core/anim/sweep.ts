@@ -224,7 +224,11 @@ export function sweepChunk(
 }
 
 /** A point the model refused (a value outside a model range, F3): reported, never drawn, never a hang. */
-export type SweepFailure = { failed: true; value: number; reason: "physics_range" }
+export type SweepFailure = {
+  failed: true
+  value: number
+  reason: "physics_range"
+}
 export type SweepOutcome = SweepPoint | SweepFailure
 export const isFailure = (o: SweepOutcome): o is SweepFailure =>
   (o as SweepFailure).failed === true
