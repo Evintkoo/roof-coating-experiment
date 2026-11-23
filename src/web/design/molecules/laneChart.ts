@@ -40,9 +40,9 @@ export type LaneGeometry = {
 }
 
 export function laneChartGeometry(
-  series: readonly (readonly number[])[],
+  series: readonly ArrayLike<number>[],
 ): LaneGeometry {
-  const all = series.flat()
+  const all = series.flatMap((s) => Array.from(s))
   let lo = Math.min(...all)
   let hi = Math.max(...all)
   if (!(hi > lo)) {
@@ -114,7 +114,7 @@ export function laneChart(p: LaneChartProps): string {
       `<path class="tv-lane__line tv-lane__line--c0" data-source="${esc(p.source)}:c0" d="${lanePath(p.c0, g)}"/>` +
       c1 +
       `<path class="tv-lane__line tv-lane__line--recipe" data-source="${esc(p.source)}:recipe" d="${lanePath(p.recipe, g)}"/>` +
-      `<line class="tv-lane__cursor" data-source="clock:t_h" x1="${cx}" x2="${cx}" y1="${T}" y2="${LANE_H - B}"/>`,
+      `<line class="tv-lane__cursor" data-source="clock:t_h" data-t="${tH}" x1="${cx}" x2="${cx}" y1="${T}" y2="${LANE_H - B}"/>`,
   )
   return tag("figure", { class: "tv-lane-frame", "data-lane": lane }, svg)
 }

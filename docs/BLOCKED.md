@@ -91,3 +91,21 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Entries a
 - Reason: the worker pool is sized `min(hardwareConcurrency - 1, 6)` with a floor of 1 (the spike measured 0.07 s for the 864 nominal cells on 4 desktop workers and 0.22 s on one, 4 workers over 1 at about 3x), but no phone or low-end tablet was measured: browsers cap or throttle workers on narrow-core devices, and thermal throttling is not under the page's control. The page reports the measured time of the run on the reader's own machine and labels it "this machine's measurement"; it does not promise a time, and the run with 32 uncertainty draws per cell (about 7 s on one desktop thread) may take much longer on a phone.
 - Owner: Evint
 - Unblock condition: the screening is timed on at least one phone and one low-end laptop (nominal and with draws, one run per device, device model and browser recorded); then the pool cap for narrow-core devices (2 workers) is confirmed or changed and the measured times are added to `docs/spikes/plan-07.md`.
+
+## BLOCKED-16: The sweep varies one input at a time
+
+- Reason: each sweep moves one variable over its configured range with every other input held at the live simulator's values. Interactions between variables are not shown, and a curve at the live settings is not a curve at other settings. The global sensitivity indices of plan 05 (Morris and Sobol) are the place for interactions.
+- Owner: Evint
+- Unblock condition: a decision that two-variable maps are wanted for a named question; then a second variable and a heat map are a new plan (the 41-point pool path is reusable, a 41 x 41 map is about 1,700 model runs per variable pair).
+
+## BLOCKED-17: C1 is datasheet only
+
+- Reason: the commercial control C1 is one US product (APOC 252 Sunwhite brochure: initial solar reflectance 0.90, emittance 0.87), not an Indonesian datasheet, and the models run it only for the thermal outcomes. Corrosion, delamination, wetting and cost have no C1 value, so the comparison and the sweep draw no C1 line for them and say "datasheet, not modelled". Ageing is not shown (initial values only).
+- Owner: Evint
+- Unblock condition: a datasheet, or a measured performance, of an Indonesian commercial roof coating for those quantities is supplied (see BLOCKED-4); then `configs/controls.yaml` gets the values with their source and the lines can be drawn.
+
+## BLOCKED-18: No C2 or C3 lines in the comparison
+
+- Reason: the controls C2 (no topcoat) and C3 (no primer) exist only for the shortlisted candidates in the batch run; the live result and the sweep carry C0 and C1 only, so the comparison does not show them.
+- Owner: Evint
+- Unblock condition: a decision that C2 and C3 are wanted next to the live recipe; then `liveSimulate` returns them (two more thermal solves per point) and the lanes and sweep charts get one more dashed line.

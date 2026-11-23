@@ -261,3 +261,23 @@ export function sweepChunkSafe(
     }
   })
 }
+
+// ---- the panel states and their words (shared by the markup and the panel; kept here so the panel need not import the markup) ----
+export const SWEEP_STATES = [
+  "idle",
+  "running",
+  "ready",
+  "stale",
+  "error",
+] as const
+export type SweepState = (typeof SWEEP_STATES)[number]
+
+export const STATE_WORDS: Record<SweepState, string> = {
+  idle: "Choose a variable and press Play range. The range is computed in your browser first, then played.",
+  running: "Computing the range in your browser.",
+  ready: "The range is computed. Playing only moves the cursor.",
+  stale:
+    "The live settings changed, so this range is out of date. Press Play range to compute it again.",
+  error:
+    "The range could not be computed. The static results on this page are unaffected.",
+}

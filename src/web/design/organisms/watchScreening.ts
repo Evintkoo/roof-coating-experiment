@@ -7,6 +7,7 @@ import { buildError, esc, finite, tag } from "../html"
 import { cellGrid } from "../molecules/cellGrid"
 import { computingIndicator } from "../molecules/computingIndicator"
 import { laneMeter } from "../molecules/laneMeter"
+import { tabs } from "../molecules/tabs"
 import { HONESTY_LABEL } from "./watchDay"
 
 export const WORKER_CHOICES = ["auto", "1", "2", "4"] as const
@@ -17,9 +18,32 @@ export type WatchScreeningProps = {
   scenarios: number
   draws: number
   id?: string
+  /** Plan 08 D2: when given, the panel is the first of three tabs (Screening, Against the controls, One variable at a time). */
+  tabsHost?: { id: string; compare: string; sweep: string }
 }
 
+export const TAB_LABELS = {
+  screening: "Screening",
+  compare: "Against the controls",
+  sweep: "One variable at a time",
+} as const
+
 export function watchScreening(p: WatchScreeningProps): string {
+  const screen = watchScreeningPanel(p)
+  if (!p.tabsHost) return screen
+  const h = p.tabsHost
+  return tabs({
+    id: h.id,
+    label: "More ways to watch",
+    tabs: [
+      { id: "screening", label: TAB_LABELS.screening },
+      { id: "compare", label: TAB_LABELS.compare },
+      { id: "sweep", label: TAB_LABELS.sweep },
+    ],
+  })([screen, h.compare, h.sweep])
+}
+
+function watchScreeningPanel(p: WatchScreeningProps): string {
   const nc = finite("WatchScreening", "candidates", p.candidates)
   const ns = finite("WatchScreening", "scenarios", p.scenarios)
   const draws = finite("WatchScreening", "draws", p.draws)

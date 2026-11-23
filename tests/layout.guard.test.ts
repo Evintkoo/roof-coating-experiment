@@ -30,6 +30,7 @@ const NON_MIRROR = new Set(
     "report.browser",
     "report.design.browser",
     "report.animation.browser",
+    "report.compare.browser",
     "report.fixture",
     "design.atoms.browser",
     "design.components.browser",

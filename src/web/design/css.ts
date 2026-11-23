@@ -313,11 +313,10 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-watchcompare__key--c0::before{border-top-style:dashed;border-top-color:${t("viz-baseline")}}
 .tv-watchcompare__key--c1::before{border-top-style:dotted;border-top-color:${t("viz-3")}}
 .tv-watchcompare__time{margin-inline-start:auto;font-family:${t("font-mono")}}
-.tv-watchcompare__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:${t("space-3")} ${t("space-4")}}
+.tv-watchcompare__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3.75),1fr));gap:${t("space-3")} ${t("space-4")}}
 .tv-watchcompare__lane{display:grid;gap:${t("space-1")};min-width:0}
 .tv-watchcompare__diff{display:flex;flex-wrap:wrap;gap:${t("space-1")} ${t("space-3")};margin:0;font-size:${t("size-small")};color:${t("text-muted")}}
 .tv-watchcompare__diff output{color:${t("text-primary")};font-family:${t("font-mono")}}
-@media (max-width:640px){.tv-watchcompare__grid{grid-template-columns:minmax(0,1fr)}}
 `,
   watchSweep: `
 .tv-watchsweep{display:grid;gap:${t("space-3")};min-width:0;color:${t("text-primary")};font-family:${t("font-sans")}}
@@ -325,11 +324,13 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-watchsweep__controls{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-2")}}
 .tv-watchsweep__value{width:calc(${t("space-16")} * 1.75)}
 .tv-watchsweep__status,.tv-watchsweep__readout{max-width:92ch;margin:0;font-size:${t("size-small")}}
+.tv-watchsweep__side .page-hint{margin:0}
 .tv-watchsweep__readout{color:${t("text-muted")};min-height:calc(${t("size-small")} * 3)}
 .tv-watchsweep[data-state="stale"] .tv-watchsweep__status,.tv-watchsweep[data-state="error"] .tv-watchsweep__status{border-inline-start:${t("ring-width")} solid ${t("status-proxy")};padding-inline-start:${t("space-2")}}
 .tv-watchsweep[data-state="error"] .tv-watchsweep__status{border-inline-start-color:${t("status-stop")}}
-.tv-watchsweep__charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 4.5),1fr));gap:${t("space-3")} ${t("space-4")}}
-.tv-watchsweep__chart{min-width:0}
+.tv-watchsweep__charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3.75),1fr));gap:${t("space-3")} ${t("space-4")}}
+.tv-watchsweep__chart,.tv-watchsweep__side{min-width:0}
+.tv-watchsweep__side{display:grid;gap:${t("space-2")};align-content:start}
 `,
   watchScreening: `
 .tv-watchscreen__stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:${t("space-4")};align-items:start}

@@ -1,7 +1,13 @@
 // Report sheet R38: the one-variable sweep (plan 08 FR-5 to FR-11): choose a variable, play its range from low to high and watch five
 // outcomes move against the control lines. Markup only; src/web/anim/sweepPanel.ts evaluates the points on the worker pool and moves the
 // cursor. Nothing here moves until the script is told to, and never under reduced motion unless the reader presses play.
-import { isSweepable, type SweepVar } from "../../../core/anim/sweep"
+import {
+  isSweepable,
+  STATE_WORDS,
+  SWEEP_STATES,
+  type SweepState,
+  type SweepVar,
+} from "../../../core/anim/sweep"
 import { unitText } from "../../liveState"
 import { badge } from "../atoms/badge"
 import { button } from "../atoms/button"
@@ -12,24 +18,7 @@ import { computingIndicator } from "../molecules/computingIndicator"
 import { SWEEP_OUTCOMES } from "../molecules/sweepChart"
 import { HONESTY_LABEL } from "./watchDay"
 
-export const SWEEP_STATES = [
-  "idle",
-  "running",
-  "ready",
-  "stale",
-  "error",
-] as const
-export type SweepState = (typeof SWEEP_STATES)[number]
-
-export const STATE_WORDS: Record<SweepState, string> = {
-  idle: "Choose a variable and press Play range. The range is computed in your browser first, then played.",
-  running: "Computing the range in your browser.",
-  ready: "The range is computed. Playing only moves the cursor.",
-  stale:
-    "The live settings changed, so this range is out of date. Press Play range to compute it again.",
-  error:
-    "The range could not be computed. The static results on this page are unaffected.",
-}
+export { STATE_WORDS, SWEEP_STATES, type SweepState }
 export const LAYER_OFF_NOTE =
   "This layer is off in the live simulator, so this variable has no effect on the curves."
 export const SWEEP_NOTE =
@@ -103,8 +92,6 @@ export function watchSweep(p: WatchSweepProps): string {
       `${speedSelect({ value: p.speed ?? 1 }).replace('data-anim="speed"', 'data-anim="sweep-speed"')}${computingIndicator({ state: state === "running" ? "busy" : "idle" }).replace('data-anim="computing"', 'data-anim="sweep-computing"')}</div>` +
       `<p class="page-hint" data-anim="layer-off"${p.layerOff ? "" : " hidden"}>${esc(LAYER_OFF_NOTE)}</p>` +
       `<p class="tv-watchsweep__status" role="status" aria-live="polite" data-anim="sweep-status">${esc(STATE_WORDS[state])}</p>` +
-      `<div class="tv-watchsweep__charts">${slots}</div>` +
-      `<p class="tv-watchsweep__readout" data-anim="sweep-readout"></p>` +
-      `<p class="page-hint">${esc(SWEEP_NOTE)}</p>`,
+      `<div class="tv-watchsweep__charts">${slots}<div class="tv-watchsweep__side"><p class="tv-watchsweep__readout" data-anim="sweep-readout"></p><p class="page-hint">${esc(SWEEP_NOTE)}</p></div></div>`,
   )
 }

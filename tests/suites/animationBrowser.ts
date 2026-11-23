@@ -91,7 +91,7 @@ export function animationBrowserSuite(S: AnimationScale): void {
       ].map((e) => e.getAttribute("data-source") ?? "")
       const bad = sources.filter(
         (s) =>
-          !/^(series:recipe(@t)?|series:bare(@t)?|band:t_surface|clock:t_h|flux:(incident|reflected|absorbed|conducted)|draw:\d+|screening:t_max)$/.test(
+          !/^(series:recipe(@t)?|series:bare(@t)?|band:t_surface|clock:t_h|clock:sweep|flux:(incident|reflected|absorbed|conducted)|draw:\d+|screening:t_max|lane:(surface_c|reflected|absorbed|conducted|cumulative_wh):(recipe|c0|c1)|sweep:[a-z_]+:(nominal(@x)?|band|c0|c1))$/.test(
             s,
           ),
       )

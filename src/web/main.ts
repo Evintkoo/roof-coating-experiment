@@ -7,6 +7,7 @@ import {
   type ScreeningData,
   screenChunk,
 } from "../core/anim/screening"
+import { sweepVariables } from "../core/anim/sweep"
 import type { MaterialRanges, WeatherConfig } from "../core/config"
 import { weatherL9 } from "../core/design"
 import type { Level } from "../core/events"
@@ -19,6 +20,7 @@ import type {
   SensRow,
   SpectraJson,
 } from "../core/pipeline/tables"
+import { type ComparePanel, mountComparePanel } from "./anim/comparePanel"
 import { dayDataOf } from "./anim/dayData"
 import {
   browserDayDeps,
@@ -27,6 +29,7 @@ import {
 } from "./anim/dayPlayer"
 import { browserLoop, type Loop, testHooksEnabled } from "./anim/loop"
 import { mountScreeningPanel, type Panel } from "./anim/screeningPanel"
+import { mountSweepPanel, type SweepPanel } from "./anim/sweepPanel"
 import { createTweens, type Tweens } from "./anim/tween"
 import { mountBudgetPanel } from "./design/organisms/budgetPanel"
 import { applyPlotTheme, type PlotTheme } from "./design/plotTheme"
@@ -63,6 +66,7 @@ import {
   sliderSpecs,
 } from "./liveState"
 import { figFrontier, figRefineFront } from "./optimisation"
+import { inlineSweepLane } from "./pool"
 import { type BudgetPage, budgetLookup } from "./recipe"
 
 export type PageData = {
@@ -109,6 +113,13 @@ declare global {
       state: () => ReturnType<DayPlayer["state"]> | null
       killWorker: (id: number) => void
       tweening: () => number
+      sweep: () => ReturnType<SweepPanel["state"]> | null
+      sweepKill: (id: number) => void
+      sweepStats: () => {
+        created: number
+        terminated: number
+        live: number
+      } | null
     }
   }
 }
@@ -344,6 +355,7 @@ type Watch = {
   glide(key: string, target: number, apply: (v: number) => void): void
   player(): DayPlayer | null
   panel: Panel | null
+  sweep(): SweepPanel | null
 }
 
 function ringNote(line: string): void {
@@ -368,8 +380,58 @@ function initWatch(): Watch {
     ) || 0
   const log = (e: string, f: Record<string, string | number | boolean>): void =>
     ringNote(`info ${e} ${JSON.stringify(f)}`)
+  const debugOn = testHooksEnabled(location.hash)
+  /** Production keeps info and error only; per-point and per-frame events are debug and are recorded under #test. */
+  const wlog = (
+    e: string,
+    l: "debug" | "info" | "error",
+    f: Record<string, string | number | boolean>,
+  ): void => {
+    if (l === "debug" && !debugOn) return
+    ringNote(`${l} ${e} ${JSON.stringify(f)}`)
+  }
+  const detailsEl = document.getElementById(
+    "details-screening",
+  ) as HTMLDetailsElement | null
+  const tabsEl = document.getElementById("watch-tabs")
+  const tabNow = (): string =>
+    tabsEl
+      ?.querySelector('[role="tab"][aria-selected="true"]')
+      ?.getAttribute("data-tab") ?? "screening"
+  const ensureSweep = (): void => {
+    const root = document.querySelector<HTMLElement>("[data-watch-sweep]")
+    if (sweep || !root) return
+    const ctx = contextFromJson(D.ctxJson)
+    sweep = mountSweepPanel(root, {
+      ctx,
+      ctxJson: D.ctxJson,
+      workerUrl: URL.createObjectURL(
+        new Blob([D.workerSrc], { type: "text/javascript" }),
+      ),
+      variables: sweepVariables(ctx.ranges, ctx.weather),
+      live: () =>
+        lastInputs ?? defaultLiveState(ctx.ranges, ctx.weather).inputs,
+      loop,
+      inline: inlineSweepLane,
+      log: wlog,
+    })
+  }
+  /** The comparison and the sweep work only while their tab is on screen (plan 08 D12). */
+  const syncOpen = (): void => {
+    const open = detailsEl?.open === true
+    const tab = tabNow()
+    compare?.setOpen(open && tab === "compare")
+    if (open && tab === "sweep") ensureSweep()
+    sweep?.setOpen(open && tab === "sweep")
+  }
+  detailsEl?.addEventListener("toggle", syncOpen)
+  tabsEl?.addEventListener("tabs-change", syncOpen)
 
   let player: DayPlayer | null = null
+  let compare: ComparePanel | null = null
+  let sweep: SweepPanel | null = null
+  let lastInputs: LiveInputs | null = null
+  let lastKey = ""
   const dayRoot = document.querySelector<HTMLElement>("[data-watch-day]")
   const sw = document.querySelector<HTMLInputElement>(
     '[data-anim="reduce-motion"]',
@@ -378,6 +440,7 @@ function initWatch(): Watch {
     loop,
     tweens,
     panel: null,
+    sweep: () => sweep,
     player: () => player,
     stopGlide: (key) => tweens.stop(key),
     glide(key, target, apply) {
@@ -403,6 +466,21 @@ function initWatch(): Watch {
           sw?.addEventListener("change", cb)
         }
         player = mountDayPlayer(dayRoot, data, deps)
+      }
+      // plan 08: the lanes follow the day player's clock; a changed live input cancels and marks the sweep stale
+      const compareRoot = document.querySelector<HTMLElement>(
+        "[data-watch-compare]",
+      )
+      if (player && compareRoot && !compare) {
+        compare = mountComparePanel(compareRoot, player, { log: wlog })
+        syncOpen()
+      }
+      compare?.update(r, inputs, weather)
+      lastInputs = inputs
+      const k = JSON.stringify(inputs)
+      if (k !== lastKey) {
+        lastKey = k
+        sweep?.liveChanged()
       }
     },
     onFail(text) {
@@ -441,7 +519,7 @@ function initWatch(): Watch {
         const designs = designsOf(d)
         return (tasks) => screenChunk(ctx, designs, d.scenarios, tasks, draws)
       },
-      log: (e, l, f) => ringNote(`${l} ${e} ${JSON.stringify(f)}`),
+      log: wlog,
     })
   }
   return w
@@ -975,4 +1053,7 @@ if (testHooksEnabled(location.hash))
     state: () => watch.player()?.state() ?? null,
     killWorker: (id) => watch.panel?.killLane(id),
     tweening: () => watch.tweens.active(),
+    sweep: () => watch.sweep()?.state() ?? null,
+    sweepKill: (id) => watch.sweep()?.killLane(id),
+    sweepStats: () => watch.sweep()?.poolStats() ?? null,
   }
