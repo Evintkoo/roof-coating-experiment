@@ -76,7 +76,11 @@ let stderrGuarded = false
 function guardStderr(): void {
   if (stderrGuarded) return
   stderrGuarded = true
-  process.stderr.on("error", () => {})
+  try {
+    process.stderr.on("error", () => {})
+  } catch {
+    // on Linux CI, Bun can fail to build the stderr stream here (EEXIST from epoll_ctl); logging must still not throw
+  }
 }
 
 export function emit(event: string, level: Level, fields: Fields): void {
