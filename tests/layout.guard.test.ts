@@ -22,6 +22,7 @@ const testFiles = listFiles(join(repoRoot, "tests")).filter((f) =>
 const NON_MIRROR = new Set(
   [
     "layout.guard",
+    "runTimeout",
     "library.smoke",
     "oracle.fixtures",
     "crossModel",
