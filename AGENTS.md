@@ -61,7 +61,7 @@ Bun is the runtime and test runner (>= 1.3.14), TypeScript is strict, Biome form
   message when a plan names one.
 - Work on a branch, not on `main`. Worktrees live only under `.claude/worktrees/<name>` and are removed when the task ends.
 - Do not push, force-push, merge or delete branches without the owner's go-ahead.
-- The code is under the Spandek Source-Available License 1.0 (`LICENSE`, `NOTICE`): do not add dependencies, copied code or data whose terms conflict, and list any new third-party material in `NOTICE`. Do not change the licence.
+- The code is under the Spandek Source-Available License 1.0 (`LICENSE.md`, `NOTICE`): do not add dependencies, copied code or data whose terms conflict, and list any new third-party material in `NOTICE`. Do not change the licence.
 - Do not commit `reports/`, `data/indonesia/raw`, `data/indonesia/tmyx`, secrets, or `.env` files.
 
 ## Where to look

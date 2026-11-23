@@ -1,6 +1,6 @@
 # Licensing, in plain terms
 
-A summary of `LICENSE` (Spandek Source-Available License 1.0). If this page and `LICENSE` disagree, `LICENSE` governs. It is not
+A summary of `LICENSE.md` (Spandek Source-Available License 1.0). If this page and `LICENSE.md` disagree, `LICENSE.md` governs. It is not
 legal advice. Licensor: Evint Leovonzko (see `NOTICE`).
 
 ## You may, without asking (clause 2)
