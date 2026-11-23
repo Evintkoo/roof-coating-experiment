@@ -47,3 +47,17 @@ export function navRail(p: NavRailProps): string {
     )
   )
 }
+
+/**
+ * Marks the section being read: the last section whose top has passed a line a third of the way down the viewport gets
+ * `aria-current="true"` on its rail link (the page has no current section above the first one). Runs on scroll (once per frame),
+ * resize and hash change; no dependency.
+ */
+export const NAV_SPY_SCRIPT = `(function(){
+var links=[].slice.call(document.querySelectorAll(".tv-rail a.tv-navlink[href^='#']"));if(!links.length)return;
+var secs=links.map(function(a){return document.getElementById(a.getAttribute("href").slice(1))});
+var queued=false;
+function update(){queued=false;var line=innerHeight/3,cur=-1;for(var i=0;i<secs.length;i++){var s=secs[i];if(s&&s.getBoundingClientRect().top<=line)cur=i}
+for(var j=0;j<links.length;j++){if(j===cur)links[j].setAttribute("aria-current","true");else links[j].removeAttribute("aria-current")}}
+function queue(){if(!queued){queued=true;requestAnimationFrame(update)}}
+addEventListener("scroll",queue,{passive:true});addEventListener("resize",queue);addEventListener("hashchange",queue);update()})();`

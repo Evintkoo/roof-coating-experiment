@@ -14,9 +14,19 @@ export function checkLoad(maxLoad: number = defaultMaxLoad()): void {
   }
 }
 
-/** Run at nice 10 so the user's own work keeps priority. */
+/**
+ * Run at nice 10 so the user's own work keeps priority. Best effort: where the OS refuses (EACCES/EPERM in a sandbox or a
+ * background job) the run carries on at its current priority and logs `resource.priority_unchanged` at warn.
+ */
 export function lowerPriority(): void {
-  os.setPriority(process.pid, 10)
+  try {
+    os.setPriority(process.pid, 10)
+  } catch (e) {
+    const err = e as { code?: string; info?: { code?: string } }
+    const code = err.info?.code ?? err.code
+    if (code !== "EACCES" && code !== "EPERM") throw e
+    emit("resource.priority_unchanged", "warn", { code })
+  }
 }
 
 /** Reject with ResourceError(6) after limitS seconds and abort the signal handed to fn. */

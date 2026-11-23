@@ -9,6 +9,7 @@
     "spandek": "bun run src/node/cli.ts",
     "check": "biome check . && tsc --noEmit && bun run test",
     "test": "bun test --parallel=3 --timeout 30000 --path-ignore-patterns '**/*.proof.test.ts'",
+    "qa": "bun run src/node/qa.ts",
     "proof": "bun test --timeout 3600000 .proof.test.ts"
   },
   "dependencies": {

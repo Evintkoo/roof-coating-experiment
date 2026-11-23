@@ -11,6 +11,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseCsv } from "../../../src/core/csv"
 import { parseParetoCsv } from "../../../src/core/pipeline/tables"
+import { roleText } from "../../../src/core/report/outline"
 import { configureLogging, newRunId } from "../../../src/node/logging"
 import {
   buildReport,
@@ -94,6 +95,26 @@ test("nonFiniteNeverReachesJson", () => {
   const data = scriptBlocks(built.html)[0] as string
   const obj = JSON.parse(data.replace(/^window\.__SPANDEK__ = /, ""))
   expect(Object.keys(obj)).toEqual([...Object.keys(obj)].sort())
+})
+
+test("pageCarriesTheScreeningDataAndItEqualsTheBatchColumns", () => {
+  const data = scriptBlocks(built.html)[0] as string
+  const obj = JSON.parse(data.replace(/^window\.__SPANDEK__ = /, ""))
+  expect(obj.screening.candidates.length).toBe(96)
+  expect(obj.screening.scenarios.length).toBe(9)
+  expect(obj.screening.nominal.length).toBe(864)
+  const rows = parseCsv(
+    readFileSync(
+      join(repoRoot, "tests/fixtures/report-run/results.csv"),
+      "utf8",
+    ),
+  )
+  const r = rows[500] as Record<string, string>
+  expect(obj.screening.nominal[500]).toEqual([
+    Number(r.r_solar_pred),
+    Number(r.t_max_pred),
+    Number(r.q_in_mean_w_m2),
+  ])
 })
 
 test("sizeWithinLimit", () => {
@@ -193,6 +214,8 @@ test("tableValuesEqualCsv", () => {
       const got = cells[k] as string
       if (typeof v === "number") expect(Number(got)).toBe(v)
       else if (typeof v === "boolean") expect(got).toBe(v ? "yes" : "no")
+      else if (c === "role")
+        expect(got).toBe(roleText(String(v)).toLowerCase()) // shown in words, sorted as words
       else expect(got).toBe(String(v).toLowerCase())
     })
   })

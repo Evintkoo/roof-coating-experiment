@@ -8,6 +8,8 @@ import {
   writeFileSync,
 } from "node:fs"
 import { dirname, join } from "node:path"
+import { buildScreeningData } from "../../core/anim/screening"
+import { weatherL9 } from "../../core/design"
 import { ConfigError, DataError, SpandekError } from "../../core/errors"
 import type { ModelContext } from "../../core/pipeline/context"
 import { contextToJson } from "../../core/pipeline/contextJson"
@@ -33,7 +35,9 @@ import { emit } from "../logging"
 import { READING_PATH, SECTION_LABEL } from "./content"
 import { buildDesignAssets } from "./design"
 import { indonesiaSection } from "./indonesia"
+import { lintPage, registeredHooks } from "./lint"
 import { optimisationSection } from "./optimisation"
+import { watchSection } from "./watch"
 
 /** T_size_mb: the page must stay well under the 16 MB artifact limit. */
 export const T_SIZE_MB = 8
@@ -140,7 +144,10 @@ function parseJson(text: string, name: string): unknown {
 
 // ---- a deliberately small Markdown renderer for the candidate cards (headings, paragraphs, lists, tables) ----
 
-export function renderMarkdown(md: string): string {
+export function renderMarkdown(
+  md: string,
+  o: { levels?: (hashes: number) => number } = {},
+): string {
   const out: string[] = []
   const lines = md.split("\n")
   let i = 0
@@ -155,7 +162,8 @@ export function renderMarkdown(md: string): string {
     if (l.trim() === "") {
       i++
     } else if (/^#{1,6} /.test(l)) {
-      const n = Math.min(6, (l.match(/^#+/) as RegExpMatchArray)[0].length + 1)
+      const hashes = (l.match(/^#+/) as RegExpMatchArray)[0].length
+      const n = Math.min(6, o.levels ? o.levels(hashes) : hashes + 1)
       out.push(`<h${n}>${esc(l.replace(/^#+ /, ""))}</h${n}>`)
       i++
     } else if (l.startsWith("|")) {
@@ -354,6 +362,7 @@ export async function buildReport(
 
   const sections = [
     ...BUILTIN_SECTIONS,
+    watchSection,
     optimisationSection,
     indonesiaSection,
     ...EXTRA_SECTIONS,
@@ -396,6 +405,8 @@ export async function buildReport(
       irradiance_w_m2_um: Array.from(g.irradiance_w_m2_um),
     },
     ctxJson: contextToJson(input.ctx),
+    /** plan 07 Task 4: designs, scenarios and the batch nominal values the live screening runs on and is checked against (H7). */
+    screening: buildScreeningData(input.results, weatherL9(input.ctx.weather)),
     workerSrc: scriptSafe(workerJs),
     ext,
     plotThemes: design.plotThemes,
@@ -428,6 +439,18 @@ export async function buildReport(
       scriptSafe(`${COMPONENT_SCRIPT}\n${mainJs}`),
     ],
   })
+  const issues = lintPage(html, registeredHooks(COMPONENT_SCRIPT, mainJs))
+  for (const x of issues)
+    emit("page.lint.failed", "error", { rule: x.rule, id: x.id })
+  if (issues.length > 0) {
+    const first = issues[0] as (typeof issues)[number]
+    throw new SpandekError(
+      4,
+      "report.lint",
+      first.rule,
+      `the generated page has ${issues.length} lint issue(s); first: ${first.rule} ${first.id}`,
+    )
+  }
   const bytes = Buffer.byteLength(html)
   design.done(bytes)
   if (bytes > T_SIZE_MB * 1024 * 1024)

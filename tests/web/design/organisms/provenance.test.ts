@@ -64,6 +64,26 @@ test("showsRunSeedDrawsCoreHashBuildAndEveryExtraFileWithItsHash", async () => {
   expect(html).toContain("tv-cell--mono")
 })
 
+test("factsAreATableOfFactAndValue", async () => {
+  const html = provenance(ok)
+  expect(html).not.toContain("<dl")
+  const t = /<table[^>]*id="provenance-facts"[\s\S]*?<\/table>/.exec(
+    html,
+  )?.[0] as string
+  expect(t).toContain(">Fact<")
+  expect(t).toContain(">Value<")
+  const rows = [...t.matchAll(/<th[^>]*scope="row"[^>]*>([^<]*)<\/th>/g)].map(
+    (m) => m[1],
+  )
+  expect(rows.slice(0, 4)).toEqual([
+    "Run",
+    "Seed",
+    "Uncertainty draws",
+    "Core hash",
+  ])
+  expect(t).toContain("20261121T172730601-6a7a8fba")
+})
+
 test("noExtraFilesIsSaidInWordsAndNoManifestMeansNoDisclosure", async () => {
   const { files: _f, ...rest } = ok
   const html = provenance({ ...rest, extra: [] })

@@ -225,3 +225,196 @@ Organisms compose molecules into the blocks of the reading path (FR-2). Like the
 - contract: `layerSchematic({ name, primer_um, midcoat_um, topcoat_um })` returns `<figure class="tv-schem" data-layer-schematic="<name>">` with an SVG (`role="img"`, `aria-label` listing the three thicknesses in µm) and a caption; thicknesses must be finite and positive and the name non-empty, else a build error (exit 4)
 - accessibility: the accessible name carries the numbers; the drawing is not the only place the thicknesses appear (the recipe card lists them as text)
 - do: draw every layer from the recipe's own value. don't: stretch a layer for looks or drop the unit
+
+## Animation (plan 07)
+
+Motion is explanatory only (D5): the day (heat over time), rays and arrows (what is reflected, absorbed, conducted), lanes (what runs in parallel) and tweens (what changed). Nothing moves for decoration, every moving region has a visible pause control, and every moving element declares where its value comes from (`data-source`) and sits inside a container labelled "Model output, not a measurement". Durations are the tokens `motion-fast` (120 ms) and `motion-base` (240 ms), both 0 under `prefers-reduced-motion: reduce` and under `<html data-motion="reduce">` (the page's own switch).
+
+### R24 PlayButton
+
+- purpose: play, pause and replay the day. The one control every moving region must have (H6).
+- tokens: `surface-glass` fill, `border-control` hairline, `radius-control`, `text-primary` label at `size-body` in `weight-semibold`, `link` border while playing, `target-min` in both axes
+- states (closed union `state`): `paused`, `playing`, `ended`; hover raises the fill to `surface-raised`; focus-visible 2px `focus-ring` outline
+- contract: `playButton({ state })` returns `<button type="button" class="tv-play" data-anim="play" data-state aria-label>` with a glyph and a visible word (Play, Pause, Replay); an unknown state is a build error (exit 4)
+- accessibility: the name says what pressing does ("Pause the day"); Space and Enter work natively; the glyph is decorative; state is shown by glyph and word, never colour alone
+- motion rule: no transition; pressing it is the only way a reduced-motion reader starts the day
+- do: put it first in the control row. don't: hide it, autoplay without it, or make it smaller than 44 px
+
+### R25 Scrubber
+
+- purpose: move to any time of the day; the day player reads its value, so the chart and every readout follow it.
+- tokens: native range input, `accent-color` `action-primary`, `target-min` high, grows to fill the row
+- states: one state; the value is a number from 0 to 24 (outside it, or a non-finite number, is a build error, exit 4)
+- contract: `scrubber({ value, label?, step? })` returns `<input type="range" class="tv-scrub" min="0" max="24" step data-anim="scrub" aria-label>`; the default label is "Time of day in hours"
+- accessibility: arrow keys, Home and End are the browser's; the label is required text; the clock beside it repeats the value in words
+- motion rule: none of its own; dragging seeks, it never tweens
+- do: keep step at 0.1 h or finer so the cursor is smooth. don't: round the value the player samples at
+
+### R26 SpeedSelect
+
+- purpose: playback speed from a closed set: 0.5x, 1x, 2x and 4x.
+- tokens: `surface-glass` fill, `border-control` hairline, `radius-control`, label `text-muted` at `size-small`, `target-min` high
+- states (closed union `speed`): `0.5`, `1`, `2`, `4`
+- contract: `speedSelect({ value })` returns `<label class="tv-speed"><select data-anim="speed">` with one option per speed, the given one selected; any other value is a build error (exit 4)
+- accessibility: a native select with a visible label "Speed"
+- motion rule: changes the rate of the clock only; at 4x the day takes 4 s
+- do: show the speed in words ("2×"). don't: allow a free number, zero or a negative speed (F11)
+
+### R27 TimeReadout
+
+- purpose: the time of day of the cursor as text (HH:MM), with the exact hour in `data-value` for scripts and tests.
+- tokens: `font-family-mono` at `size-body`, `text-primary`, a minimum width so the controls do not shift
+- states: one state; a non-finite hour is a build error (exit 4)
+- contract: `timeReadout({ tH })` returns `<output class="tv-time" data-anim="time" data-value aria-live="off">`
+- accessibility: not a live region (it changes every frame while playing); the scrubber's own value text is the spoken one
+- motion rule: text only, no animation
+- do: keep it beside the scrubber. don't: announce it on every frame
+
+### R28 DayChart
+
+- purpose: one day of the solved surface temperature of the live recipe against bare aluminium, with the p5 to p95 band and the draw fan, a time cursor and two dots at the cursor.
+- tokens: lines `viz-recommended` (recipe) and `viz-baseline` dashed (bare aluminium), band `viz-3` at 18 % fill, fan lines `viz-3` at 35 % stroke, grid `border-panel`, ticks `text-muted` at `size-small`, cursor `text-primary`
+- states: one drawing per recipe; series of equal length, at least two points, all finite (else a build error, exit 4); the fan group is empty until draws are given
+- contract: `dayChart({ name, data, tH? })` returns `<figure class="tv-daychart-frame">` with `<svg data-daychart role="img">`; each moving element carries `data-source`: `series:recipe`, `series:bare`, `band:t_surface`, `clock:t_h`, `series:recipe@t`, `series:bare@t`, and fan lines `draw:<i>`; `dayChartPaths(data)` is the one geometry
+- accessibility: the SVG has a name that says what is drawn; the two series differ by dash as well as colour; a legend names every series; the numbers at the cursor are in the readouts as text
+- motion rule: the cursor and dots move with the clock only; nothing else moves; under reduced motion the full day is the static frame
+- do: take every value from the solved series. don't: smooth, extrapolate past the last node or add a series the model did not compute
+
+### R29 FluxSchematic
+
+- purpose: heat arrows at the cursor: sunlight arriving, the share reflected, the share absorbed and the heat conducted into the building. Lengths come from the model: incident `G(t)`, reflected `G(t) r_solar`, absorbed `G(t) (1 - r_solar)`, conducted `(T_surface(t) - T_inside) / R_total`.
+- tokens: arrows `status-proxy` (sunlight), `viz-3` (reflected), `viz-recommended` (absorbed), `status-stop` (conducted), roof `viz-baseline`, labels `text-primary` and values `text-muted` at `size-small`
+- states: one drawing; a conducted flux below zero (heat flowing out at night) points the other way
+- contract: `fluxSchematic({ name, flux?, refs? })` returns `<svg data-flux-schematic role="img">`; each arrow is `<g data-flux="<key>" data-source="flux:<key>" data-w data-wref>` whose length is `70 * w / wref` px; `wref` is the day's peak magnitude of that flux, so an arrow at full length is the peak of its own quantity (stated beside the figure)
+- accessibility: every arrow has a text label and a value in W/m²; colours are never the only carrier; the figure has a name
+- motion rule: lengths follow the clock only
+- do: label the scale ("each arrow is scaled to its own daily peak"). don't: draw an arrow whose length is a constant
+
+### R30 ComputingIndicator
+
+- purpose: says in words that workers are busy.
+- tokens: `text-muted` at `size-small`, a `border-panel` track and a `link` bar
+- states (closed union `state`): `idle`, `busy`
+- contract: `computingIndicator({ state })` returns `<span class="tv-computing" role="status" aria-live="polite" data-anim="computing" data-state>` with a bar and the words "Computing in your browser" or "Idle"
+- accessibility: a polite live region; the words carry the state
+- motion rule: the bar sweeps only while `busy`, at five times `motion-base`, and not under reduced motion (it is then a solid bar)
+- do: show it only while workers run. don't: use it as decoration or leave it moving when idle
+
+### R31 LaneMeter
+
+- purpose: one lane per worker: its state in words, the cells it has computed and a bar, so the parallel work is visible.
+- tokens: bar `border-panel` track with `viz-3` fill, `status-stop` fill and bold word for a failed lane, counts in `font-family-mono`
+- states (closed union `state`): `idle`, `busy`, `failed`, `done`
+- contract: `laneMeter({ lanes, total })` returns `<ol class="tv-lanes" data-anim="lanes">` with one `<li data-lane data-state>` per lane ("Worker 1", or "Single lane" for the inline fallback); `laneItems(lanes, total)` is the one renderer; a non-finite count or a total of zero or less is a build error (exit 4)
+- accessibility: the list has a name; state is in words, not colour alone; the bar is decorative
+- motion rule: widths follow the results; no easing
+- do: show a failed lane as failed. don't: hide a lane that died
+
+### R32 CellGrid
+
+- purpose: the 96 x 9 screening as 864 SVG cells filled as results arrive, coloured by the cell's peak surface temperature on a seven step sequential scale.
+- tokens: `viz-seq-7` (coolest) to `viz-seq-1`, empty cells outlined in `border-panel`, failed cells `status-stop`
+- states (closed union per cell): `empty`, `filled` (with a bin 0 to 6), `failed`
+- contract: `cellGrid({ candidates, scenarios })` returns `<svg data-anim="grid" data-source="screening:t_max">` with one `<rect data-cell="<index>">` per cell, index = candidate x scenarios + scenario; `cellBin` is the one mapping from value to bin
+- accessibility: the grid has a name; the values are in the summary and in the report's tables, so no information exists only as a colour
+- motion rule: a cell changes once, when its result arrives
+- do: fill cells from results only. don't: fill ahead of the results or replay them
+
+### R33 WatchDay
+
+- purpose: the day player organism: controls, chart, arrows and readouts for one recipe and one scenario.
+- tokens: the molecules' tokens; the control row wraps; the stage is two columns above 640 px and one below
+- states: `state` (`paused`, `playing`, `ended`), `speed` (`0.5`, `1`, `2`, `4`)
+- contract: `watchDay({ name, data, flux?, refs?, tH?, state?, speed?, id? })` returns `<div class="tv-watchday" data-watch-day role="group">` holding the honesty badge "Model output, not a measurement", the controls (play, step back one hour, scrubber, clock, step forward, speed), the day chart, the flux schematic and four readouts (`data-anim="read"`, text at one decimal, exact value in `data-value`)
+- accessibility: every control is a 44 px target reachable by Tab; Space toggles play when focus is in the player; the readouts are text
+- motion rule: autoplay once, at 4x, when the section first enters the viewport; never under reduced motion; any use of a control ends it; the loop pauses with the tab
+- do: keep the pause control visible. don't: loop the day or start it on load
+
+### R34 WatchScreening
+
+- purpose: the parallel screening panel: run the 96 x 9 screening in this browser and see the lanes and the grid fill, the summary and the check against the batch.
+- tokens: the molecules' tokens; the stage is two columns above 640 px
+- states: idle, running (the button reads "Cancel the run"), done, cancelled, failed (words in the summary and the lane list)
+- contract: `watchScreening({ candidates, scenarios, draws, id? })` returns `<div class="tv-watchscreen" data-watch-screening>` holding the honesty badge, the start button (`data-anim="screen-start"`), a workers select (`auto`, `1`, `2`, `4`), the "with uncertainty draws" checkbox, the computing indicator, the lanes, the grid, the summary (`role="status"`) and the check line
+- accessibility: the summary is a polite live region; the time shown is this machine's measurement, labelled as such; a failed run says so in words
+- motion rule: lanes and cells change only when results arrive; the computing bar is the only moving element
+- do: state the measured time and what was run (nominal only, or with draws). don't: promise a time or show a cell that was not computed
+
+## Animation (plan 08)
+
+The comparison and the sweep reuse the plan 07 rules: motion is explanatory only, every moving region has a pause control, every moving element declares its source (`data-source`) and sits inside a container labelled "Model output, not a measurement". The bare aluminium (C0) line is dashed grey, the commercial datasheet product (C1) line is dotted blue, the recipe is the solid accent line; line style, not colour, tells them apart.
+
+### R35 LaneChart
+
+- purpose: one lane of the comparison: the live recipe, bare aluminium (C0) and, where the datasheet gives it, the commercial product (C1) over the 24 h day, with a time cursor.
+- tokens: recipe `viz-recommended`, C0 `viz-baseline` dashed, C1 `viz-3` dotted, grid `border-panel`, ticks and the missing-C1 words `text-muted` at `size-small`, title `text-primary`, cursor `text-primary`
+- states: one drawing per lane; `lane` is a closed union (`surface_c`, `reflected`, `absorbed`, `conducted`, `cumulative_wh`); series of equal length, at least two points, all finite (else a build error, exit 4); `c1` null draws no C1 line and says "C1 not available" in the chart
+- contract: `laneChart({ lane, unit, recipe, c0, c1, tH, source })` returns `<figure class="tv-lane-frame" data-lane><svg data-lane-chart role="img">`; each series carries `data-source="<source>:recipe"`, `:c0`, `:c1` and the cursor `clock:t_h`; `laneChartGeometry` and `lanePath` are the one geometry
+- accessibility: the SVG has a name that says what is drawn; the three series differ by dash as well as colour; the numbers at the cursor are in the difference strip of WatchCompare as text
+- motion rule: the cursor moves with the day player's clock only; nothing else moves
+- do: take every value from the solved series. don't: draw a C1 line the datasheet does not give, smooth, or give a lane its own clock
+
+### R36 SweepChart
+
+- purpose: one outcome of the one-variable sweep: the modelled curve over the swept range, its p5 to p95 band, the control lines and a cursor that moves along the range.
+- tokens: curve `viz-recommended`, band `viz-3` at 18 % fill, C0 `viz-baseline` dashed, C1 `viz-3` dotted, grid `border-panel`, ticks, axis label and notes `text-muted` at `size-small`, title and cursor `text-primary`
+- states: `outcome` (closed union `t_max_c`, `r_solar`, `corrosion_risk`, `delam_proxy`, `cost_proxy`) and `controlKind` (`flat`, `curve`); no band for cost (said in words); a control with no finite value is not drawn and the chart says "C1: datasheet, not modelled" or "Bare aluminium: not modelled"; a curve with no finite value says "Not modelled while this layer is off"
+- contract: `sweepChart({ outcome, xs, nominal, lo, hi, c0, c1, controlKind, cursor, unit, xLabel })` returns `<figure class="tv-sweep-frame" data-outcome><svg data-sweep-chart role="img">` and a caption; series carry `data-source="sweep:<outcome>:nominal"`, `:band`, `:c0`, `:c1` (the controls also `data-control-kind`), the cursor `clock:sweep`; a `flat` control whose values vary is a build error (exit 4); gaps lift the pen, nothing is interpolated; PROXY badge on corrosion, delamination and cost; band legend "p5 to p95 band, parameter uncertainty only"
+- accessibility: the SVG has a name; the three lines differ by dash as well as colour; the values at the cursor are text in WatchSweep
+- motion rule: the cursor and dot move along a curve that was computed before; playing never recomputes
+- do: draw the control as a curve when it varies with the swept variable. don't: assume a control is fixed, draw a C1 line for a quantity the datasheet does not give, or show a band without its label
+
+### R37 WatchCompare
+
+- purpose: the comparison panel: five lanes (surface temperature, reflected, absorbed and conducted flux, cumulative heat into the building) of the recipe against bare aluminium (C0) and the commercial datasheet product (C1), and under each lane the difference at the cursor.
+- tokens: the molecules' tokens; two columns above 640 px and one below; differences in `font-family-mono`, labels `text-muted` at `size-small`
+- states: one drawing per live result; a lane without a C1 series says "C1 not available" in the chart and "not available" in the strip; `lanes` must be the five lanes and every lane needs a finite difference to C0 (else a build error, exit 4)
+- contract: `watchCompare({ lanes, diff, tH, id? })` returns `<div class="tv-watchcompare" data-watch-compare role="group">` with the honesty badge "Model output, not a measurement", a key for the three lines, the cursor time (`data-anim="compare-time"`), five `data-anim="lane-slot"` cells each holding a LaneChart and two `data-anim="diff"` outputs (`data-control` `c0`, `c1`, exact value in `data-value`), and the notes (US datasheet product, initial values, no ageing); `formatDiff` is the one number format (one decimal, real minus sign, K for a temperature difference)
+- accessibility: no control and no clock of its own; the differences are text; every lane chart has a name
+- motion rule: cursors follow the day player's clock only; the day player's pause control is the pause control
+- do: say that C1 is a US datasheet product with thermal values only. don't: add a play button, a second clock or a number that is not a difference of two drawn series
+
+### R38 WatchSweep
+
+- purpose: the one-variable sweep: pick a design, pH, grade or weather variable, play its range from low to high and watch five outcomes move against the control lines, with the p5 to p95 band.
+- tokens: the molecules' tokens; the five chart slots wrap to as many columns as fit; the status line `size-small`, with a `status-proxy` rule when stale and a `status-stop` rule on error
+- states (closed union `state`): `idle`, `running` (the computing indicator is busy), `ready`, `stale` (the live settings changed; the range is out of date), `error`; `layerOff` shows the note "This layer is off in the live simulator"; a variable whose range has no width is listed as "fixed in this configuration" and disabled
+- contract: `watchSweep({ variables, selected, state, layerOff?, speed?, id? })` returns `<div class="tv-watchsweep" data-watch-sweep data-state role="group">` with the honesty badge, the variable select (`data-anim="sweep-var"`), the play button (`sweep-play`), the position scrubber (`sweep-scrub`), a value box (`sweep-value`), the speed select (`sweep-speed`), the computing indicator (`sweep-computing`), the layer note (`layer-off`), the status line (`role="status"`), five empty chart slots (`sweep-chart`, one per outcome), the readout (`sweep-readout`) and the notes (one variable at a time, initial values, relative cost units, parameter uncertainty only); an unknown state or a selected variable that is not listed is a build error (exit 4)
+- accessibility: every control has a name and a 44 px target; Space toggles play when focus is in the panel; the status is a polite live region; the values at the cursor are text
+- motion rule: nothing moves until Play range is pressed; playing moves a cursor over curves computed before and never recomputes; reduced motion draws the full curves and moves only on a press; the tab being hidden freezes the cursor
+- do: say "parameter uncertainty only" next to every band. don't: autoplay, recompute while playing, or call a point on the curve a recommendation
+
+
+## Animation (plan 09)
+
+The live physics scene follows the plan 07 and 08 rules: motion is explanatory only, every moving region has a pause control, every moving or numeric element declares its source (`data-source`) and sits inside a container labelled "Model output, not a measurement". Rays show fractions, not photons. Nothing is drawn that the repo's models do not compute: there is no temperature per layer and no scattering visual (BLOCKED-19 to BLOCKED-21).
+
+### R39 PhysicsScene
+
+- purpose: one pane of the live physics scene: the stack cross-section (topcoat, midcoat, primer, aluminium, or bare aluminium), sunlight rays split by band into reflected and absorbed, and four heat arrows at the surface (absorbed, radiated, convected, conducted).
+- tokens: layers `viz-seq-7`, `viz-seq-6`, `viz-seq-4` and `viz-baseline`; rays `viz-6` (UV), `viz-4` (visible), `viz-2` (NIR); arrows `viz-recommended`, `viz-3`, `viz-5`, `status-stop`; text `text-primary` and `text-muted` at `size-small`
+- states: `pane` is a closed union (`recipe`, `aluminium`); `bands` null draws no rays and says "spectrum not available"; a layer that is off is not drawn; non-finite numbers are a build error (exit 4)
+- contract: `physicsScene({ pane, bands, rays, layers, terms, tK, source, seed? })` returns `<svg class="tv-scene" data-physics-scene>`; each ray is a `<line data-ray data-band data-reflected data-source="bands:<id>">` whose reflected count per band is `round(N_b R_b)` in a fixed low-discrepancy order (only the start position is jittered, from a seeded generator); each arrow is a `<g data-arrow data-source="<source>:<term>">` whose length is `60 px * flux / 1000 W/m2`, the same scale in both panes; the temperature text carries `data-source="<source>:t_k"`; `arrowGeometry` and `rayPoints` are the one geometry
+- accessibility: the SVG has a name that says what is drawn; the numbers of every arrow and the temperature are text; the label "Illustrative scale: layers are not to scale" is inside the drawing
+- motion rule: rays move only while the panel plays and are absent under reduced motion; arrows and numbers change with the stepper frame
+- do: take every count and length from the bands and the stepper. don't: draw a scattering mark, a temperature per layer or a ray count that is not a quota of the spectrum
+
+### R40 DropProfile
+
+- purpose: the temperature drop from the surface to the inside of the roof, as the model has it: two temperatures joined by the model's straight conduction law.
+- tokens: line and dots `status-stop`, axis `border-panel`, notes `text-muted` and numbers `text-primary` at `size-small`
+- states: none beyond finite numbers; R_total must be positive (else a build error, exit 4); the temperature axis is fixed (7 to 107 degC) so the two dots move honestly
+- contract: `dropProfile({ tSurfaceK, tInsideK, rTotal, source })` returns `<svg class="tv-drop" data-drop-profile>` holding exactly two temperature numbers (`drop-surface-text`, `drop-inside-text`), two dots with `data-source="<source>:t_k"` and `:t_inside_k`, the line (`drop-law`) and the drawing's own `data-source="<source>:r_total"`; no number per layer exists
+- accessibility: the SVG has a name that says it is illustrative; both temperatures are text
+- motion rule: only the two dots and the line move, with the stepper frame
+- do: say "Illustrative scale: one surface temperature, none per layer". don't: draw a gradient, a layer temperature or a curve through the thickness (BLOCKED-19)
+
+### R41 WatchPhysics
+
+- purpose: the live physics panel: the coated recipe and bare aluminium side by side, each a PhysicsScene and a DropProfile, run live by the repo's thermal model, with three sliders bound to the live simulator.
+- tokens: the molecules' tokens; two columns above 640 px and one below; the status line `size-small`, with a `status-proxy` rule when transient and a `status-stop` rule on error; numbers in `font-family-mono`
+- states (closed union `state`): `idle`, `playing`, `paused`, `transient` (a slider moved: "Transient after your change, not the settled day."), `error`; `layerOff` (`midcoat`, `primer`, `topcoat`) shows "<Layer> is off in the live simulator"; `lane` is `worker` or `inline` (inline says "single lane"); `speed` is one of 0.5, 1, 2, 4; exactly three sliders (sun, air temperature, wind) or a build error (exit 4)
+- contract: `watchPhysics({ state, speed, reduced, lane, layerOff?, recipe, aluminium, sliders, id? })` returns `<div class="tv-watchphysics" data-watch-physics data-state role="group">` with the honesty badge "Model output, not a measurement", Play or Pause (`phys-play`), +1 h (`phys-step`), Restart day (`phys-restart`), speed (`phys-speed`), the model time (`phys-time`), three sliders, the status line (`phys-status`), two panes, the live difference (`phys-diff`) and the heat balance residual (`phys-residual`), and the notes (illustrative scale, rays show fractions not photons, one surface temperature, ageing not shown)
+- accessibility: every control has a name and a 44 px target; the status is a polite live region; the numbers at the cursor are text
+- motion rule: nothing autoplays; Pause is reachable by Tab; reduced motion has no particle layer and moves one model hour per press; hidden tab and closed disclosure freeze it
+- do: say "Model output, not a measurement" and "Illustrative scale". don't: autoplay, call a result recommended or best, or claim a temperature field through the layers

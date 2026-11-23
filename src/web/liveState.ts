@@ -95,6 +95,28 @@ const LABELS: Record<string, string> = {
   wind_m_s: "Wind speed",
 }
 
+/** The unit as it reads next to a control: "um" is micrometres, the long weather units are cut to the unit, a pH has none. */
+export function unitText(unit: string): string {
+  if (unit === "pH") return ""
+  return unit
+    .replace(/^W\/m2 .*$/, "W/m²")
+    .replace(/^degC .*$/, "°C")
+    .replace(/\bum\b/g, "µm")
+    .replace(/W\/m2/g, "W/m²")
+}
+
+/** "Label (unit)", with no brackets when the unit is empty. */
+export function liveLabel(s: Pick<SliderSpec, "label" | "unit">): string {
+  const u = unitText(s.unit)
+  return u === "" ? s.label : `${s.label} (${u})`
+}
+
+/** A value as the number box shows it: the step's precision plus one digit, so 0.22499999999999998 reads 0.225. */
+export function liveValue(step: number, v: number): string {
+  const digits = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step)) + 1))
+  return String(Number(v.toFixed(digits)))
+}
+
 /** Slider min, max, step and start value for every live input, from MaterialRanges and WeatherConfig only (never hard-coded). */
 export function sliderSpecs(
   ranges: MaterialRanges,

@@ -22,9 +22,11 @@ import {
   OUTLINE,
   ROLE_BLURBS,
   ROLE_LABELS,
+  roleText,
 } from "../../core/report/outline"
 import { tag } from "../../web/design/html"
 import { callout } from "../../web/design/molecules/callout"
+import { computingIndicator } from "../../web/design/molecules/computingIndicator"
 import { disclosure } from "../../web/design/molecules/disclosure"
 import { figureFrame } from "../../web/design/molecules/figureFrame"
 import { layerSchematic } from "../../web/design/molecules/layerSchematic"
@@ -362,7 +364,7 @@ export const recipesSection: ReportSection = {
         summary: `Full card of ${id} (${ROLE_LABELS[r]}): every number, the controls and the decision`,
         level: "detail",
       })(
-        `<div class="page-cards" id="card-${esc(c.name.replace(/\.md$/, ""))}"><article>${renderMarkdown(c.text)}</article></div>`,
+        `<div class="page-cards" id="card-${esc(c.name.replace(/\.md$/, ""))}"><article>${cardHtml(i, c.text)}</article></div>`,
       )
     }).join("\n")
     return sec(
@@ -379,6 +381,52 @@ ${cards}`,
 }
 
 // ---- How the layers work ----
+
+/** Card headings sit under the h3 "Full cards": the card title is an h4 and its parts h5 (no skipped level). */
+const CARD_LEVELS = (hashes: number): number => (hashes === 1 ? 4 : 5)
+
+/** Display-only wording of a candidate card: role codes become the plain role names; the card file itself is unchanged. */
+export function plainCard(text: string): string {
+  return text.replace(/\b(high_performing|balanced|low_cost)\b/g, (m) =>
+    roleText(m),
+  )
+}
+
+/**
+ * One card as page HTML. The static limit statements and the assumed constants are the same on every card, so the page keeps one
+ * copy of each under Method and limits and each card points there; the card file itself still lists them.
+ */
+export function cardHtml(i: ReportInput, text: string): string {
+  const limits = new Set(STATIC_LIMITS.map((l) => `- ${l}`))
+  const consts = new Set(
+    scenarioConstants(i.ctx).map(
+      (k) => `- ${k.path} = ${k.value}${k.unit ? ` ${k.unit}` : ""}`,
+    ),
+  )
+  const seen = new Set<string>()
+  const lines: string[] = []
+  for (const l of plainCard(text).split("\n")) {
+    const kind = limits.has(l)
+      ? "@@LIMITS@@"
+      : consts.has(l)
+        ? "@@CONSTS@@"
+        : ""
+    if (kind === "") lines.push(l)
+    else if (!seen.has(kind)) {
+      seen.add(kind)
+      lines.push(kind)
+    }
+  }
+  return renderMarkdown(lines.join("\n"), { levels: CARD_LEVELS })
+    .replace(
+      "<p>@@LIMITS@@</p>",
+      `<p>The ${STATIC_LIMITS.length} static model limits are the same for every recipe; they are listed once under <a class="page-jump" href="#limits">Method and limits</a>.</p>`,
+    )
+    .replace(
+      "<p>@@CONSTS@@</p>",
+      `<p>The assumed constants are the same for every recipe; they are tabulated once under <a class="page-jump" href="#limits">Method and limits</a>.</p>`,
+    )
+}
 
 /** The scenario of the day-2 figure: the one in which bare aluminium peaks highest. */
 export function whyScenario(i: ReportInput): string {
@@ -415,13 +463,19 @@ export const whySection: ReportSection = {
       recipePeaks.length === 0
         ? ""
         : ` and the three recipes at ${fmtValue(Math.min(...recipePeaks), 1)} to ${fmtValue(Math.max(...recipePeaks), 1)} °C`
-    const message = `On the hottest modelled day (${sc}) bare aluminium peaks at ${fmtValue(c0, 1)} °C${range}`
+    const message = `On the day bare aluminium is hottest (${sc}) it peaks at ${fmtValue(c0, 1)} °C${range}; the recipes have their own hottest day, shown on the cards`
     const layers = tag(
       "ul",
       { class: "page-layers" },
       LAYERS.map(
         (l) => `<li><strong>${esc(l.title)}</strong>${esc(l.why)}</li>`,
       ).join(""),
+    )
+    const sharedTotalUm = Math.max(
+      ...ROLES.map((r) => {
+        const dsg = designOf(i, d.ids[r])
+        return dsg.primer_dft_um + dsg.midcoat_dft_um + dsg.topcoat_dft_um
+      }),
     )
     const schem = ROLES.map((r) => {
       const dsg = designOf(i, d.ids[r])
@@ -430,6 +484,7 @@ export const whySection: ReportSection = {
         primer_um: dsg.primer_dft_um,
         midcoat_um: dsg.midcoat_dft_um,
         topcoat_um: dsg.topcoat_dft_um,
+        sharedTotalUm,
       })}<p class="page-hint">${esc(Object.values(layerStrings(dsg)).join("; "))}</p></div>`
     }).join("")
     const fig = figureFrame({
@@ -438,13 +493,17 @@ export const whySection: ReportSection = {
       describe:
         "Surface temperature over the second simulated day, with the p5 to p95 band of parameter uncertainty",
       note: "Shaded band: p5 to p95, parameter uncertainty only. Bare aluminium is a nominal scenario value, not a measurement.",
-    })(`<div id="fig-why-tofT" class="fig"></div>`)
+    })(`<div id="fig-why-tofT" class="fig fig--wide"></div>`)
     return sec(
       "why",
       "How the layers work",
       `<p class="page-lead">A recipe is three thin layers on the aluminium sheet. In the models each layer has one job.</p>
 ${layers}
-<div class="page-grid page-grid--3">${schem}</div>
+${disclosure({
+  summary: "Layer thicknesses to scale for the three recipes",
+  level: "detail",
+  id: "details-layers",
+})(`<div class="page-grid page-grid--3">${schem}</div>`)}
 ${fig}`,
     )
   },
@@ -520,7 +579,12 @@ const explore: ReportSection = {
         digits: 2,
         sortable: true,
       },
-      { key: "on_front", label: "On the Pareto front", kind: "text" },
+      {
+        key: "on_front",
+        label: "On the Pareto front",
+        kind: "text",
+        sortable: true,
+      },
       {
         key: "pareto_freq",
         label: axisLabel("pareto_freq"),
@@ -528,7 +592,7 @@ const explore: ReportSection = {
         digits: 2,
         sortable: true,
       },
-      { key: "role", label: "Shortlist role", kind: "text" },
+      { key: "role", label: "Shortlist role", kind: "text", sortable: true },
     ]
     if (columns.length !== PARETO_COLUMNS.length)
       throw new DataError("pareto.csv", "explore columns differ from the file")
@@ -542,7 +606,7 @@ const explore: ReportSection = {
       t_max_worst: r.t_max_worst,
       on_front: r.on_front ? "yes" : "no",
       pareto_freq: r.pareto_freq,
-      role: String(r.role),
+      role: roleText(String(r.role)),
     }))
     const table = dataTable({
       id: "tbl-explorer",
@@ -557,8 +621,8 @@ const explore: ReportSection = {
       id: "details-explorer",
     })(
       `<p>Drag on an axis to select candidates; the scatter matrix dims the rest and the table lists exactly the selected ones. Line colour is the share of uncertainty draws in which the candidate is on the Pareto front.</p>
-${figureFrame({ message: "Drag along an axis to keep only the candidates in that range", size: "tall", interactive: true, describe: "Parallel coordinates of the five objectives" })('<div id="fig-parcoords" class="fig fig--tall"></div>')}
-${figureFrame({ message: "The same candidates as a scatter matrix: the selected ones stay bright", size: "tall", interactive: true, describe: "Scatter matrix of the five objectives; the shortlisted recipes have their own symbols" })('<div id="fig-splom" class="fig fig--tall"></div>')}`,
+${figureFrame({ message: "Drag along an axis to keep only the candidates in that range", size: "tall", interactive: true, describe: "Parallel coordinates of the five objectives" })('<div id="fig-parcoords" class="fig fig--wide fig--tall"></div>')}
+${figureFrame({ message: "The same candidates as a scatter matrix: the selected ones stay bright", size: "tall", interactive: true, describe: "Scatter matrix of the five objectives; the shortlisted recipes have their own symbols" })('<div id="fig-splom" class="fig fig--wide fig--tall"></div>')}`,
     )
     const curves = disclosure({
       summary: "Temperature and reflectance curves of the three recipes",
@@ -566,8 +630,8 @@ ${figureFrame({ message: "The same candidates as a scatter matrix: the selected 
       id: "details-curves",
     })(
       `<div class="page-controls"><label for="sel-scenario">Weather scenario</label><select id="sel-scenario">${scen.map((s) => `<option>${esc(s)}</option>`).join("")}</select></div>
-${figureFrame({ message: "Surface temperature over day 2 in the chosen weather", size: "medium", describe: "Day-2 surface temperature with p5 to p95 bands", note: "Shaded band: p5 to p95, parameter uncertainty only." })('<div id="fig-tofT" class="fig"></div>')}
-${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium", describe: "Reflectance spectra with p5 to p95 bands and the solar reference", note: "Shaded band: p5 to p95, parameter uncertainty only. The grey area is sunlight, a reference and not a prediction." })('<div id="fig-spectrum" class="fig"></div>')}`,
+${figureFrame({ message: "Surface temperature over day 2 in the chosen weather", size: "medium", describe: "Day-2 surface temperature with p5 to p95 bands", note: "Shaded band: p5 to p95, parameter uncertainty only. The unlabelled dashed lines are the ablations of each recipe (C2 without the topcoat, C3 without the primer); hover a line for its name." })('<div id="fig-tofT" class="fig fig--wide"></div>')}
+${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium", describe: "Reflectance spectra with p5 to p95 bands and the solar reference", note: "Shaded band: p5 to p95, parameter uncertainty only. The grey area is sunlight, a reference and not a prediction. The unlabelled dashed lines are the ablations of each recipe (C2, C3); hover a line for its name." })('<div id="fig-spectrum" class="fig fig--wide"></div>')}`,
     )
     const live = disclosure({
       summary:
@@ -580,9 +644,10 @@ ${figureFrame({ message: "Reflectance across the solar spectrum", size: "medium"
 <div id="live-controls"></div>
 <div class="live-out">
 <p id="live-status" class="page-hint" role="status" aria-live="polite"></p>
+<div class="page-computing">${computingIndicator({ state: "idle" }).replace('data-anim="computing"', 'id="live-computing"')}</div>
 <div id="live-tiles" class="tiles"></div>
-${figureFrame({ message: "Live surface temperature of the recipe you set", size: "medium", interactive: true, describe: "Live day-2 surface temperature with p5 to p95 band and controls" })('<div id="fig-live-tofT" class="fig"></div>')}
-${figureFrame({ message: "Live reflectance of the recipe you set", size: "medium", interactive: true, describe: "Live reflectance spectrum with p5 to p95 band" })('<div id="fig-live-spectrum" class="fig"></div>')}
+${figureFrame({ message: "Live surface temperature of the recipe you set", size: "medium", interactive: true, describe: "Live day-2 surface temperature with p5 to p95 band and controls", note: "Shaded band: p5 to p95 over the live uncertainty draws." })('<div id="fig-live-tofT" class="fig fig--wide"></div>')}
+${figureFrame({ message: "Live reflectance of the recipe you set", size: "medium", interactive: true, describe: "Live reflectance spectrum with p5 to p95 band" })('<div id="fig-live-spectrum" class="fig fig--wide"></div>')}
 </div>
 </div>
 <details id="debug"><summary>Debug: last events and timings</summary>
@@ -636,12 +701,23 @@ const limits: ReportSection = {
       summary: "Assumed constants (status: scenario)",
       level: "detail",
     })(
-      `<ul>${scenarioConstants(i.ctx)
-        .map(
-          (k) =>
-            `<li><code>${esc(k.path)}</code> = ${esc(k.value)}${k.unit ? ` ${esc(k.unit)}` : ""}</li>`,
-        )
-        .join("")}</ul>`,
+      dataTable({
+        id: "tbl-constants",
+        caption: "Assumed constants (status: scenario, not measured)",
+        columns: [
+          {
+            key: "path",
+            label: "Parameter",
+            kind: "text",
+            rowHeader: true,
+            mono: true,
+            sortable: true,
+          },
+          { key: "value", label: "Value", kind: "text", mono: true },
+          { key: "unit", label: "Unit", kind: "text" },
+        ],
+        rows: scenarioConstants(i.ctx).map((k) => ({ ...k })),
+      }),
     )
     const gloss = disclosure({
       summary: "Glossary: every term the page uses",

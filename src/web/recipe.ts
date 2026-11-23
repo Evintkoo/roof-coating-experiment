@@ -4,7 +4,11 @@
 import { lookupBudget } from "../core/opt/budgetTable"
 import type { BudgetLookup } from "./design/organisms/budgetPanel"
 import type { RecipeLayers, RecipeRole } from "./design/organisms/recipeCard"
-import { type OptData, PROFILE_LABEL } from "./optimisation"
+import {
+  type OptData,
+  PROFILE_LABEL,
+  SINGLE_FRONTIER_LABEL,
+} from "./optimisation"
 
 export type Design = {
   primer_gptes_molfrac: number
@@ -106,7 +110,9 @@ export function budgetLookup(page: BudgetPage): BudgetLookup {
       knee: t.knee_budget,
       recipe: {
         role: PROFILE_ROLE[profile] ?? "balanced",
-        roleLabel: PROFILE_LABEL[profile] ?? profile,
+        roleLabel: opt.merged
+          ? SINGLE_FRONTIER_LABEL
+          : (PROFILE_LABEL[profile] ?? profile),
         name: `Level ${e.level}`,
         cooling: {
           value: page.c0_mean_c - (e.objectives[it] as number),

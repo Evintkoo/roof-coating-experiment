@@ -17,6 +17,7 @@ test("outlineFollowsFr2InOrder", () => {
     "Verdict",
     "Recipes",
     "How the layers work",
+    "Watch it run",
     "Indonesian climate",
     "Budget",
     "Explore all 96",

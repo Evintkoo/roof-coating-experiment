@@ -30,7 +30,13 @@ export type LiveResult = {
     wetting_score: Band
     delam_proxy: Band
   }
-  series: { t_k: Float64Array; lo: Float64Array; hi: Float64Array }
+  series: {
+    t_k: Float64Array
+    lo: Float64Array
+    hi: Float64Array
+    /** The nDraws solved surface-temperature series the band is the p5 to p95 of (plan 07 H11); additive, no other number changes. */
+    draws: Float64Array[]
+  }
   spectrum: { nominal: Float64Array; lo: Float64Array; hi: Float64Array }
   controls: { C0: Outcome; C1: Outcome }
   nDraws: number
@@ -141,6 +147,7 @@ export function liveSimulate(
       t_k: nominal.t_surface_k as Float64Array,
       lo: sb.lo,
       hi: sb.hi,
+      draws: drawOuts.map((o) => o.t_surface_k as Float64Array),
     },
     spectrum: { nominal: nomSpec, lo: rb.lo, hi: rb.hi },
     controls: {

@@ -381,7 +381,7 @@ ${detail(
   "Day-type detail: hot, typical and overcast days",
   `<p class="page-hint">Benefit = mean heat flux into the building of bare aluminium minus that of the subject; positive means less heat enters. The last group of each site weights the day types 0.2 hot, 0.6 typical, 0.2 overcast and the seasons by their share of days in the ten years. The bracket of a benefit is an outer bound, not the p5 to p95 of the benefit: the interval of the subject is subtracted from the interval of bare aluminium without pairing the draws, so it is wider than a paired interval would be.</p>
 <div class="page-controls"><label for="sel-indonesia-state">State</label><select id="sel-indonesia-state"><option value="initial">Initial</option><option value="aged">Aged (scenario ageing)</option></select></div>
-${figureFrame({ message: "Benefit against bare aluminium on hot, typical and overcast days, site by site on one shared axis", size: "tall", describe: "Heat-flux benefit per site and day type with outer-bound whiskers, aluminium, scenario ageing", note: "Whiskers: outer bound of the benefit interval. PROXY, parameter uncertainty only." })('<div id="fig-indonesia-bars" class="fig fig--tall"></div>')}`,
+${figureFrame({ message: "Benefit against bare aluminium on hot, typical and overcast days, site by site on one shared axis", size: "tall", describe: "Heat-flux benefit per site and day type with outer-bound whiskers, aluminium, scenario ageing", note: "Whiskers: outer bound of the benefit interval. PROXY, parameter uncertainty only." })('<div id="fig-indonesia-bars" class="fig fig--wide fig--tall"></div>')}`,
 )}
 ${detail(
   "Reading the aged rows",

@@ -22,6 +22,7 @@ const testFiles = listFiles(join(repoRoot, "tests")).filter((f) =>
 const NON_MIRROR = new Set(
   [
     "layout.guard",
+    "runTimeout",
     "library.smoke",
     "oracle.fixtures",
     "crossModel",
@@ -29,6 +30,9 @@ const NON_MIRROR = new Set(
     "pipeline.e2e",
     "report.browser",
     "report.design.browser",
+    "report.animation.browser",
+    "report.compare.browser",
+    "report.physics.browser",
     "report.fixture",
     "design.atoms.browser",
     "design.components.browser",
@@ -57,6 +61,15 @@ test("everySourceFileHasOneMirror", () => {
 
 test("noOrphanTests", () => {
   expect(orphanTests(srcFiles, testFiles, NON_MIRROR)).toEqual([])
+})
+
+test("regressionTestsOfTheQaBugsAreAllowedButStrayOnesAreNot", () => {
+  expect(
+    orphanTests(srcFiles, ["qa/regression/M1-skip-link.test.ts"], NON_MIRROR),
+  ).toEqual([])
+  expect(orphanTests(srcFiles, ["qa/other/stray.test.ts"], NON_MIRROR)).toEqual(
+    ["qa/other/stray.test.ts"],
+  )
 })
 
 test("guardCanFail", () => {

@@ -47,6 +47,7 @@ test("sectionsComeInTheReadingPathOrderAndOptionalOnesAreOmitted", () => {
     "verdict",
     "recipes",
     "why",
+    "watch",
     "explore",
     "limits",
     "provenance",
@@ -107,10 +108,10 @@ test("theFigureMessageOfWhyItWorksIsReadFromCurvesJson", () => {
     built.html,
   )?.[0] as string
   const text = visibleText(why)
-  expect(text).toContain(`hottest modelled day (${hot.scenario_id})`)
   expect(text).toContain(
-    `bare aluminium peaks at ${Math.max(...hot.t_c).toFixed(1)} °C`,
+    `the day bare aluminium is hottest (${hot.scenario_id})`,
   )
+  expect(text).toContain(`it peaks at ${Math.max(...hot.t_c).toFixed(1)} °C`)
   // one data-drawn schematic per recipe
   expect([...why.matchAll(/data-layer-schematic="(SP-\d{3})"/g)].length).toBe(3)
 })
@@ -292,4 +293,43 @@ test("provenanceEmbedsTheFullFontLicencesInAClosedDisclosure", () => {
   expect(markup).not.toContain("<link ")
   expect(built.html).not.toMatch(/url\(\s*["']?https?:/)
   expect(Buffer.byteLength(built.html)).toBeLessThan(8 * 1024 * 1024)
+})
+
+const mainOf = (html: string): string =>
+  /<main[\s\S]*?<\/main>/.exec(html)?.[0] as string
+
+test("tabularFactsAreTablesAndTheLimitsAreSaidOnce", () => {
+  const main = mainOf(built.html)
+  // no list item is a "label = value" or "label: number" line
+  for (const m of main.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)) {
+    const t = visibleText(m[1] as string).trim()
+    expect(t, t).not.toMatch(/^[\w.]+ = |^[^:]+: -?[\d.]+$/)
+  }
+  // the assumed constants: one table (Parameter, Value, Unit), none of them repeated per card
+  const tbl = /<table[^>]*id="tbl-constants"[\s\S]*?<\/table>/.exec(
+    main,
+  )?.[0] as string
+  expect(tbl).toBeDefined()
+  expect(visibleText(tbl)).toContain("tio2.diameter_um")
+  for (const h of ["Parameter", "Value", "Unit"]) expect(tbl).toContain(h)
+  expect(main.match(/id="tbl-constants"/g)?.length).toBe(1)
+  expect(main.match(/>tio2\.diameter_um</g)?.length).toBe(1)
+  // the limit statements: one copy, the cards point to it
+  expect(main.match(/Optics assume independent scattering/g)?.length).toBe(1)
+  const cards = main.match(/<div class="page-cards"[\s\S]*?<\/article>/g) ?? []
+  expect(cards.length).toBe(3)
+  for (const c of cards) expect(c).toContain('href="#limits"')
+  // provenance facts are a table, not a definition list
+  const prov = /<section id="provenance"[\s\S]*?<\/section>/.exec(
+    main,
+  )?.[0] as string
+  expect(prov).not.toContain("tv-provenance__facts")
+  expect(prov).toMatch(/<table[^>]*id="provenance-run-facts"/)
+  // the only definition lists left are the glossary and the live readouts (day player, live physics)
+  const dls = [...main.matchAll(/<dl class="([^"]*)"/g)].map((m) => m[1])
+  expect(dls.sort()).toEqual([
+    "tv-glossary__list",
+    "tv-watchday__readouts",
+    "tv-watchphysics__readouts",
+  ])
 })

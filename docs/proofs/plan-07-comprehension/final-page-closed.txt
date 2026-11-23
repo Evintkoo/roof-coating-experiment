@@ -1,0 +1,1163 @@
+Skip to content
+Spandek screening
+Verdict
+Recipes
+How the layers work
+Watch it run
+Indonesian climate
+Budget
+Explore all 96
+Method and limits
+Provenance
+Dark mode
+Off
+
+SPANDEK COATING SCREENING
+
+Three recipes cool an aluminium roof by about 13 to 14 K in the models
+
+Each card shows how much lower the peak surface temperature of the aluminium sheet itself (not the air indoors) is than bare aluminium, averaged over nine generic weather scenarios. Bare aluminium has no interval, so each range covers coating parameter uncertainty only. The three differ little in cooling, so cost and the PROXY indices (relative rankings) decide between them.
+
+Highest cooling
+Shown in the climate section
+SP-075
+
+Cooler than bare aluminium
+
+14.4
+K
+
+13 K
+15 K
+
+parameter uncertainty only: 14.3 to 14.5 K
+
+Cost position (relative)
+
+0.64
+PROXY
+
+Balanced
+SP-031
+
+Cooler than bare aluminium
+
+13.6
+K
+
+13 K
+15 K
+
+parameter uncertainty only: 13.4 to 13.8 K
+
+Cost position (relative)
+
+0.59
+PROXY
+
+Lowest cost
+SP-046
+
+Cooler than bare aluminium
+
+13.4
+K
+
+13 K
+15 K
+
+parameter uncertainty only: 13.2 to 13.6 K
+
+Cost position (relative)
+
+0.34
+PROXY
+
+One axis for all three bars, from 13 K to 15 K: it starts at 13 K, not at zero, so the intervals can be seen.
+
+Cost is not decided by these cost positions alone: in the budget section refined variants of SP-075 and SP-031 reach 14.4 and 14.3 K at cost index 0.45 and 0.34 against 0.64 and 0.59 here, with cooling at or above the lower bound of the shortlisted recipe's range (PROXY; nominal only, an optimum of the models).
+
+Read this first
+
+These are model predictions for a freshly applied coating on bare aluminium, not a laboratory result and not a field measurement. Intervals show parameter uncertainty only. Every PROXY index is a relative ranking, not a measurement and not a probability. Ageing appears only as a labelled scenario. Next step: make small coated aluminium samples (a coupon test) of a recipe and test them in a laboratory; these numbers only rank which recipes are worth that test.
+
+Limits: what these models cannot say
+
+Recipes
+
+Highest cooling: chosen for the largest modelled drop in roof temperature. Balanced: chosen to trade cooling, durability and cost evenly. Lowest cost: chosen for the lowest relative cost while still cooling the roof.
+
+In the models, three recipes (SP-075, SP-031, SP-046) lower the peak surface temperature of an aluminium roof by about 13 to 14 K compared with bare aluminium (13.2 to 14.5 K when parameter uncertainty only is counted); the three differ by only 1.0 K, so cooling hardly separates them and cost and the PROXY indices decide between them. These are predictions for the freshly applied coating from uncalibrated models, not measurements.
+Highest cooling Recipe SP-075 is the cooling-priority recipe in the models: it lowers the peak surface temperature by 14.4 K [14.3, 14.5] against bare aluminium (scenario mean; parameter uncertainty only, the bare aluminium reference is nominal only), at a relative cost index of 0.64 (PROXY, relative cost units, rank 46 of 96, 1 = cheapest). Its refined variant from the optimiser is predicted at 31.2 °C peak with cost index 0.45 (an optimum of the models, nominal only).
+Balanced Recipe SP-031 balances cooling, durability and cost in the models: it lowers the peak surface temperature by 13.6 K [13.4, 13.8] against bare aluminium (scenario mean; parameter uncertainty only, the bare aluminium reference is nominal only), at a relative cost index of 0.59 (PROXY, relative cost units, rank 37 of 96, 1 = cheapest). Its refined variant from the optimiser is predicted at 31.3 °C peak with cost index 0.34 (an optimum of the models, nominal only).
+Lowest cost Recipe SP-046 is the cost-priority recipe in the models: it lowers the peak surface temperature by 13.4 K [13.2, 13.6] against bare aluminium (scenario mean; parameter uncertainty only, the bare aluminium reference is nominal only), at a relative cost index of 0.34 (PROXY, relative cost units, rank 1 of 96, 1 = cheapest). Its refined variant from the optimiser is predicted at 31.3 °C peak with cost index 0.34 (an optimum of the models, nominal only).
+Side by side
+The three recipes against the two reference controls (scenario means; the controls have no interval)
+Recipe	Peak surface temperature (°C, p5 to p95)	Solar reflectance (0 to 1, p5 to p95)	Corrosion index (PROXY)	Delamination index (PROXY)	Cost index (PROXY)	Next step
+SP-075, Highest cooling	31.2 [31.1, 31.3]	0.944 [0.942, 0.947]	0.70 
+PROXY
+	0.38 
+PROXY
+	0.64 
+PROXY
+	worth a coupon test
+SP-031, Balanced	32.0 [31.8, 32.2]	0.920 [0.914, 0.926]	0.61 
+PROXY
+	0.18 
+PROXY
+	0.59 
+PROXY
+	worth a coupon test
+SP-046, Lowest cost	32.2 [32.0, 32.4]	0.914 [0.909, 0.918]	0.82 
+PROXY
+	0.61 
+PROXY
+	0.34 
+PROXY
+	revise first
+C0 Bare aluminium (nominal only)	45.6	0.650	1.00 
+PROXY
+	–
+no value
+	0.00 
+PROXY
+	reference, nominal only
+C1 Commercial datasheet (nominal only)	32.6	0.900	–
+no value
+	–
+no value
+	–
+no value
+	reference, nominal only
+Full cards
+Full card of SP-075 (Highest cooling): every number, the controls and the decision
+Full card of SP-031 (Balanced): every number, the controls and the decision
+Full card of SP-046 (Lowest cost): every number, the controls and the decision
+How the layers work
+
+A recipe is three thin layers on the aluminium sheet. In the models each layer has one job.
+
+Primer
+A thin sol-gel layer that bonds the coating to the aluminium and, in the models, acts as the moisture barrier for the metal.
+Midcoat
+A thick white layer of titanium dioxide and barium sulfate particles that scatters sunlight back, which is the layer that mainly sets the solar reflectance in the models.
+Topcoat
+A very thin sol-gel skin that is meant to shed water; the models rate this with a wetting PROXY index, not a measurement.
+Layer thicknesses to scale for the three recipes
+On the day bare aluminium is hottest (W8) it peaks at 57.0 °C and the three recipes at 31.5 to 33.2 °C; the recipes have their own hottest day, shown on the cards
+0
+4
+8
+12
+16
+20
+24
+30
+40
+50
+Hour of day 2
+Surface temperature (°C)
+SP-031 Balanced
+SP-046 Lowest cost
+SP-075 Highestcooling
+Bare aluminium(nominal only)
+Commercial datasheet(nominal only)
+
+Shaded band: p5 to p95, parameter uncertainty only. Bare aluminium is a nominal scenario value, not a measurement.
+
+Watch it run
+
+One day on the roof for the live simulator's recipe. It plays once, then waits. Model output, not a measurement.
+
+Model output, not a measurement
+Reduce motion (stops autoplay and gliding numbers)
+Play
+−1 h
+00:00
++1 h
+Speed
+0.5×
+1×
+2×
+4×
+00:00
+06:00
+12:00
+18:00
+24:00
+25
+35
+45
+Surface temperature, °C
+live recipe
+Bare aluminium
+p5 to p95 band
+Coated aluminium roof
+Sunlight
+0 W/m²
+Reflected
+0 W/m²
+Absorbed
+0 W/m²
+Conducted
+-1.63 W/m²
+Coated recipe
+29.5 °C
+Bare aluminium
+31.4 °C
+Band, low edge
+29.5 °C
+Band, high edge
+29.5 °C
+Run the screening in my browser: 96 recipes on 9 weather days
+Indonesian climate
+
+PROXY results on aluminium, with scenario ageing
+
+The weather is modelled (NASA POWER hourly reanalysis and satellite data, 2015 to 2024), not station measurements. The roof is bare aluminium; the aged values are a scenario: the effective reflectance of a coating loses 14 to 26 % (a range from three US three-year exposure records), not an Indonesian measurement. Intervals are parameter uncertainty only (p5 to p95 over 256 draws, plus the ageing-loss range for aged recipes).
+
+Across the five Indonesian sites the modelled heat flux into the building falls by the most, as a point estimate, in Medan (19.4 W/m² [17.4, 21.4]) and by the least in Jakarta (15.4 W/m² [13.8, 16.9]) for the cooling-priority recipe against bare aluminium, in the initial state, weighted over typical, hot and overcast days (parameter uncertainty only; weather is a model and not a station record). The highest estimate is in Medan, but the ranges of Medan and Makassar (18.7 W/m² [16.7, 20.6]) overlap, so the sites are not clearly separated. The lowest estimate is in Jakarta, but its range overlaps that of Surabaya (15.6 W/m² [14.0, 17.1]).
+Scenario ageing, not a measurement: if the coating loses 0.14 to 0.26 of its solar reflectance (a range taken from US three-year pairs, never measured on an Indonesian roof), the same benefit shrinks to 13.3 W/m² [9.7, 16.8] in Medan and 10.4 W/m² [7.6, 13.2] in Jakarta (parameter uncertainty only).
+Jakarta
+
+Initial (as applied)
+
+15.4
+W/m²
+PROXY
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 13.8 to 16.9 W/m²
+
+Ageing is a scenario
+
+Aged
+
+10.4
+W/m²
+scenario
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 7.6 to 13.2 W/m²
+
+Surabaya
+
+Initial (as applied)
+
+15.6
+W/m²
+PROXY
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 14.0 to 17.1 W/m²
+
+Ageing is a scenario
+
+Aged
+
+10.6
+W/m²
+scenario
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 7.7 to 13.4 W/m²
+
+Medan
+
+Initial (as applied)
+
+19.4
+W/m²
+PROXY
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 17.4 to 21.4 W/m²
+
+Ageing is a scenario
+
+Aged
+
+13.3
+W/m²
+scenario
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 9.7 to 16.8 W/m²
+
+Makassar
+
+Initial (as applied)
+
+18.7
+W/m²
+PROXY
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 16.7 to 20.6 W/m²
+
+Ageing is a scenario
+
+Aged
+
+12.6
+W/m²
+scenario
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 9.0 to 16.0 W/m²
+
+Bandung
+
+Initial (as applied)
+
+16.5
+W/m²
+PROXY
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 14.6 to 18.5 W/m²
+
+Ageing is a scenario
+
+Aged
+
+10.5
+W/m²
+scenario
+
+0 W/m²
+23 W/m²
+
+parameter uncertainty only: 7.0 to 14.0 W/m²
+
+Under the ageing scenario a recipe loses 31 to 36 % of its initial benefit (a scenario range, not a forecast). 
+scenario
+
+Data note
+
+The NASA POWER values belong to a grid cell, not to the city, and the elevation of the cell is the elevation of the data. Bandung's cell is at 921.68 m (the TMYx airport file is at 740 m), so its temperatures may read 1 to 2 K cool against the city; Medan and Makassar, whose cells also lie well above city level, may read cool as well. No correction is applied.
+
+Medan
+
+Medan has no clear dry season: its dry months are dry only relative to its other months.
+
+Weather model: how the five sites were built
+Day-type detail: hot, typical and overcast days
+Reading the aged rows
+Weighted benefit table (all subjects)
+Surface temperature and heat flux table
+Cross-check of the weather data (NASA POWER against TMYx)
+Representative days
+Budget
+
+An optimum of the models, not a measured optimum (PROXY)
+
+Costs are relative cost units (not IDR), a relative index and not a price. The recipe shown for a budget is the tabulated one with the largest cost at or below it (exact lookup, no interpolation). Intervals are parameter uncertainty only.
+
+For the balanced priority the modelled recipe stops improving much at a budget of about 0.42 (the knee, where 95 % of the gain between the cheapest recipe at 0.31 and the dearest at 0.93 is reached); the other knees are cooling-first 0.81 and durability-first 0.34. Budgets are in relative cost units (a PROXY index, not rupiah) and the knee is nominal only; the budget curve draws the parameter uncertainty band.
+Budget
+relative cost units (not IDR)
+0.42
+
+Recipe of the tabulated budget at or below the one chosen: cost 0.42 relative cost units (not IDR), unspent headroom 0.00; knee of the curve at 0.42.
+
+Modelled recipe for each budget
+Level 18
+
+Cooler than bare aluminium
+
+14.4
+K
+
+0 K
+16 K
+
+parameter uncertainty only: 14.3 to 14.5 K
+
+Cost position (relative)
+
+0.42
+PROXY
+
+Solar reflectance (nominal)
+
+0.945
+nominal only
+
+Corrosion index
+
+0.56
+PROXY
+
+Delamination index
+
+0.04
+PROXY
+
+Primer
+GPTES:TEOS mole fraction 0.80:0.20, 12.0 µm
+Midcoat
+TiO2:BaSO4 volume ratio 0.80:0.20, total PVC 0.350, 128 µm
+Topcoat
+MTES:TEOS mole fraction 0.20:0.80, 3.0 µm
+
+One table, not three: the cooling-first, balanced and durability-first weightings select the same recipes at every budget to within the p5 to p95 uncertainty (the largest difference in any objective is 60 % of that band's half-width), so a priority choice would change only where the weighted score stops improving.
+
+Performance against cost
+Three refined recipes (model optima)
+Refined Pareto front
+Dosing tolerance
+Robust optimum
+Explore all 96
+
+Everything that was screened, behind the headline. Sort the table, brush the plot, or move the live sliders; none of it changes the answer above.
+
+Select candidates by dragging on the parallel-coordinates plot
+
+96 of 96 candidates
+
+All 96 screened candidates (initial state; sort by any column header)
+Candidate	Solar reflectance (0 to 1)	Peak surface temperature (°C)	Corrosion index (PROXY)	Delamination index (PROXY)	Cost index (PROXY)	Peak temperature, hottest scenario (°C)	On the Pareto front	Pareto frequency	Shortlist role
+SP-001	0.882	33.21	0.745 
+PROXY
+	0.358 
+PROXY
+	0.784 
+PROXY
+	37.81	no	0.00	
+SP-002	0.892	32.87	0.953 
+PROXY
+	0.103 
+PROXY
+	0.759 
+PROXY
+	37.41	no	0.00	
+SP-003	0.899	32.65	0.781 
+PROXY
+	0.165 
+PROXY
+	0.578 
+PROXY
+	37.14	yes	0.91	
+SP-004	0.898	32.70	0.759 
+PROXY
+	0.071 
+PROXY
+	0.579 
+PROXY
+	37.20	yes	1.00	
+SP-005	0.894	32.80	0.636 
+PROXY
+	0.076 
+PROXY
+	0.467 
+PROXY
+	37.33	yes	1.00	
+SP-006	0.885	33.10	0.753 
+PROXY
+	0.186 
+PROXY
+	0.885 
+PROXY
+	37.68	no	0.00	
+SP-007	0.905	32.45	0.938 
+PROXY
+	0.080 
+PROXY
+	0.425 
+PROXY
+	36.91	no	0.38	
+SP-008	0.896	32.77	0.755 
+PROXY
+	0.128 
+PROXY
+	0.637 
+PROXY
+	37.28	no	0.00	
+SP-009	0.925	31.82	0.759 
+PROXY
+	0.421 
+PROXY
+	0.677 
+PROXY
+	36.15	no	0.02	
+SP-010	0.913	32.23	0.764 
+PROXY
+	0.192 
+PROXY
+	0.827 
+PROXY
+	36.64	no	0.00	
+SP-011	0.872	33.51	0.666 
+PROXY
+	0.134 
+PROXY
+	0.937 
+PROXY
+	38.17	no	0.18	
+SP-012	0.913	32.21	0.755 
+PROXY
+	0.173 
+PROXY
+	0.637 
+PROXY
+	36.62	no	0.00	
+SP-013	0.880	33.25	0.658 
+PROXY
+	0.220 
+PROXY
+	0.526 
+PROXY
+	37.86	no	0.00	
+SP-014	0.896	32.74	0.772 
+PROXY
+	0.112 
+PROXY
+	0.393 
+PROXY
+	37.25	yes	1.00	
+SP-015	0.890	32.94	0.741 
+PROXY
+	0.104 
+PROXY
+	0.840 
+PROXY
+	37.49	no	0.00	
+SP-016	0.899	32.67	0.762 
+PROXY
+	0.266 
+PROXY
+	0.737 
+PROXY
+	37.17	no	0.00	
+SP-017	0.923	31.89	0.901 
+PROXY
+	0.048 
+PROXY
+	0.377 
+PROXY
+	36.23	yes	1.00	
+SP-018	0.920	31.98	0.749 
+PROXY
+	0.187 
+PROXY
+	0.684 
+PROXY
+	36.34	no	0.00	
+SP-019	0.889	32.99	0.797 
+PROXY
+	0.164 
+PROXY
+	0.639 
+PROXY
+	37.55	no	0.00	
+SP-020	0.910	32.31	0.835 
+PROXY
+	0.490 
+PROXY
+	0.827 
+PROXY
+	36.74	no	0.00	
+SP-021	0.917	32.09	0.607 
+PROXY
+	0.135 
+PROXY
+	0.658 
+PROXY
+	36.47	yes	1.00	
+SP-022	0.943	31.25	0.849 
+PROXY
+	0.525 
+PROXY
+	0.823 
+PROXY
+	35.47	no	0.06	
+SP-023	0.935	31.50	0.711 
+PROXY
+	0.459 
+PROXY
+	0.669 
+PROXY
+	35.77	no	0.45	
+SP-024	0.920	31.99	0.918 
+PROXY
+	0.506 
+PROXY
+	0.496 
+PROXY
+	36.35	no	0.18	
+SP-025	0.885	33.09	0.833 
+PROXY
+	0.180 
+PROXY
+	0.748 
+PROXY
+	37.66	no	0.00	
+SP-026	0.933	31.58	0.855 
+PROXY
+	0.536 
+PROXY
+	0.669 
+PROXY
+	35.87	no	0.00	
+SP-027	0.931	31.65	0.757 
+PROXY
+	0.363 
+PROXY
+	0.860 
+PROXY
+	35.95	yes	0.75	
+SP-028	0.888	33.02	0.766 
+PROXY
+	0.446 
+PROXY
+	0.522 
+PROXY
+	37.58	no	0.00	
+SP-029	0.883	33.15	0.848 
+PROXY
+	0.564 
+PROXY
+	0.387 
+PROXY
+	37.74	no	0.31	
+SP-030	0.880	33.27	0.612 
+PROXY
+	0.483 
+PROXY
+	0.643 
+PROXY
+	37.89	no	0.50	
+SP-031	0.920	31.98	0.612 
+PROXY
+	0.178 
+PROXY
+	0.589 
+PROXY
+	36.35	yes	1.00	Balanced
+SP-032	0.893	32.84	0.754 
+PROXY
+	0.337 
+PROXY
+	0.479 
+PROXY
+	37.37	no	0.24	
+SP-033	0.894	32.81	0.666 
+PROXY
+	0.127 
+PROXY
+	0.936 
+PROXY
+	37.33	no	0.31	
+SP-034	0.912	32.23	0.744 
+PROXY
+	0.416 
+PROXY
+	0.661 
+PROXY
+	36.64	no	0.00	
+SP-035	0.889	32.96	0.934 
+PROXY
+	0.209 
+PROXY
+	0.631 
+PROXY
+	37.51	no	0.00	
+SP-036	0.877	33.35	0.669 
+PROXY
+	0.273 
+PROXY
+	0.431 
+PROXY
+	37.98	yes	0.97	
+SP-037	0.900	32.62	0.859 
+PROXY
+	0.308 
+PROXY
+	0.432 
+PROXY
+	37.11	no	0.33	
+SP-038	0.897	32.71	0.908 
+PROXY
+	0.171 
+PROXY
+	0.549 
+PROXY
+	37.21	no	0.00	
+SP-039	0.919	32.01	0.749 
+PROXY
+	0.215 
+PROXY
+	0.919 
+PROXY
+	36.38	no	0.02	
+SP-040	0.882	33.21	0.933 
+PROXY
+	0.244 
+PROXY
+	0.806 
+PROXY
+	37.81	no	0.00	
+SP-041	0.875	33.41	0.801 
+PROXY
+	0.285 
+PROXY
+	0.832 
+PROXY
+	38.05	no	0.00	
+SP-042	0.906	32.44	0.729 
+PROXY
+	0.117 
+PROXY
+	0.768 
+PROXY
+	36.89	no	0.20	
+SP-043	0.885	33.11	0.772 
+PROXY
+	0.171 
+PROXY
+	0.579 
+PROXY
+	37.69	no	0.00	
+SP-044	0.878	33.31	0.963 
+PROXY
+	0.552 
+PROXY
+	0.531 
+PROXY
+	37.93	no	0.00	
+SP-045	0.913	32.22	0.716 
+PROXY
+	0.092 
+PROXY
+	0.752 
+PROXY
+	36.63	yes	0.55	
+SP-046	0.914	32.20	0.817 
+PROXY
+	0.612 
+PROXY
+	0.343 
+PROXY
+	36.60	yes	1.00	Lowest cost
+SP-047	0.891	32.92	0.742 
+PROXY
+	0.162 
+PROXY
+	0.725 
+PROXY
+	37.46	no	0.00	
+SP-048	0.910	32.32	0.957 
+PROXY
+	0.197 
+PROXY
+	0.405 
+PROXY
+	36.75	no	0.00	
+SP-049	0.906	32.43	0.809 
+PROXY
+	0.249 
+PROXY
+	0.793 
+PROXY
+	36.88	no	0.00	
+SP-050	0.898	32.70	0.839 
+PROXY
+	0.593 
+PROXY
+	0.649 
+PROXY
+	37.20	no	0.00	
+SP-051	0.904	32.51	0.651 
+PROXY
+	0.518 
+PROXY
+	0.636 
+PROXY
+	36.98	no	0.00	
+SP-052	0.882	33.19	0.751 
+PROXY
+	0.590 
+PROXY
+	0.415 
+PROXY
+	37.78	yes	0.38	
+SP-053	0.882	33.21	0.771 
+PROXY
+	0.298 
+PROXY
+	0.564 
+PROXY
+	37.81	no	0.00	
+SP-054	0.921	31.96	0.941 
+PROXY
+	0.242 
+PROXY
+	0.767 
+PROXY
+	36.32	no	0.00	
+SP-055	0.908	32.37	0.846 
+PROXY
+	0.498 
+PROXY
+	0.812 
+PROXY
+	36.81	no	0.00	
+SP-056	0.853	34.12	0.881 
+PROXY
+	0.460 
+PROXY
+	0.441 
+PROXY
+	38.90	no	0.00	
+SP-057	0.905	32.48	0.786 
+PROXY
+	0.623 
+PROXY
+	0.957 
+PROXY
+	36.94	no	0.00	
+SP-058	0.926	31.80	0.767 
+PROXY
+	0.068 
+PROXY
+	0.611 
+PROXY
+	36.12	yes	1.00	
+SP-059	0.928	31.73	0.796 
+PROXY
+	0.221 
+PROXY
+	0.377 
+PROXY
+	36.04	yes	1.00	
+SP-060	0.887	33.04	0.748 
+PROXY
+	0.307 
+PROXY
+	0.967 
+PROXY
+	37.61	no	0.00	
+SP-061	0.902	32.57	0.725 
+PROXY
+	0.143 
+PROXY
+	0.801 
+PROXY
+	37.04	no	0.00	
+SP-062	0.932	31.60	0.931 
+PROXY
+	0.109 
+PROXY
+	0.702 
+PROXY
+	35.89	yes	1.00	
+SP-063	0.880	33.24	0.875 
+PROXY
+	0.639 
+PROXY
+	0.663 
+PROXY
+	37.85	no	0.00	
+SP-064	0.882	33.18	0.926 
+PROXY
+	0.214 
+PROXY
+	0.544 
+PROXY
+	37.78	no	0.00	
+SP-065	0.923	31.90	0.736 
+PROXY
+	0.084 
+PROXY
+	0.724 
+PROXY
+	36.24	yes	0.68	
+SP-066	0.936	31.48	0.824 
+PROXY
+	0.335 
+PROXY
+	0.825 
+PROXY
+	35.74	yes	1.00	
+SP-067	0.879	33.28	0.683 
+PROXY
+	0.295 
+PROXY
+	0.395 
+PROXY
+	37.89	yes	0.93	
+SP-068	0.905	32.48	0.791 
+PROXY
+	0.391 
+PROXY
+	0.468 
+PROXY
+	36.94	yes	0.81	
+SP-069	0.903	32.54	0.756 
+PROXY
+	0.436 
+PROXY
+	0.543 
+PROXY
+	37.01	no	0.00	
+SP-070	0.922	31.92	0.798 
+PROXY
+	0.319 
+PROXY
+	0.692 
+PROXY
+	36.27	no	0.00	
+SP-071	0.911	32.27	0.918 
+PROXY
+	0.267 
+PROXY
+	0.558 
+PROXY
+	36.69	no	0.00	
+SP-072	0.865	33.72	0.841 
+PROXY
+	0.583 
+PROXY
+	0.630 
+PROXY
+	38.42	no	0.00	
+SP-073	0.913	32.22	0.661 
+PROXY
+	0.216 
+PROXY
+	0.556 
+PROXY
+	36.62	yes	1.00	
+SP-074	0.913	32.20	0.809 
+PROXY
+	0.329 
+PROXY
+	0.941 
+PROXY
+	36.60	no	0.00	
+SP-075	0.944	31.22	0.701 
+PROXY
+	0.382 
+PROXY
+	0.639 
+PROXY
+	35.43	yes	1.00	Highest cooling
+SP-076	0.871	33.55	0.838 
+PROXY
+	0.141 
+PROXY
+	0.604 
+PROXY
+	38.22	no	0.00	
+SP-077	0.903	32.54	0.710 
+PROXY
+	0.150 
+PROXY
+	0.744 
+PROXY
+	37.01	no	0.00	
+SP-078	0.920	31.99	0.804 
+PROXY
+	0.395 
+PROXY
+	0.888 
+PROXY
+	36.35	no	0.00	
+SP-079	0.935	31.52	0.772 
+PROXY
+	0.472 
+PROXY
+	0.841 
+PROXY
+	35.79	no	0.00	
+SP-080	0.879	33.31	0.755 
+PROXY
+	0.189 
+PROXY
+	0.456 
+PROXY
+	37.93	yes	0.88	
+SP-081	0.896	32.76	0.784 
+PROXY
+	0.138 
+PROXY
+	0.929 
+PROXY
+	37.27	no	0.00	
+SP-082	0.885	33.11	0.952 
+PROXY
+	0.140 
+PROXY
+	0.858 
+PROXY
+	37.69	no	0.00	
+SP-083	0.932	31.59	0.906 
+PROXY
+	0.605 
+PROXY
+	0.820 
+PROXY
+	35.88	no	0.00	
+SP-084	0.885	33.09	0.693 
+PROXY
+	0.350 
+PROXY
+	0.437 
+PROXY
+	37.67	yes	0.93	
+SP-085	0.924	31.87	0.875 
+PROXY
+	0.307 
+PROXY
+	0.902 
+PROXY
+	36.21	no	0.00	
+SP-086	0.912	32.25	0.913 
+PROXY
+	0.374 
+PROXY
+	0.463 
+PROXY
+	36.67	no	0.19	
+SP-087	0.915	32.14	0.707 
+PROXY
+	0.359 
+PROXY
+	0.829 
+PROXY
+	36.53	no	0.00	
+SP-088	0.874	33.45	0.922 
+PROXY
+	0.311 
+PROXY
+	0.525 
+PROXY
+	38.11	no	0.00	
+SP-089	0.912	32.24	0.921 
+PROXY
+	0.535 
+PROXY
+	0.807 
+PROXY
+	36.65	no	0.00	
+SP-090	0.891	32.92	0.668 
+PROXY
+	0.147 
+PROXY
+	0.828 
+PROXY
+	37.46	no	0.08	
+SP-091	0.921	31.95	0.672 
+PROXY
+	0.109 
+PROXY
+	0.632 
+PROXY
+	36.31	yes	0.89	
+SP-092	0.881	33.23	0.759 
+PROXY
+	0.231 
+PROXY
+	0.351 
+PROXY
+	37.84	yes	1.00	
+SP-093	0.888	33.00	0.746 
+PROXY
+	0.102 
+PROXY
+	0.533 
+PROXY
+	37.56	no	0.00	
+SP-094	0.922	31.93	0.827 
+PROXY
+	0.438 
+PROXY
+	0.866 
+PROXY
+	36.29	no	0.00	
+SP-095	0.916	32.11	0.619 
+PROXY
+	0.406 
+PROXY
+	0.476 
+PROXY
+	36.49	yes	1.00	
+SP-096	0.926	31.79	0.804 
+PROXY
+	0.570 
+PROXY
+	0.441 
+PROXY
+	36.11	no	0.47	
+Temperature and reflectance curves of the three recipes
+Live simulator: move a slider and the models run again in your browser
+Sensitivity: which inputs move each output most
+
+The full card of each shortlisted recipe is under Recipes.
+
+Method and limits
+
+PROXY statement
+
+Indices for corrosion, water repellence, delamination and cost are PROXY numbers from simple relations, not calibrated against experiments. Every PROXY index is uncalibrated: a relative ranking, not a measurement and not a probability. Intervals show parameter uncertainty only.
+
+Method
+
+Optics: Mie scattering of TiO2 and BaSO4 pigments in a binder, a two-flux film model and the ASTM G173 spectrum. Heat: a one-dimensional surface balance (radiation, convection, conduction into the building) over two simulated days; the second day is shown. Uncertainty: 256 Latin-hypercube draws of the uncertain material constants; intervals are p5 to p95 widened to include the nominal value (parameter uncertainty only).
+
+The main results (recipes, explorer, live simulator, budget) describe the initial, as-applied state. Ageing appears only as a labelled scenario in the Indonesian climate section, never as a measurement.
+
+Limits
+Optics assume independent scattering (no dependent-scattering correction); no NIR binder absorption is modelled and R is held outside the 300–2500 nm range.
+The wind level of 6 m/s is beyond the usual McAdams range of the convection correlation (about 5 m/s).
+Every PROXY index is uncalibrated: a relative ranking number, not a measurement and not a probability.
+Intervals are parameter-uncertainty only (p5–p95 over the uncertainty draws of the uncertain inputs); they exclude model-form error and are not prediction intervals for a real roof.
+The sol-gel water ratio has no effect in the range 1–5 in the model.
+Sol-gel condensation is taken as pH-independent in the model.
+Contact angle and sliding angle are lab-verified quantities; the smooth-film model rarely reaches 110°.
+Adhesion is unknown, binder compatibility is unknown, and optical constants for several materials are missing (scenario values stand in).
+All values are initial (as-applied); weathering and adhesion are not modelled and ageing is not measured (the Indonesia section, when present, shows it only as a labelled scenario).
+
+Not modelled: weathering and ageing beyond the labelled scenario, adhesion, soiling and biological growth, wind-driven rain and chloride deposition. The bare aluminium reference uses a nominal scenario value, because the sheet itself was never measured. Every PROXY index is an uncalibrated relative ranking, not a measurement or a probability.
+
+Assumed constants (status: scenario)
+Glossary: every term the page uses
+Provenance
+Run
+20261121T172730601-6a7a8fba
+Seed
+20261121
+Uncertainty draws
+256
+Core hash
+c7e55ad9712bb788e828350de078731aeeed245023d8dbfc61f6239788c355d5
+Commit
+862e8aa6e505d803f68b20628dfe22abfc0ae3a2
+Bun
+1.3.14
+Later outputs embedded in this page
+
+These files are listed in the manifest's extra entries and were checked against the hashes below before the page was built. The page was built against core hash c7e55ad9712bb788e828350de078731aeeed245023d8dbfc61f6239788c355d5; verify-report flags a page whose core hash no longer matches the manifest.
+
+The 9 later files this page was built from, with hashes
+Manifest and file hashes
+Licences

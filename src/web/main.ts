@@ -2,10 +2,17 @@
 // This file renders the static report: explorer figures, curves, spectra, sensitivity, theme. Sections added by later plans
 // register an initialiser in `SECTION_INIT` below and read their data from window.__SPANDEK__.ext.
 
+import {
+  designsOf,
+  type ScreeningData,
+  screenChunk,
+} from "../core/anim/screening"
+import { sweepVariables } from "../core/anim/sweep"
 import type { MaterialRanges, WeatherConfig } from "../core/config"
 import { weatherL9 } from "../core/design"
 import type { Level } from "../core/events"
 import type { Spectrum } from "../core/literature"
+import { contextFromJson } from "../core/pipeline/contextJson"
 import type { LiveInputs, LiveResult } from "../core/pipeline/live"
 import type {
   CurvesJson,
@@ -13,6 +20,18 @@ import type {
   SensRow,
   SpectraJson,
 } from "../core/pipeline/tables"
+import { type ComparePanel, mountComparePanel } from "./anim/comparePanel"
+import { dayDataOf } from "./anim/dayData"
+import {
+  browserDayDeps,
+  type DayPlayer,
+  mountDayPlayer,
+} from "./anim/dayPlayer"
+import { browserLoop, type Loop, testHooksEnabled } from "./anim/loop"
+import { mountPhysicsPanel, type PhysicsPanel } from "./anim/physicsPanel"
+import { mountScreeningPanel, type Panel } from "./anim/screeningPanel"
+import { mountSweepPanel, type SweepPanel } from "./anim/sweepPanel"
+import { createTweens, type Tweens } from "./anim/tween"
 import { mountBudgetPanel } from "./design/organisms/budgetPanel"
 import { applyPlotTheme, type PlotTheme } from "./design/plotTheme"
 import {
@@ -41,11 +60,14 @@ import {
 import {
   clampInputs,
   defaultLiveState,
+  liveLabel,
+  liveValue,
   N_LIVE,
   type SliderSpec,
   sliderSpecs,
 } from "./liveState"
 import { figFrontier, figRefineFront } from "./optimisation"
+import { inlineSweepLane } from "./pool"
 import { type BudgetPage, budgetLookup } from "./recipe"
 
 export type PageData = {
@@ -58,6 +80,8 @@ export type PageData = {
   outputs: string[]
   g173: { wl_um: number[]; irradiance_w_m2_um: number[] }
   ctxJson: string
+  /** Designs, scenarios and the batch nominal values of the 96 x 9 screening (plan 07 H7). */
+  screening: ScreeningData
   workerSrc: string
   ext: Record<string, unknown>
   plotThemes: { dark: PlotTheme; light: PlotTheme }
@@ -85,6 +109,22 @@ declare global {
     Plotly: Plotly
     __brushRanges?: () => Record<string, [number, number][]>
     __burst?: (n: number, ms: number) => Promise<BurstLog>
+    __anim?: {
+      frames: () => number
+      state: () => ReturnType<DayPlayer["state"]> | null
+      killWorker: (id: number) => void
+      tweening: () => number
+      sweep: () => ReturnType<SweepPanel["state"]> | null
+      sweepKill: (id: number) => void
+      sweepStats: () => {
+        created: number
+        terminated: number
+        live: number
+      } | null
+      physics: () => ReturnType<PhysicsPanel["state"]> | null
+      physicsKill: () => void
+      physicsStep: (n: number) => void
+    }
   }
 }
 /** Result of the burst hook (installed only under the #test fragment). */
@@ -304,6 +344,227 @@ const SECTION_INIT: Record<string, (data: unknown, draw: Draw) => void> = {
   climate: initIndonesia,
 }
 
+// ---- watch it run (plan 07): the day player follows the live simulator, the screening runs on the worker pool ----
+
+type Watch = {
+  loop: Loop
+  tweens: Tweens
+  /** Called with every live result that is shown; the day player (mounted on the first one) follows it. */
+  onResult(r: LiveResult, inputs: LiveInputs, weather: WeatherConfig): void
+  /** The live worker could not start or died: the day player says it is unavailable. */
+  onFail(text: string): void
+  /** Drop the running glide of `key` (or all): a value written directly must not be overwritten by it. */
+  stopGlide(key?: string): void
+  /** Glide a tile number to its new value (jumps under reduced motion); the last value is exactly the result. */
+  glide(key: string, target: number, apply: (v: number) => void): void
+  player(): DayPlayer | null
+  panel: Panel | null
+  sweep(): SweepPanel | null
+  physics(): PhysicsPanel | null
+}
+
+function ringNote(line: string): void {
+  ring.push(line)
+  if (ring.length > RING) ring.shift()
+  const dbg = document.getElementById("debug") as HTMLDetailsElement | null
+  if (dbg?.open) $("debug-events").textContent = ring.join("\n")
+}
+
+function initWatch(): Watch {
+  const root = document.documentElement
+  const mq = matchMedia("(prefers-reduced-motion: reduce)")
+  const reduced = (): boolean => mq.matches || root.dataset.motion === "reduce"
+  const loop = browserLoop((s) =>
+    ringNote(`debug anim.frame_stats ${JSON.stringify(s)}`),
+  )
+  const tweens = createTweens(reduced)
+  let offTween: (() => void) | null = null
+  const motionMs = (): number =>
+    Number.parseFloat(
+      getComputedStyle(root).getPropertyValue("--tv-motion-base"),
+    ) || 0
+  const log = (e: string, f: Record<string, string | number | boolean>): void =>
+    ringNote(`info ${e} ${JSON.stringify(f)}`)
+  const debugOn = testHooksEnabled(location.hash)
+  /** Production keeps info and error only; per-point and per-frame events are debug and are recorded under #test. */
+  const wlog = (
+    e: string,
+    l: "debug" | "info" | "error",
+    f: Record<string, string | number | boolean>,
+  ): void => {
+    if (l === "debug" && !debugOn) return
+    ringNote(`${l} ${e} ${JSON.stringify(f)}`)
+  }
+  const detailsEl = document.getElementById(
+    "details-screening",
+  ) as HTMLDetailsElement | null
+  const tabsEl = document.getElementById("watch-tabs")
+  const tabNow = (): string =>
+    tabsEl
+      ?.querySelector('[role="tab"][aria-selected="true"]')
+      ?.getAttribute("data-tab") ?? "screening"
+  const ensureSweep = (): void => {
+    const root = document.querySelector<HTMLElement>("[data-watch-sweep]")
+    if (sweep || !root) return
+    const ctx = contextFromJson(D.ctxJson)
+    sweep = mountSweepPanel(root, {
+      ctx,
+      ctxJson: D.ctxJson,
+      workerUrl: URL.createObjectURL(
+        new Blob([D.workerSrc], { type: "text/javascript" }),
+      ),
+      variables: sweepVariables(ctx.ranges, ctx.weather),
+      live: () =>
+        lastInputs ?? defaultLiveState(ctx.ranges, ctx.weather).inputs,
+      loop,
+      inline: inlineSweepLane,
+      log: wlog,
+    })
+  }
+  const ensurePhysics = (): void => {
+    const host = document.getElementById("watch-tabs-panel-physics")
+    if (physics || !host) return
+    const ctx = contextFromJson(D.ctxJson)
+    physics = mountPhysicsPanel(host, {
+      ctx,
+      ctxJson: D.ctxJson,
+      workerUrl: URL.createObjectURL(
+        new Blob([D.workerSrc], { type: "text/javascript" }),
+      ),
+      ...(typeof Worker === "undefined" ? {} : { Worker }),
+      loop,
+      reduced,
+      // D10: the panel's sliders write the live simulator's own sliders, so there is one source of truth
+      setScenario: (patch) => {
+        for (const [k, v] of Object.entries(patch)) {
+          const rg = document.getElementById(
+            `live-range-${k}`,
+          ) as HTMLInputElement | null
+          if (!rg) continue
+          rg.value = String(v)
+          rg.dispatchEvent(new Event("input", { bubbles: true }))
+        }
+      },
+      log: wlog,
+    })
+    if (lastResult) physics.update(lastResult.r, lastResult.inputs)
+  }
+  /** The comparison, the sweep and the live physics work only while their tab is on screen (plan 08 D12, plan 09 D13). */
+  const syncOpen = (): void => {
+    const open = detailsEl?.open === true
+    const tab = tabNow()
+    compare?.setOpen(open && tab === "compare")
+    if (open && tab === "sweep") ensureSweep()
+    sweep?.setOpen(open && tab === "sweep")
+    if (open && tab === "physics") ensurePhysics()
+    physics?.setOpen(open && tab === "physics")
+  }
+  detailsEl?.addEventListener("toggle", syncOpen)
+  tabsEl?.addEventListener("tabs-change", syncOpen)
+
+  let player: DayPlayer | null = null
+  let compare: ComparePanel | null = null
+  let sweep: SweepPanel | null = null
+  let physics: PhysicsPanel | null = null
+  let lastResult: { r: LiveResult; inputs: LiveInputs } | null = null
+  let lastInputs: LiveInputs | null = null
+  let lastKey = ""
+  const dayRoot = document.querySelector<HTMLElement>("[data-watch-day]")
+  const sw = document.querySelector<HTMLInputElement>(
+    '[data-anim="reduce-motion"]',
+  )
+  const w: Watch = {
+    loop,
+    tweens,
+    panel: null,
+    sweep: () => sweep,
+    physics: () => physics,
+    player: () => player,
+    stopGlide: (key) => tweens.stop(key),
+    glide(key, target, apply) {
+      tweens.to(key, target, apply, motionMs())
+      if (tweens.active() > 0 && offTween === null)
+        offTween = loop.add((_dt, now) => {
+          tweens.tick(now)
+          if (tweens.active() === 0) {
+            offTween?.()
+            offTween = null
+          }
+        })
+    },
+    onResult(r, inputs, weather) {
+      if (!dayRoot) return
+      const data = dayDataOf(r, inputs, weather)
+      if (player) player.setData(data)
+      else {
+        const deps = browserDayDeps(loop, log)
+        deps.reduced = reduced
+        deps.onReducedChange = (cb) => {
+          mq.addEventListener("change", cb)
+          sw?.addEventListener("change", cb)
+        }
+        player = mountDayPlayer(dayRoot, data, deps)
+      }
+      // plan 08: the lanes follow the day player's clock; a changed live input cancels and marks the sweep stale
+      const compareRoot = document.querySelector<HTMLElement>(
+        "[data-watch-compare]",
+      )
+      if (player && compareRoot && !compare) {
+        compare = mountComparePanel(compareRoot, player, { log: wlog })
+        syncOpen()
+      }
+      compare?.update(r, inputs, weather)
+      lastResult = { r, inputs }
+      physics?.update(r, inputs)
+      lastInputs = inputs
+      const k = JSON.stringify(inputs)
+      if (k !== lastKey) {
+        lastKey = k
+        sweep?.liveChanged()
+      }
+    },
+    onFail(text) {
+      if (!dayRoot) return
+      dayRoot.dataset.state = "unavailable"
+      let note = dayRoot.querySelector<HTMLElement>('[data-anim="day-status"]')
+      if (!note) {
+        note = mk("p", "page-hint")
+        note.dataset.anim = "day-status"
+        note.setAttribute("role", "alert")
+        dayRoot.append(note)
+      }
+      note.textContent = `${text} The day player needs the live simulator.`
+      for (const e of dayRoot.querySelectorAll("button,input,select"))
+        (e as HTMLInputElement).disabled = true
+    },
+  }
+  sw?.addEventListener("change", () => {
+    if (sw.checked) root.dataset.motion = "reduce"
+    else root.removeAttribute("data-motion")
+  })
+
+  const screenRoot = document.querySelector<HTMLElement>(
+    "[data-watch-screening]",
+  )
+  if (screenRoot) {
+    w.panel = mountScreeningPanel(screenRoot, {
+      data: D.screening,
+      ctxJson: D.ctxJson,
+      workerUrl: URL.createObjectURL(
+        new Blob([D.workerSrc], { type: "text/javascript" }),
+      ),
+      draws: 32,
+      inline: (c, d, draws) => {
+        const ctx = contextFromJson(c)
+        const designs = designsOf(d)
+        return (tasks) => screenChunk(ctx, designs, d.scenarios, tasks, draws)
+      },
+      log: wlog,
+    })
+  }
+  return w
+}
+
 // ---- live simulator (plan 00 D2, D3, D10): sliders -> worker -> tiles and charts ----
 
 type WorkerEvent = {
@@ -397,11 +658,22 @@ type LiveApi = {
   burst: (n: number, ms: number) => Promise<BurstLog>
 }
 
-function initLive(): LiveApi {
+function initLive(watch: Watch): LiveApi {
   const root = $("live-root")
-  const cfg = JSON.parse(D.ctxJson) as {
-    ranges: MaterialRanges
-    weather: WeatherConfig
+  let cfg: { ranges: MaterialRanges; weather: WeatherConfig }
+  try {
+    cfg = JSON.parse(D.ctxJson) as typeof cfg
+  } catch {
+    // an unreadable model context (F7): say so, show no numbers, and let the rest of the page work
+    const text =
+      "The live simulator could not start because its model data is unreadable. The static results below still work."
+    const st = $("live-status")
+    st.textContent = text
+    st.setAttribute("role", "alert")
+    watch.onFail(text)
+    return {
+      burst: () => Promise.reject(new Error("live simulator unavailable")),
+    }
   }
   const specs = sliderSpecs(cfg.ranges, cfg.weather)
   let inputs: LiveInputs = defaultLiveState(cfg.ranges, cfg.weather).inputs
@@ -434,22 +706,50 @@ function initLive(): LiveApi {
     inputs = clampInputs(inputs, cfg.ranges, cfg.weather)
   }
 
+  // a worker that cannot start or has died: say so loudly, turn the controls off, and show no stale numbers
+  const fail = (text: string): void => {
+    watch.onFail(text)
+    watch.stopGlide()
+    worker = null
+    inFlight = null
+    pending = null
+    busy()
+    status.textContent = text
+    status.className = "live-status--fail"
+    status.setAttribute("role", "alert")
+    for (const e of $("live-controls").querySelectorAll("input,select"))
+      (e as HTMLInputElement).disabled = true
+    for (const e of tiles.querySelectorAll(".tile-value"))
+      e.textContent = "unavailable"
+    for (const e of tiles.querySelectorAll(".tile-range"))
+      e.textContent = "the live simulator is not running"
+  }
+
   // ---- scheduler (D3): one request in flight, one pending (the newest), results shown only when newer ----
   let requested = 0
   let shownId = 0
   let doneId = 0
-  let inFlight: { id: number; t: number } | null = null
+  let inFlight: { id: number; t: number; inputs: LiveInputs } | null = null
   let pending: { id: number; inputs: LiveInputs; t: number } | null = null
   let frame = 0
   let lastInputs: LiveInputs = structuredClone(inputs)
   const shownLog: number[] = []
   let worker: Worker | null = null
 
+  const busy = (): void => {
+    const el = document.getElementById("live-computing")
+    if (!el) return
+    const on = worker !== null && (inFlight !== null || pending !== null)
+    el.dataset.state = on ? "busy" : "idle"
+    const txt = el.querySelector(".tv-computing__text")
+    if (txt) txt.textContent = on ? "Computing in your browser" : "Idle"
+  }
   const pump = (): void => {
     if (worker === null || inFlight !== null || pending === null) return
     const p = pending
     pending = null
-    inFlight = { id: p.id, t: p.t }
+    inFlight = { id: p.id, t: p.t, inputs: p.inputs }
+    busy()
     worker.postMessage({ type: "run", id: p.id, inputs: p.inputs })
   }
   const schedule = (): void => {
@@ -464,6 +764,7 @@ function initLive(): LiveApi {
     lastInputs = structuredClone(inputs)
     pending = { id, inputs: lastInputs, t: performance.now() }
     root.dataset.requested = String(id)
+    busy()
     schedule()
   }
 
@@ -484,10 +785,16 @@ function initLive(): LiveApi {
     e.dataset.nominal = String(nom)
     e.dataset.lo = String(b ? b.lo : "")
     e.dataset.hi = String(b ? b.hi : "")
-    ;(e.querySelector(".tile-value") as HTMLElement).textContent = fmtValue(
-      nom,
-      t.digits,
-    )
+    const val = e.querySelector(".tile-value") as HTMLElement
+    val.dataset.tween = ""
+    if (Number.isFinite(nom))
+      watch.glide(`tile-${t.id}`, nom, (v) => {
+        val.textContent = fmtValue(v, t.digits)
+      })
+    else {
+      watch.stopGlide(`tile-${t.id}`)
+      val.textContent = fmtValue(nom, t.digits)
+    }
     const rng = e.querySelector(".tile-range") as HTMLElement
     if (!b) rng.textContent = "nominal only, no interval"
     else if (Number.isNaN(nom))
@@ -499,8 +806,10 @@ function initLive(): LiveApi {
   const show = (
     m: Extract<FromWorker, { type: "result" }>,
     t0: number,
+    sent: LiveInputs | undefined,
   ): void => {
     shownId = m.id
+    if (sent) watch.onResult(m.result, sent, cfg.weather)
     shownLog.push(m.id)
     if (shownLog.length > 2000) shownLog.shift()
     for (const t of TILES) setTile(t, m.result)
@@ -536,10 +845,12 @@ function initLive(): LiveApi {
     } else if (m.type === "result") {
       const sent = inFlight
       inFlight = null
-      if (m.id > shownId) show(m, sent?.t ?? performance.now())
+      if (m.id > shownId) show(m, sent?.t ?? performance.now(), sent?.inputs)
+      busy()
       schedule()
     } else {
       inFlight = null
+      busy()
       if (m.id > shownId) {
         shownId = m.id
         doneId = Math.max(doneId, m.id)
@@ -585,7 +896,7 @@ function initLive(): LiveApi {
   groups.scenario.append(preset)
   for (const s of specs) {
     const row = mk("div", "srow")
-    const lab = mk("label", undefined, `${s.label} (${s.unit})`)
+    const lab = mk("label", undefined, liveLabel(s))
     lab.htmlFor = `live-num-${s.key}`
     const rg = mk("input")
     rg.type = "range"
@@ -600,31 +911,50 @@ function initLive(): LiveApi {
     nb.id = `live-num-${s.key}`
     nb.min = String(s.min)
     nb.max = String(s.max)
-    nb.step = "any"
-    nb.value = String(s.value)
+    nb.step = String(s.step)
+    nb.value = liveValue(s.step, s.value)
     rangeEls.set(s.key, rg)
     numEls.set(s.key, nb)
     const after = (src: "range" | "box"): void => {
       commit()
       const v = String(get(s))
-      if (src === "range") nb.value = v
+      if (src === "range") nb.value = liveValue(s.step, get(s))
       rg.value = v
       if (s.group === "scenario") preset.value = "custom"
       request()
+    }
+    const typed = (): number | null => {
+      const v = Number.parseFloat(nb.value)
+      return nb.value.trim() !== "" &&
+        Number.isFinite(v) &&
+        v >= s.min &&
+        v <= s.max
+        ? v
+        : null
     }
     rg.addEventListener("input", () => {
       put(s, Number(rg.value))
       after("range")
     })
+    // an empty, minus or out-of-range entry leaves the previous result on screen and marks the box; blur restores a valid value
     nb.addEventListener("input", () => {
-      put(s, Number.parseFloat(nb.value))
+      const v = typed()
+      if (v === null) {
+        nb.setAttribute("aria-invalid", "true")
+        return
+      }
+      nb.removeAttribute("aria-invalid")
+      put(s, v)
       after("box")
     })
     nb.addEventListener("change", () => {
-      put(s, Number.parseFloat(nb.value))
+      nb.removeAttribute("aria-invalid")
+      const v = Number.parseFloat(nb.value)
+      if (Number.isFinite(v)) put(s, v)
       commit()
-      nb.value = String(get(s))
-      rg.value = nb.value
+      nb.value = liveValue(s.step, get(s))
+      rg.value = String(get(s))
+      request()
     })
     row.append(lab, rg, nb)
     groups[s.group].append(row)
@@ -640,7 +970,7 @@ function initLive(): LiveApi {
     commit()
     for (const s of specs.filter((x) => x.group === "scenario")) {
       const v = String(get(s))
-      ;(numEls.get(s.key) as HTMLInputElement).value = v
+      ;(numEls.get(s.key) as HTMLInputElement).value = liveValue(s.step, get(s))
       ;(rangeEls.get(s.key) as HTMLInputElement).value = v
     }
     request()
@@ -667,14 +997,13 @@ function initLive(): LiveApi {
     )
     worker = new Worker(url)
     worker.onmessage = (e: MessageEvent<FromWorker>) => onMessage(e.data)
-    worker.onerror = () => {
-      status.textContent =
-        "The live simulator stopped. The static results below still work."
-    }
+    worker.onerror = () =>
+      fail("The live simulator stopped. The static results below still work.")
     worker.postMessage({ type: "init", ctxJson: D.ctxJson })
   } catch {
-    status.textContent =
-      "This browser cannot start the live simulator. The static results below still work."
+    fail(
+      "This browser cannot start the live simulator. The static results below still work.",
+    )
   }
   request()
 
@@ -755,5 +1084,19 @@ renderCurves()
 renderSensitivity()
 for (const [id, init] of Object.entries(SECTION_INIT))
   if (id in D.ext) init(D.ext[id], (fid, spec) => void draw(fid, spec))
-const live = initLive()
+const watch = initWatch()
+const live = initLive(watch)
 if (location.hash === "#test") installTestHooks(live)
+if (testHooksEnabled(location.hash))
+  window.__anim = {
+    frames: () => watch.loop.frames(),
+    state: () => watch.player()?.state() ?? null,
+    killWorker: (id) => watch.panel?.killLane(id),
+    tweening: () => watch.tweens.active(),
+    sweep: () => watch.sweep()?.state() ?? null,
+    sweepKill: (id) => watch.sweep()?.killLane(id),
+    sweepStats: () => watch.sweep()?.poolStats() ?? null,
+    physics: () => watch.physics()?.state() ?? null,
+    physicsKill: () => watch.physics()?.killLane(),
+    physicsStep: (n) => watch.physics()?.step(n),
+  }

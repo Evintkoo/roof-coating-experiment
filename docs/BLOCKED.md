@@ -1,6 +1,6 @@
 # BLOCKED register
 
-Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11, plan 6 added BLOCKED-12 and BLOCKED-13.
+Items that cannot be completed digitally. Owner of every entry: Evint. Entries are kept in id order; plan 4 added BLOCKED-9 and BLOCKED-10, plan 5 added BLOCKED-11, plan 6 added BLOCKED-12 and BLOCKED-13, plan 7 added BLOCKED-14 and BLOCKED-15.
 
 ## BLOCKED-1: Lab calibration
 
@@ -79,3 +79,51 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Entries a
 - Reason: the vendored Torviello brand (`vendor/torviello-design`) defines a dark theme only. The report ships a derived light theme (contrast-tested, plan 06) so it stays readable in a light system setting and in print, but it is not an official brand theme.
 - Owner: Evint
 - Unblock condition: the brand owner approves the derived light theme, or supplies an official one; the tokens in `src/web/design/themes.ts` are then replaced or the derivation is recorded as approved.
+
+## BLOCKED-14: Export of the animation as video or GIF
+
+- Reason: the day player and the screening panel are live SVG driven by one animation loop in the reader's browser; the report is one offline HTML file and plan 07 adds no encoder or runtime dependency. A recorded video or GIF needs a capture pipeline (headless Chrome frame capture plus an encoder such as ffmpeg) that is not part of the build and would ship a second, unlabelled copy of model output. The report offers still frames and a frame sequence strip (`reports/screenshots/`) instead, taken from the real page.
+- Owner: Evint
+- Unblock condition: a decision that a recorded animation is wanted for a named audience (slides, web) and which encoder may be used; then a capture script under `scripts/` renders the day at fixed frame times from the built report (the pure timeline already gives deterministic frames) and the file carries the "model output, not a measurement" label burned into every frame.
+
+## BLOCKED-15: The screening on a phone
+
+- Reason: the worker pool is sized `min(hardwareConcurrency - 1, 6)` with a floor of 1 (the spike measured 0.07 s for the 864 nominal cells on 4 desktop workers and 0.22 s on one, 4 workers over 1 at about 3x), but no phone or low-end tablet was measured: browsers cap or throttle workers on narrow-core devices, and thermal throttling is not under the page's control. The page reports the measured time of the run on the reader's own machine and labels it "this machine's measurement"; it does not promise a time, and the run with 32 uncertainty draws per cell (about 7 s on one desktop thread) may take much longer on a phone.
+- Owner: Evint
+- Unblock condition: the screening is timed on at least one phone and one low-end laptop (nominal and with draws, one run per device, device model and browser recorded); then the pool cap for narrow-core devices (2 workers) is confirmed or changed and the measured times are added to `docs/spikes/plan-07.md`.
+
+## BLOCKED-16: The sweep varies one input at a time
+
+- Reason: each sweep moves one variable over its configured range with every other input held at the live simulator's values. Interactions between variables are not shown, and a curve at the live settings is not a curve at other settings. The global sensitivity indices of plan 05 (Morris and Sobol) are the place for interactions.
+- Owner: Evint
+- Unblock condition: a decision that two-variable maps are wanted for a named question; then a second variable and a heat map are a new plan (the 41-point pool path is reusable, a 41 x 41 map is about 1,700 model runs per variable pair).
+
+## BLOCKED-17: C1 is datasheet only
+
+- Reason: the commercial control C1 is one US product (APOC 252 Sunwhite brochure: initial solar reflectance 0.90, emittance 0.87), not an Indonesian datasheet, and the models run it only for the thermal outcomes. Corrosion, delamination, wetting and cost have no C1 value, so the comparison and the sweep draw no C1 line for them and say "datasheet, not modelled". Ageing is not shown (initial values only).
+- Owner: Evint
+- Unblock condition: a datasheet, or a measured performance, of an Indonesian commercial roof coating for those quantities is supplied (see BLOCKED-4); then `configs/controls.yaml` gets the values with their source and the lines can be drawn.
+
+## BLOCKED-18: No C2 or C3 lines in the comparison
+
+- Reason: the controls C2 (no topcoat) and C3 (no primer) exist only for the shortlisted candidates in the batch run; the live result and the sweep carry C0 and C1 only, so the comparison does not show them.
+- Owner: Evint
+- Unblock condition: a decision that C2 and C3 are wanted next to the live recipe; then `liveSimulate` returns them (two more thermal solves per point) and the lanes and sweep charts get one more dashed line.
+
+## BLOCKED-19: No temperature field through the layers
+
+- Reason: the thermal model is one node (`thermal.ts`: one surface temperature, one areal heat capacity, one total resistance to the inside). No model of the repo holds a temperature per layer or through the substrate, so the live physics drawing joins the surface and inside temperatures with the model's own conduction law and says "Illustrative scale: one surface temperature, none per layer". A layered conduction model needs per-layer conductivity and heat capacity data that `configs/` does not hold, and a new model plan (owner decision O1 of plan 09).
+- Owner: Evint
+- Unblock condition: per-layer conductivity and heat capacity data with sources, and a decision to commission a layered 1D conduction model (a plan of the plan 02 kind).
+
+## BLOCKED-20: Absorption is not resolved per layer
+
+- Reason: the model has the stack reflectance `R(lambda)` and an opaque aluminium substrate, so the non-reflected sunlight is absorbed and nothing is transmitted; there is no absorbed share per layer. The rays show reflected against absorbed per band, never a split of the absorbed part between layers. The midcoat scattering visual is also dropped (plan 09 Q3): `S(lambda)` exists only inside `midcoatSpectrum`, and exposing it needs a Mie evaluation per slider move on the stepper lane.
+- Owner: Evint
+- Unblock condition: a per-layer optical model with its data, or a decision to expose `S(lambda)` additively and pay the per-move Mie cost.
+
+## BLOCKED-21: Rays show fractions, not photons
+
+- Reason: the rays are deterministic quotas of the model's band fractions (UV, visible, near infrared) and move on a fixed schedule; they are not photon trajectories and not Mie angular scattering, which the models do not compute. The panel says "Rays show fractions, not photons".
+- Owner: Evint
+- Unblock condition: a decision that a stochastic or angular scattering model is wanted, with its own plan and validation data.

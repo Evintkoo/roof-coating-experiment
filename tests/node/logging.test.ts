@@ -134,3 +134,12 @@ test("levelEnabledFollowsConfiguredLevel", () => {
   setup("debug")
   expect(levelEnabled("debug")).toBe(true)
 })
+
+test("aStderrWriteErrorDoesNotSurfaceAsAFailureOfTheCaller", () => {
+  // no runDir -> emit writes to stderr; an async EBADF on the stream must be swallowed, not thrown at whoever runs next
+  configureLogging({ runId: "x", level: "error" })
+  emit("t.event", "error", {})
+  expect(() =>
+    process.stderr.emit("error", new Error("EBADF: bad file descriptor")),
+  ).not.toThrow()
+})

@@ -6,6 +6,7 @@ import { codeBlock } from "../atoms/codeBlock"
 import { buildError, cls, esc, oneOf, tag } from "../html"
 import type { ProxyTone } from "../molecules/proxyBadge"
 import { stat } from "../molecules/stat"
+import { dataTable } from "./dataTable"
 
 export const RECIPE_ROLES = ["high_performing", "balanced", "low_cost"] as const
 export const RECIPE_VARIANTS = ["summary", "full"] as const
@@ -45,6 +46,8 @@ export type RecipeCardProps = {
   recommended?: boolean
   variant?: RecipeVariant
   headingLevel?: 2 | 3 | 4
+  /** Id of the layers table (default: derived from the name; give one when the same recipe is drawn twice on a page). */
+  layersId?: string
 }
 
 const C = "RecipeCard"
@@ -107,15 +110,26 @@ export function recipeCard(p: RecipeCardProps): string {
   const badges = (p.badges ?? []).map((b) => badge(b)).join("")
   const layerList =
     variant === "full" && p.layers !== undefined
-      ? tag(
-          "dl",
-          { class: "tv-recipe__layers" },
-          LAYERS.map(
-            (l) =>
-              tag("dt", {}, esc(l.title)) +
-              tag("dd", {}, esc((p.layers as RecipeLayers)[l.id])),
-          ).join(""),
-        )
+      ? dataTable({
+          id:
+            p.layersId ??
+            `layers-${p.name.replace(/[^A-Za-z0-9_-]/g, "") || "recipe"}`,
+          caption: "Layers from the metal up",
+          columns: [
+            { key: "layer", label: "Layer", kind: "text", rowHeader: true },
+            { key: "composition", label: "Composition", kind: "text" },
+            { key: "thickness", label: "Thickness", kind: "text" },
+          ],
+          rows: LAYERS.map((l) => {
+            const s = (p.layers as RecipeLayers)[l.id]
+            const cut = s.lastIndexOf(", ")
+            return {
+              layer: l.title,
+              composition: cut < 0 ? s : s.slice(0, cut),
+              thickness: cut < 0 ? "" : s.slice(cut + 2),
+            }
+          }),
+        })
       : ""
   return tag(
     "article",

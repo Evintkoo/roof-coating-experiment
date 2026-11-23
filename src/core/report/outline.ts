@@ -30,6 +30,13 @@ export const OUTLINE: readonly OutlineSection[] = [
     optional: false,
   },
   {
+    id: "watch",
+    title: "Watch it run",
+    question:
+      "What does a day on the roof look like, and can I run the screening myself?",
+    optional: false,
+  },
+  {
     id: "climate",
     title: "Indonesian climate",
     question: "How much does it help at five Indonesian sites?",
@@ -67,6 +74,10 @@ export const ROLE_LABELS = {
   balanced: "Balanced",
   low_cost: "Lowest cost",
 } as const
+
+/** The role in words (the codes high_performing, balanced and low_cost stay in the files and the data). */
+export const roleText = (role: string): string =>
+  role in ROLE_LABELS ? ROLE_LABELS[role as keyof typeof ROLE_LABELS] : role
 
 export const ROLE_BLURBS = {
   high_performing: "Chosen for the largest modelled drop in roof temperature.",

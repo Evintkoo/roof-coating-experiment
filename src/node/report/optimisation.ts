@@ -3,10 +3,12 @@ import { join } from "node:path"
 import { coerceCell, parseCsv } from "../../core/csv"
 import { ConfigError, DataError } from "../../core/errors"
 import { OBJECTIVE_COLUMNS } from "../../core/pipeline/tables"
+import { roleText } from "../../core/report/outline"
 import { callout } from "../../web/design/molecules/callout"
 import { disclosure } from "../../web/design/molecules/disclosure"
 import { figureFrame } from "../../web/design/molecules/figureFrame"
 import { budgetPanel } from "../../web/design/organisms/budgetPanel"
+import { dataTable } from "../../web/design/organisms/dataTable"
 import { findingList } from "../../web/design/organisms/findingList"
 import { axisLabel } from "../../web/figures"
 import { fmtValue } from "../../web/fmt"
@@ -16,6 +18,8 @@ import {
   type FrontRow,
   type OptData,
   PROFILE_LABEL,
+  profileSpread,
+  singleFrontier,
   varLabel,
 } from "../../web/optimisation"
 import { type BudgetPage, budgetLookup, coolingAxis } from "../../web/recipe"
@@ -138,6 +142,33 @@ export function loadOptimisation(input: ReportInput): Optimisation | null {
   return out
 }
 
+const FRESH_LABEL: Record<string, { quantity: string; basis: string }> = {
+  s_p90_train_nominal: {
+    quantity: "Scalar objective S",
+    basis: "nominal recipe, p90 over the training draws",
+  },
+  s_p90_train_robust: {
+    quantity: "Scalar objective S",
+    basis: "robust recipe, p90 over the training draws",
+  },
+  s_p95_fresh_nominal: {
+    quantity: "Scalar objective S",
+    basis: "nominal recipe, p95 over fresh draws",
+  },
+  s_p95_fresh_robust: {
+    quantity: "Scalar objective S",
+    basis: "robust recipe, p95 over fresh draws",
+  },
+  regret_p95_nominal: {
+    quantity: "Regret against the better of the two recipes",
+    basis: "nominal recipe, p95 over fresh draws",
+  },
+  regret_p95_robust: {
+    quantity: "Regret against the better of the two recipes",
+    basis: "robust recipe, p95 over fresh draws",
+  },
+}
+
 const cell = (v: string | undefined, digits = 4): string => {
   if (v === undefined || v === "") return "–"
   const n = Number(v)
@@ -151,15 +182,41 @@ function recipesTable(rows: Rec[]): string {
   const cols = [...OBJECTIVE_COLUMNS]
   return `<p class="page-hint">Recipes the models rank highest for three priorities, found by derivative-based search from the screened candidates. Model optima, not measured optima (PROXY).</p>
 <div class="scroll"><table>${th(["Role", "Refined from", "Scalar S (lower is better)", ...cols.map(axisLabel), "Solver status"])}<tbody>
-${rows.map((r) => `<tr><td class="txt">${esc(r.role ?? "")}</td><td class="txt">${esc(r.screened_id ?? "")}</td><td>${cell(r.S)}</td>${cols.map((c) => `<td>${cell(r[c])}</td>`).join("")}<td class="txt">${esc(r.status ?? "")}</td></tr>`).join("\n")}
+${rows.map((r) => `<tr><td class="txt">${esc(roleText(r.role ?? ""))}</td><td class="txt">${esc(r.screened_id ?? "")}</td><td>${cell(r.S)}</td>${cols.map((c) => `<td>${cell(r[c])}</td>`).join("")}<td class="txt">${esc(r.status ?? "")}</td></tr>`).join("\n")}
 </tbody></table></div>`
 }
 
 function toleranceTable(rows: Rec[]): string {
   return `<p class="page-hint">How far each ingredient may move below (lower) or above (upper) the recipe before the scalar objective worsens by the tolerance (relative loss at the edge shown). "Limited by the box" means the allowed range ended first.</p>
 <div class="scroll"><table>${th(["Role", "Ingredient", "Recipe value", "Lower tolerance", "Upper tolerance", "Relative loss at the edge", "Limited by the box"])}<tbody>
-${rows.map((r) => `<tr><td class="txt">${esc(r.role ?? "")}</td><td class="txt">${esc(varLabel(r.variable ?? ""))}</td><td>${cell(r.x_star)}</td><td>${cell(r.tol_lo)}</td><td>${cell(r.tol_hi)}</td><td>${cell(r.loss_edge, 5)}</td><td class="txt">${r.clipped === "true" ? "yes" : "no"}</td></tr>`).join("\n")}
+${rows.map((r) => `<tr><td class="txt">${esc(roleText(r.role ?? ""))}</td><td class="txt">${esc(varLabel(r.variable ?? ""))}</td><td>${cell(r.x_star)}</td><td>${cell(r.tol_lo)}</td><td>${cell(r.tol_hi)}</td><td>${cell(r.loss_edge, 5)}</td><td class="txt">${r.clipped === "true" ? "yes" : "no"}</td></tr>`).join("\n")}
 </tbody></table></div>`
+}
+
+function freshTable(fresh: Rec[]): string {
+  return dataTable({
+    id: "tbl-robust-checks",
+    caption: "How the nominal and the robust recipe compare over the draws",
+    columns: [
+      { key: "quantity", label: "Quantity", kind: "text", rowHeader: true },
+      { key: "value", label: "Value", kind: "number", digits: 5 },
+      { key: "basis", label: "Basis", kind: "text" },
+    ],
+    rows: fresh.map((r) => {
+      const name = r.name ?? ""
+      const l = FRESH_LABEL[name] ?? {
+        quantity: name.replaceAll("_", " "),
+        basis: "",
+      }
+      const v = Number(r.value)
+      return {
+        quantity: l.quantity,
+        value:
+          r.value === undefined || r.value === "" || Number.isNaN(v) ? null : v,
+        basis: l.basis,
+      }
+    }),
+  })
 }
 
 function robustTable(rows: Rec[]): string {
@@ -171,26 +228,26 @@ function robustTable(rows: Rec[]): string {
 <div class="scroll"><table>${th(["Ingredient", "Nominal optimum", "Robust optimum", "p5 over draws", "Median", "p95 over draws"])}<tbody>
 ${dist.map((r) => `<tr><td class="txt">${esc(varLabel(r.name ?? ""))}</td><td>${cell(byName("nominal", r.name ?? "")?.value)}</td><td>${cell(byName("robust", r.name ?? "")?.value)}</td><td>${cell(r.p05)}</td><td>${cell(r.p50)}</td><td>${cell(r.p95)}</td></tr>`).join("\n")}
 </tbody></table></div>
-${fresh.length ? `<ul>${fresh.map((r) => `<li>${esc((r.name ?? "").replaceAll("_", " "))}: ${cell(r.value, 5)}</li>`).join("")}</ul>` : ""}`
+${fresh.length ? freshTable(fresh) : ""}`
 }
 
 /** Budget panel and its lookup page data: the exact table lookup, the bare-aluminium peak (nominal) and the shared cooling scale. */
 function budgetPage(input: ReportInput, d: OptData): BudgetPage {
   const c0 = derive(input).c0Mean
+  const one = singleFrontier(d)
   return {
-    opt: d,
+    opt: one,
     c0_mean_c: c0,
-    axis: coolingAxis(d.tables, d.objectives, c0),
+    axis: coolingAxis(one.tables, one.objectives, c0),
   }
 }
 
 function budgetPanelHtml(input: ReportInput, d: OptData): string {
   const page = budgetPage(input, d)
-  const [lo, hi] = budgetRange(d.tables)
-  const profile = d.tables.some((t) => t.profile === "balanced")
-    ? "balanced"
-    : (d.tables[0] as OptData["tables"][number]).profile
-  const start = d.tables.find((t) => t.profile === profile)
+  const tables = page.opt.tables
+  const [lo, hi] = budgetRange(tables)
+  const profile = (tables[0] as OptData["tables"][number]).profile
+  const start = tables[0]
   // rounded up to six places so the number box is readable and the lookup still lands on the knee entry
   const value = Math.min(
     hi,
@@ -198,7 +255,7 @@ function budgetPanelHtml(input: ReportInput, d: OptData): string {
   )
   return budgetPanel({
     id: "budget-panel",
-    profiles: d.tables.map((t) => ({
+    profiles: tables.map((t) => ({
       id: t.profile,
       label: PROFILE_LABEL[t.profile] ?? t.profile,
     })),
@@ -236,14 +293,19 @@ export const optimisationSection: ReportSection = {
           seen: d.seen,
         }),
       )
-    if (o.data && o.data.tables.length > 0)
+    if (o.data && o.data.tables.length > 0) {
       parts.push(budgetPanelHtml(input, o.data))
+      if (singleFrontier(o.data).tables.length < o.data.tables.length)
+        parts.push(
+          `<p class="page-hint">One table, not three: the cooling-first, balanced and durability-first weightings select the same recipes at every budget to within the p5 to p95 uncertainty (the largest difference in any objective is ${Math.round(profileSpread(o.data) * 100)} % of that band's half-width), so a priority choice would change only where the weighted score stops improving.</p>`,
+        )
+    }
     if (o.data && o.data.tables.length > 0)
       parts.push(
         detail(
-          "Performance against cost for each priority",
+          "Performance against cost",
           `<div class="page-controls"><label for="opt-objective">Objective</label><select id="opt-objective">${o.data.objectives.map((ob, i) => `<option value="${i}"${ob === "t_max_pred" ? " selected" : ""}>${esc(axisLabel(ob))}</option>`).join("")}</select></div>
-${figureFrame({ message: "What each priority reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost for each priority with p5 to p95 bands", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--tall"></div>')}`,
+${figureFrame({ message: "What the modelled recipe reaches as the budget grows, with its knee marked", size: "tall", describe: "Performance against cost with a p5 to p95 band", note: "Bands: p5 to p95, parameter uncertainty only. Cost in relative cost units, not IDR." })('<div id="fig-frontier" class="fig fig--wide fig--tall"></div>')}`,
         ),
       )
     if (o.recipes)

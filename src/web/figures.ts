@@ -56,7 +56,42 @@ const HUMAN: Record<string, string> = {
   wetting_theta_pred: "Contact angle (deg)",
   pareto_freq: "Pareto frequency",
   t_max_worst: "Peak temperature, hottest scenario (°C)",
+  r_solar: "Solar reflectance (0 to 1)",
+  t_max_c: "Peak surface temperature (°C)",
 }
+
+const INPUT_LABEL: Record<string, string> = {
+  primer_gptes_molfrac: "Primer GPTES mole fraction",
+  primer_dft_um: "Primer thickness",
+  midcoat_pvc: "Midcoat PVC",
+  midcoat_tio2_fraction: "Midcoat TiO2 share",
+  midcoat_dft_um: "Midcoat thickness",
+  topcoat_mtes_molfrac: "Topcoat MTES mole fraction",
+  topcoat_dft_um: "Topcoat thickness",
+  sol_gel_ph: "Sol-gel pH",
+  irradiance_w_m2: "Peak irradiance",
+  t_air_c: "Air temperature",
+  wind_m_s: "Wind speed",
+}
+
+const SHORT: Record<string, string> = {
+  r_solar_pred: "Solar<br>reflectance",
+  t_max_pred: "Peak temp.<br>(°C)",
+  corrosion_proxy: "Corrosion<br>index<br>(PROXY)",
+  delam_proxy: "Delamination<br>index<br>(PROXY)",
+  cost_proxy: "Cost<br>index<br>(PROXY)",
+}
+
+/** The short two-line axis title of a screening objective in the parallel-coordinates and scatter-matrix plots (the unit stays in the table). */
+export const shortAxisLabel = (column: string): string =>
+  SHORT[column] ?? axisLabel(column)
+
+/** The axis title of a parallel-coordinates dimension: two lines at most, so it clears the range number printed under it. */
+export const parcoordsAxisLabel = (column: string): string =>
+  shortAxisLabel(column).replace(/<br>index<br>/, " index<br>")
+
+/** A model input in words (the sensitivity tables carry the code names). */
+export const inputLabel = (id: string): string => INPUT_LABEL[id] ?? id
 
 /** Readable axis or column label; every PROXY index (`*_proxy`, corrosion_risk, delam, cost) ends in "(PROXY)". */
 export function axisLabel(column: string): string {
@@ -96,9 +131,10 @@ export function figParcoords(
     const lo = v.length ? Math.min(...v) : 0
     const hi = v.length ? Math.max(...v) : 1
     return {
-      label: axisLabel(c),
+      label: parcoordsAxisLabel(c),
       values: v,
       range: [lo, hi > lo ? hi : lo + 1],
+      tickformat: ".3~g",
     }
   })
   return {
@@ -113,15 +149,18 @@ export function figParcoords(
           cmax: 1,
           showscale: true,
           colorbar: {
-            title: { text: "Share of draws on the Pareto front" },
-            thickness: 12,
+            title: { text: "Pareto-front share" },
+            thickness: 10,
           },
         },
         dimensions,
         meta: { kind: "predicted", id: "parcoords", scale: "seq" },
       },
     ],
-    layout: baseLayout({ margin: { l: 70, r: 70, t: 56, b: 24 } }),
+    layout: baseLayout({
+      margin: { l: 44, r: 44, t: 72, b: 24 },
+      font: { size: 10 },
+    }),
     config: CONFIG,
   }
 }
@@ -151,7 +190,7 @@ export function figSplom(
         }),
         hovertemplate: "%{text}<extra></extra>",
         dimensions: OBJECTIVE_COLUMNS.map((c) => ({
-          label: axisLabel(c),
+          label: shortAxisLabel(c),
           values: rows.map((r) => r[c]),
         })),
         marker: {
@@ -178,7 +217,8 @@ export function figSplom(
     ],
     layout: baseLayout({
       dragmode: "select",
-      margin: { l: 90, r: 16, t: 16, b: 70 },
+      margin: { l: 80, r: 16, t: 16, b: 90 },
+      font: { size: 11 },
     }),
     config: CONFIG,
   }
@@ -381,6 +421,17 @@ export type CurveOpts = {
   only?: readonly string[]
 }
 
+/**
+ * Which series get a direct label. With a shortlist and no `only`, the figure carries 11 series (the three recipes, the controls and
+ * the C2 and C3 ablations of each recipe): labelling all of them stacks the labels, so only the recipes and the controls C0 and C1
+ * are labelled; the thin ablation lines are named on hover. With `only` or no shortlist every drawn series is labelled.
+ */
+export function labelledIds(opts: CurveOpts): (id: string) => boolean {
+  if (opts.only !== undefined || opts.shortlist === undefined) return () => true
+  const keep = new Set([...Object.values(opts.shortlist), "C0", "C1"])
+  return (id) => keep.has(id)
+}
+
 function candidateSlot(
   id: string,
   shortlist: Record<string, string> | undefined,
@@ -413,6 +464,7 @@ export function figTofT(
   let ci = 0
   let ki = 0
   const last = (a: ArrayLike<number>): number => a[a.length - 1] as number
+  const named = labelledIds(opts)
   for (const s of curves.series.filter(
     (q) =>
       q.scenario_id === scenarioId &&
@@ -422,12 +474,13 @@ export function figTofT(
       const slot = candidateSlot(s.id, opts.shortlist, ci++)
       data.push(...lineWithBand(s.id, s.id, x, s.t_c, s.t_lo_c, s.t_hi_c, slot))
       ys.push(s.t_c, s.t_lo_c, s.t_hi_c)
-      labels.push({
-        text: candidateLabel(s.id, opts.shortlist),
-        slot,
-        x: last(x),
-        y: last(s.t_c),
-      })
+      if (named(s.id))
+        labels.push({
+          text: candidateLabel(s.id, opts.shortlist),
+          slot,
+          x: last(x),
+          y: last(s.t_c),
+        })
     } else {
       data.push(
         nominalLine(
@@ -440,12 +493,13 @@ export function figTofT(
         ),
       )
       ys.push(s.t_c)
-      labels.push({
-        text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
-        slot: "baseline",
-        x: last(x),
-        y: last(s.t_c),
-      })
+      if (named(s.id))
+        labels.push({
+          text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
+          slot: "baseline",
+          x: last(x),
+          y: last(s.t_c),
+        })
     }
   }
   const range = extent(ys)
@@ -520,17 +574,19 @@ export function figSpectrum(
   let ci = 0
   let ki = 0
   const xEnd = x[x.length - 1] as number
+  const named = labelledIds(opts)
   for (const s of spec.series) {
     if (opts.only !== undefined && !opts.only.includes(s.id)) continue
     if (s.kind === "candidate" && s.r_lo && s.r_hi) {
       const slot = candidateSlot(s.id, opts.shortlist, ci++)
       data.push(...lineWithBand(s.id, s.id, x, s.r, s.r_lo, s.r_hi, slot))
-      labels.push({
-        text: candidateLabel(s.id, opts.shortlist),
-        slot,
-        x: xEnd,
-        y: s.r[s.r.length - 1] as number,
-      })
+      if (named(s.id))
+        labels.push({
+          text: candidateLabel(s.id, opts.shortlist),
+          slot,
+          x: xEnd,
+          y: s.r[s.r.length - 1] as number,
+        })
     } else {
       data.push(
         nominalLine(
@@ -542,12 +598,13 @@ export function figSpectrum(
           DASHES[ki++ % DASHES.length] as string,
         ),
       )
-      labels.push({
-        text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
-        slot: "baseline",
-        x: xEnd,
-        y: s.r[s.r.length - 1] as number,
-      })
+      if (named(s.id))
+        labels.push({
+          text: CONTROL_LABEL[s.id] ?? `${s.id} (nominal only)`,
+          slot: "baseline",
+          x: xEnd,
+          y: s.r[s.r.length - 1] as number,
+        })
     }
   }
   const notes = endLabels(labels, [0, 1])
@@ -584,7 +641,7 @@ export function figSobol(sens: readonly SensRow[], output: string): FigureSpec {
     return {
       type: "bar",
       name,
-      x: vars,
+      x: vars.map(inputLabel),
       y: vars.map((v) => by.get(v)?.value ?? 0),
       showlegend: false,
       error_y: {
@@ -643,7 +700,7 @@ export function figMorris(
         mode: "markers+text",
         x: vars.map((v) => get(v, "mu_star")?.value ?? 0),
         y: vars.map((v) => get(v, "sigma")?.value ?? 0),
-        text: vars,
+        text: vars.map(inputLabel),
         textposition: "top center",
         textfont: { color: slotHex("series-3") },
         error_x: {
@@ -695,37 +752,48 @@ export function figLiveTofT(r: LiveResult): FigureSpec {
   return {
     data,
     layout: baseLayout({
-      margin: { l: 64, r: RIGHT, t: 16, b: 48 },
+      margin: { l: 64, r: RIGHT, t: 40, b: 48 },
       xaxis: { title: { text: "Hour of day 2" }, dtick: 4, range: [0, 24] },
       yaxis: {
-        title: {
-          text: `Surface temperature (°C), band = p5-p95 of ${r.nDraws} draws`,
-        },
+        title: { text: "Surface temperature (°C)" },
       },
       showlegend: false,
-      annotations: endLabels(
-        [
-          {
-            text: "This recipe",
-            slot: "series-3",
-            x: xe,
-            y: t[t.length - 1] as number,
-          },
-          {
-            text: "Bare aluminium (nominal)",
-            slot: "baseline",
-            x: xe,
-            y: c0[c0.length - 1] as number,
-          },
-          {
-            text: "Datasheet control (nominal)",
-            slot: "baseline",
-            x: xe,
-            y: c1[c1.length - 1] as number,
-          },
-        ],
-        range,
-      ),
+      annotations: [
+        {
+          x: 0,
+          y: 1,
+          xref: "paper",
+          yref: "paper",
+          yshift: 22,
+          xanchor: "left",
+          showarrow: false,
+          text: `Band = p5-p95 of ${r.nDraws} draws`,
+          font: { size: 12 },
+        },
+        ...endLabels(
+          [
+            {
+              text: "This recipe",
+              slot: "series-3",
+              x: xe,
+              y: t[t.length - 1] as number,
+            },
+            {
+              text: "Bare aluminium (nominal)",
+              slot: "baseline",
+              x: xe,
+              y: c0[c0.length - 1] as number,
+            },
+            {
+              text: "Datasheet control (nominal)",
+              slot: "baseline",
+              x: xe,
+              y: c1[c1.length - 1] as number,
+            },
+          ],
+          range,
+        ),
+      ],
     }),
     config: CONFIG,
   }
@@ -910,7 +978,8 @@ export function figIndonesiaBars(
           symmetric: false,
           array: pick.map((r, k) => (r ? r.dq_hi - (y[k] as number) : 0)),
           arrayminus: pick.map((r, k) => (r ? (y[k] as number) - r.dq_lo : 0)),
-          thickness: 1.2,
+          thickness: 1.5,
+          color: slotHex("baseline"),
         },
         marker: { color: slotHex(slot) },
         meta: { kind: "predicted", id: subject, slot, site },
@@ -922,8 +991,8 @@ export function figIndonesiaBars(
     layout: baseLayout({
       ...layout,
       barmode: "group",
-      margin: { l: 72, r: 16, t: 64, b: 96 },
-      height: 300 * nrows + 120,
+      margin: { l: 72, r: 16, t: 104, b: 96 },
+      height: 300 * nrows + 150,
       annotations: [
         ...notes,
         {
@@ -931,14 +1000,14 @@ export function figIndonesiaBars(
           y: 1.0,
           xref: "paper",
           yref: "paper",
-          yshift: 44,
-          text: `Aluminium, scenario ageing: ${INDONESIA_STATE_LABEL[state]}; whiskers: outer bound`,
+          yshift: 80,
+          text: `Aluminium, scenario ageing: ${state === "aged" ? "aged state" : "initial state"}; whiskers: outer bound of the benefit interval`,
           showarrow: false,
           xanchor: "left",
           font: { size: 12 },
         },
       ],
-      legend: { orientation: "h", x: 0, y: 1.0, yanchor: "bottom", yshift: 8 },
+      legend: { orientation: "h", x: 0, y: 1.0, yanchor: "bottom", yshift: 34 },
     }),
     config: CONFIG,
   }

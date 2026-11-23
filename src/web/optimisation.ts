@@ -29,6 +29,8 @@ export type OptData = {
   vars: string[]
   tables: BudgetTable[]
   front: FrontRow[]
+  /** Set by `singleFrontier`: the profiles were merged into one table, so no profile name is shown. */
+  merged?: true
 }
 
 export const PROFILE_LABEL: Record<string, string> = {
@@ -123,6 +125,49 @@ export const rowText = (r: BudgetRow, digits = 3): string =>
   `${fmtValue(r.value, digits)} [${fmtValue(r.lo, digits)}, ${fmtValue(r.hi, digits)}]`
 
 type Meta = { kind: "predicted" | "band" | "marker"; id: string }
+/**
+ * How far apart the priority profiles are: the largest difference of any objective between two profiles at the same tabulated
+ * budget, in units of the p5-p95 half-width of that objective there (an objective with no band must match to 1e-6, else
+ * Infinity). Below 1 the profiles cannot be told apart by the models' own uncertainty. Tables of different budgets differ (Infinity).
+ */
+export function profileSpread(d: Pick<OptData, "tables">): number {
+  const [first, ...rest] = d.tables
+  if (!first) return 0
+  let worst = 0
+  for (const t of rest) {
+    if (t.entries.length !== first.entries.length)
+      return Number.POSITIVE_INFINITY
+    t.entries.forEach((e, i) => {
+      const a = first.entries[i] as (typeof first.entries)[number]
+      if (Math.abs(a.budget - e.budget) > 1e-9) worst = Number.POSITIVE_INFINITY
+      a.objectives.forEach((v, j) => {
+        const dv = Math.abs(v - (e.objectives[j] as number))
+        const hw =
+          Math.max(
+            (a.hi[j] as number) - (a.lo[j] as number),
+            (e.hi[j] as number) - (e.lo[j] as number),
+          ) / 2
+        const r = hw > 0 ? dv / hw : dv <= 1e-6 ? 0 : Number.POSITIVE_INFINITY
+        if (r > worst) worst = r
+      })
+    })
+  }
+  return worst
+}
+
+/**
+ * One frontier when the priority profiles are indistinguishable (`profileSpread` below 1): the balanced table (the first when
+ * there is none); the other tables stay in the file and the manifest. When the profiles do differ, all of them are kept.
+ */
+export function singleFrontier(d: OptData): OptData {
+  if (d.tables.length < 2 || profileSpread(d) >= 1) return d
+  const t = d.tables.find((x) => x.profile === "balanced") ?? d.tables[0]
+  return { ...d, tables: t ? [t] : [], merged: true }
+}
+
+/** The one line's name when only one profile is drawn. */
+export const SINGLE_FRONTIER_LABEL = "Modelled recipe for each budget"
+
 /** One colour role per priority profile; the brand orange stays with the recommended recipe. */
 const PROFILE_SLOT: readonly Slot[] = ["series-3", "series-1", "series-4"]
 
@@ -131,7 +176,7 @@ const PROFILE_SLOT: readonly Slot[] = ["series-3", "series-1", "series-4"]
  * profile, p5-p95 band from the table's uncertainty draws), the knee of each profile as a marker, and the looked-up entry.
  */
 export function figFrontier(
-  data: Pick<OptData, "tables" | "objectives" | "cost_unit">,
+  data: Pick<OptData, "tables" | "objectives" | "cost_unit" | "merged">,
   objectiveIndex: number,
   selected?: { profile: string; budget: number },
 ): FigureSpec {
@@ -144,7 +189,10 @@ export function figFrontier(
   data.tables.forEach((t, i) => {
     const slot = PROFILE_SLOT[i % PROFILE_SLOT.length] as Slot
     const color = slotColor(LIGHT_PLOT, slot)
-    const label = PROFILE_LABEL[t.profile] ?? t.profile
+    const label =
+      "merged" in data && data.merged
+        ? SINGLE_FRONTIER_LABEL
+        : (PROFILE_LABEL[t.profile] ?? t.profile)
     const x = t.entries.map((e) => e.cost)
     const common = { type: "scatter", legendgroup: t.profile }
     const lo = t.entries.map((e) => e.lo[objectiveIndex] as number)

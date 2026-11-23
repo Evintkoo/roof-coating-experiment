@@ -104,12 +104,19 @@ export function sliderField(p: SliderFieldProps): string {
   )
 }
 
+/** A value within 1e-9 of the range of a bound is the bound (Chrome rounds a range value 4e-16 below its exact maximum). */
+export function snapToBounds(v: number, min: number, max: number): number {
+  const eps = (max - min) * 1e-9
+  return v >= max - eps ? max : v <= min + eps ? min : v
+}
+
 /** Keeps range, number box and output in step; clamps a typed value on change; fires `slider-change` with `detail.value`. */
 export const SLIDER_SCRIPT = `(function(){
 function parts(root){return{range:root.querySelector('input[type="range"]'),num:root.querySelector('input[type="number"]'),out:root.querySelector("output")}}
 function show(root,v){var p=parts(root);var d=Number(root.getAttribute("data-digits"))||0;if(p.range)p.range.value=String(v);if(p.num)p.num.value=String(v);if(p.out)p.out.textContent=Number(v).toFixed(d)}
+function snap(p,v){var lo=Number(p.range.min),hi=Number(p.range.max),e=(hi-lo)*1e-9;return v>=hi-e?hi:v<=lo+e?lo:v}
 function clamp(p,v){var lo=Number(p.range.min),hi=Number(p.range.max);return Math.min(hi,Math.max(lo,v))}
 function fire(root,v){root.dispatchEvent(new CustomEvent("slider-change",{bubbles:true,detail:{value:v}}))}
-document.addEventListener("input",function(ev){var el=ev.target;var root=el&&el.closest&&el.closest("[data-slider]");if(!root)return;var v=Number(el.value);if(el.value===""||!isFinite(v))return;var p=parts(root);if(el.type==="number"&&(v<Number(p.range.min)||v>Number(p.range.max)))return;show(root,v);fire(root,v)});
-document.addEventListener("change",function(ev){var el=ev.target;var root=el&&el.closest&&el.closest("[data-slider]");if(!root||el.type!=="number")return;var p=parts(root);var v=Number(el.value);if(el.value===""||!isFinite(v))v=Number(p.range.value);v=clamp(p,v);show(root,v);fire(root,v)});
+document.addEventListener("input",function(ev){var el=ev.target;var root=el&&el.closest&&el.closest("[data-slider]");if(!root)return;var v=Number(el.value);if(el.value===""||!isFinite(v))return;var p=parts(root);if(el.type==="number"&&(v<Number(p.range.min)||v>Number(p.range.max)))return;if(el.type==="range")v=snap(p,v);show(root,v);fire(root,v)});
+document.addEventListener("change",function(ev){var el=ev.target;var root=el&&el.closest&&el.closest("[data-slider]");if(!root||el.type!=="number")return;var p=parts(root);var v=Number(el.value);if(el.value===""||!isFinite(v))v=snap(p,Number(p.range.value));v=clamp(p,v);show(root,v);fire(root,v)});
 })();`

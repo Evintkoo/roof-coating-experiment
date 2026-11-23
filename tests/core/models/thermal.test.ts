@@ -5,12 +5,14 @@ import { PhysicsRangeError } from "../../../src/core/errors"
 import { setEventSink } from "../../../src/core/events"
 import {
   netFluxWM2,
+  rk4Step,
   simulateDay,
   steadyStateTempK,
   type ThermalInputs,
 } from "../../../src/core/models/thermal"
 import { loadWeather } from "../../../src/node/config"
 import { repoRoot } from "../../helpers"
+import { rk4Digests } from "../../support/rk4Golden"
 
 const SIGMA = 5.670374419e-8
 const T_THM_RTOL = 5e-7
@@ -293,4 +295,25 @@ test("runtimeUnder3ms", () => {
     `thermal 48 h dt=60 s: median ${median.toFixed(3)} ms, min ${times[0]?.toFixed(3)} ms`,
   )
   expect(median).toBeLessThan(T_THERMAL_MS)
+})
+
+// Plan 09 D1: rk4Step is extracted from simulateDay and simulateSeriesDay; the outputs of all 220 oracle cases stay bit-identical to
+// the digest written from the code before the extraction (tests/fixtures/rk4_golden.json).
+test("goldensUnchangedAfterRk4StepExtraction", async () => {
+  const golden = (await Bun.file(
+    join(repoRoot, "tests/fixtures/rk4_golden.json"),
+  ).json()) as { day: string; series: string; cases: number }
+  const now = await rk4Digests()
+  expect(now.cases).toBe(golden.cases)
+  expect(now.day).toBe(golden.day)
+  expect(now.series).toBe(golden.series)
+})
+
+test("rk4StepIsOneClassicalStepOfTheGivenSlope", () => {
+  // dT/dt = -T (flux closure ignores time): one step of 0.1 equals the RK4 polynomial 1 - h + h^2/2 - h^3/6 + h^4/24 exactly in form.
+  const h = 0.1
+  const y = rk4Step(1, 0, h, (t) => -t)
+  expect(y).toBeCloseTo(1 - h + (h * h) / 2 - h ** 3 / 6 + h ** 4 / 24, 15)
+  // the irradiance time argument is the stage time: dT/dt = s gives T + h t0 + h^2 / 2 exactly for a linear-in-time slope
+  expect(rk4Step(0, 2, 1, (_t, s) => s)).toBeCloseTo(2.5, 15)
 })

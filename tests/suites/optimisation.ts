@@ -134,6 +134,23 @@ export function optimisationSuite(S: OptimisationScale): void {
     expect(sec).toContain('id="fig-frontier"')
   })
 
+  test("robustChecksAreATableOfQuantityValueBasis", () => {
+    const sec = /<section id="budget"[\s\S]*<section id="explore"/.exec(
+      withOpt.html,
+    )?.[0] as string
+    const t = /<table[^>]*id="tbl-robust-checks"[\s\S]*?<\/table>/.exec(
+      sec,
+    )?.[0] as string
+    expect(t).toBeDefined()
+    for (const h of ["Quantity", "Value", "Basis"]) expect(t).toContain(h)
+    expect(visibleText(t)).toContain("Scalar objective S")
+    expect(visibleText(t)).toContain("p90 over the training draws")
+    expect((t.match(/<tr\b/g) ?? []).length).toBe(7)
+    // no list of "label: value" lines is left in the budget section
+    for (const m of sec.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g))
+      expect(visibleText(m[1] as string)).not.toMatch(/: -?[\d.]+$/)
+  })
+
   test("embeddedTablesCarryAllProfiles", () => {
     const data = JSON.parse(
       (scriptBlocks(withOpt.html)[0] as string).replace(
@@ -305,8 +322,7 @@ export function optimisationSuite(S: OptimisationScale): void {
         await page.locator("#fig-refine-front .main-svg").count(),
       ).toBeGreaterThan(0)
       const t = tables.find((x) => x.profile === "balanced") as BudgetTable
-      const lo = Math.min(...tables.map((x) => x.c_min))
-      await page.click('#budget-panel .tv-chip--toggle[data-value="balanced"]')
+      const lo = t.c_min // one merged frontier (no priority chips): the panel shows the balanced table
       const cost2 = (b: number): string => {
         let best = t.entries[0]
         for (const e of t.entries)

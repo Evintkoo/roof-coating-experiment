@@ -102,6 +102,11 @@ test("timeoutStillFiresWhenLoggingThrows", async () => {
   expect(aborted).toBe(true)
 })
 
+test("lowerPriorityNeverThrowsWhereTheOsRefuses", () => {
+  // best effort: EACCES/EPERM (sandbox, background job) must not kill a CLI run
+  expect(() => lowerPriority()).not.toThrow()
+})
+
 test("priorityIsLowered", () => {
   // Same EACCES/EPERM tolerance as the plan-2 smoke test: a detached runner inside the tool sandbox cannot
   // call get/setpriority at all; any other error or a wrong value still fails.

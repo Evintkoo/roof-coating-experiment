@@ -9,6 +9,8 @@ export type LayerSchematicProps = {
   primer_um: number
   midcoat_um: number
   topcoat_um: number
+  /** The thickness the whole stack height stands for, so several recipes share one scale; at least this recipe's total. */
+  sharedTotalUm?: number
 }
 
 const C = "LayerSchematic"
@@ -34,7 +36,13 @@ export function layerSchematic(p: LayerSchematicProps): string {
   }
   for (const v of Object.values(vals))
     if (v <= 0) return buildError(C, "thicknesses must be positive")
-  const total = vals.primer + vals.midcoat + vals.topcoat
+  const own = vals.primer + vals.midcoat + vals.topcoat
+  const shared =
+    p.sharedTotalUm === undefined
+      ? own
+      : finite(C, "sharedTotalUm", p.sharedTotalUm)
+  if (shared < own) return buildError(C, "sharedTotalUm must cover the recipe")
+  const total = shared
   const k = (STACK - 3 * MIN) / total
   const hs = {
     topcoat: MIN + vals.topcoat * k,
@@ -76,7 +84,11 @@ export function layerSchematic(p: LayerSchematicProps): string {
       tag(
         "figcaption",
         { class: "tv-schem__caption" },
-        esc(`${p.name}: thickness to scale (µm)`),
+        esc(
+          p.sharedTotalUm === undefined
+            ? `${p.name}: thickness to scale (µm)`
+            : `${p.name}: thickness to scale (µm), the same scale for all three recipes`,
+        ),
       ),
   )
 }

@@ -32,6 +32,19 @@ export function attrs(a: Record<string, AttrValue>): string {
   return out
 }
 
+const SVG_NAME = /^[a-zA-Z][a-zA-Z0-9-]*$/
+
+/** `<svg attrs>inner</svg>`: like `tag`, but attribute names may be camelCase (`viewBox`), which HTML names may not. Values are escaped. */
+export function svgTag(a: Record<string, AttrValue>, inner: string): string {
+  let out = ""
+  for (const [k, v] of Object.entries(a)) {
+    if (!SVG_NAME.test(k)) throw new Error("design: invalid attribute name")
+    if (v === undefined || v === false) continue
+    out += v === true ? ` ${k}` : ` ${k}="${esc(String(v))}"`
+  }
+  return `<svg${out}>${inner}</svg>`
+}
+
 const VOID = new Set(["br", "hr", "img", "input", "meta", "link"])
 
 /** `<name attrs>inner</name>`. `inner` is trusted markup (already escaped by the caller); void elements take none. */

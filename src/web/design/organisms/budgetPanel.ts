@@ -3,7 +3,7 @@
 import { chip } from "../atoms/chip"
 import { buildError, esc, finite, fixed, tag } from "../html"
 import { callout } from "../molecules/callout"
-import { sliderField } from "../molecules/sliderField"
+import { sliderField, snapToBounds } from "../molecules/sliderField"
 import { type RecipeCardProps, recipeCard } from "./recipeCard"
 
 export const BUDGET_UNIT = "relative cost units (not IDR)"
@@ -38,7 +38,7 @@ const ID = /^[A-Za-z][A-Za-z0-9_-]*$/
 /** The result region's content. */
 export function budgetResult(
   r: BudgetLookupResult,
-  o: { digits: number },
+  o: { digits: number; id?: string },
 ): string {
   if (r === null || typeof r !== "object")
     return buildError(C, "the lookup returned nothing")
@@ -66,7 +66,12 @@ export function budgetResult(
       esc(
         `Recipe of the tabulated budget at or below the one chosen: cost ${cost} ${BUDGET_UNIT}, unspent headroom ${head}${knee}.`,
       ),
-    ) + recipeCard({ ...r.recipe, variant: "full" })
+    ) +
+    recipeCard({
+      ...r.recipe,
+      variant: "full",
+      ...(o.id === undefined ? {} : { layersId: `${o.id}-layers` }),
+    })
   )
 }
 
@@ -99,7 +104,10 @@ export function budgetPanel(p: BudgetPanelProps): string {
       }),
     )
     .join("")
-  const result = budgetResult(p.lookup(p.profile, p.budget.value), { digits })
+  const result = budgetResult(p.lookup(p.profile, p.budget.value), {
+    digits,
+    id: p.id,
+  })
   return tag(
     "section",
     {
@@ -109,12 +117,14 @@ export function budgetPanel(p: BudgetPanelProps): string {
       "data-profile": p.profile,
       "data-digits": digits,
     },
-    tag(
-      "fieldset",
-      { class: "tv-budget__profiles" },
-      tag("legend", {}, "Priority") +
-        tag("div", { class: "tv-budget__chips" }, chips),
-    ) +
+    (p.profiles.length > 1
+      ? tag(
+          "fieldset",
+          { class: "tv-budget__profiles" },
+          tag("legend", {}, "Priority") +
+            tag("div", { class: "tv-budget__chips" }, chips),
+        )
+      : "") +
       slider +
       tag(
         "div",
@@ -148,7 +158,7 @@ export function mountBudgetPanel(
     try {
       region.innerHTML = budgetResult(
         lookup(root.dataset.profile ?? "", budget),
-        { digits },
+        { digits, ...(root.id ? { id: root.id } : {}) },
       )
     } catch {
       region.innerHTML = callout({
@@ -169,6 +179,8 @@ export function mountBudgetPanel(
     for (const c of root.querySelectorAll(".tv-chip--toggle"))
       c.setAttribute("aria-pressed", c === btn ? "true" : "false")
     root.dataset.profile = btn.dataset.value ?? ""
-    update(Number(range.value))
+    update(
+      snapToBounds(Number(range.value), Number(range.min), Number(range.max)),
+    )
   })
 }
