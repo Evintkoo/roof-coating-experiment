@@ -91,7 +91,7 @@ export function animationBrowserSuite(S: AnimationScale): void {
       ].map((e) => e.getAttribute("data-source") ?? "")
       const bad = sources.filter(
         (s) =>
-          !/^(series:recipe(@t)?|series:bare(@t)?|band:t_surface|clock:t_h|clock:sweep|flux:(incident|reflected|absorbed|conducted)|draw:\d+|screening:t_max|lane:(surface_c|reflected|absorbed|conducted|cumulative_wh):(recipe|c0|c1)|sweep:[a-z_]+:(nominal(@x)?|band|c0|c1)|bands:(uv|visible|nir)|stepper:(recipe|aluminium):(t_k|t_inside_k|absorbed|radiated|convected|conducted|r_total|residual|conduction_law|t_s)|stepper:recipe:t_k-stepper:aluminium:t_k)$/.test(
+          !/^(series:recipe(@t)?|series:bare(@t)?|band:t_surface|clock:t_h|clock:sweep|flux:(incident|reflected|absorbed|conducted)|draw:\d+|screening:t_max|lane:(surface_c|reflected|absorbed|conducted|cumulative_wh):(recipe|c0|c1)|sweep:[a-z_]+:(nominal(@x)?|band|c0|c1)|bands:(uv|visible|nir)|stepper:(recipe|aluminium):(t_k|t_inside_k|absorbed|radiated|convected|conducted|r_total|residual|conduction_law)|stepper:t_s|stepper:recipe:t_k-stepper:aluminium:t_k)$/.test(
             s,
           ),
       )
