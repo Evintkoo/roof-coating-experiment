@@ -336,6 +336,22 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-watchday__read dd{margin:0;font-family:${t("font-mono")}}
 @media (max-width:640px){.tv-watchday__stage{grid-template-columns:minmax(0,1fr)}}
 `,
+  watchPhysics: `
+.tv-watchphysics{display:grid;gap:${t("space-3")};min-width:0;color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-watchphysics__label,.tv-watchphysics__controls{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-2")}}
+.tv-watchphysics__sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3),1fr));gap:${t("space-3")}}
+.tv-watchphysics__status{margin:0;font-size:${t("size-small")}}
+.tv-watchphysics[data-state="transient"] .tv-watchphysics__status{border-inline-start:${t("ring-width")} solid ${t("status-proxy")};padding-inline-start:${t("space-2")}}
+.tv-watchphysics[data-state="error"] .tv-watchphysics__status{border-inline-start:${t("ring-width")} solid ${t("status-stop")};padding-inline-start:${t("space-2")}}
+.tv-watchphysics__panes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:${t("space-4")}}
+.tv-watchphysics__pane{margin:0;min-width:0}
+.tv-watchphysics__title{font-size:${t("size-label")};font-weight:${t("weight-semibold")};margin-block-end:${t("space-1")}}
+.tv-watchphysics__drawing{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,2fr);gap:${t("space-2")};align-items:start}
+.tv-watchphysics__readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 3),1fr));gap:${t("space-2")};margin:0}
+.tv-watchphysics__readouts dt{color:${t("text-muted")};font-size:${t("size-small")}}
+.tv-watchphysics__readouts dd{margin:0;font-family:${t("font-mono")}}
+@media (max-width:640px){.tv-watchphysics__panes{grid-template-columns:minmax(0,1fr)}}
+`,
   watchCompare: `
 .tv-watchcompare{display:grid;gap:${t("space-3")};min-width:0;color:${t("text-primary")};font-family:${t("font-sans")}}
 .tv-watchcompare__label{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-4")};font-size:${t("size-small")}}

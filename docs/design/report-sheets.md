@@ -408,3 +408,13 @@ The live physics scene follows the plan 07 and 08 rules: motion is explanatory o
 - accessibility: the SVG has a name that says it is illustrative; both temperatures are text
 - motion rule: only the two dots and the line move, with the stepper frame
 - do: say "Illustrative scale: one surface temperature, none per layer". don't: draw a gradient, a layer temperature or a curve through the thickness (BLOCKED-19)
+
+### R41 WatchPhysics
+
+- purpose: the live physics panel: the coated recipe and bare aluminium side by side, each a PhysicsScene and a DropProfile, run live by the repo's thermal model, with three sliders bound to the live simulator.
+- tokens: the molecules' tokens; two columns above 640 px and one below; the status line `size-small`, with a `status-proxy` rule when transient and a `status-stop` rule on error; numbers in `font-family-mono`
+- states (closed union `state`): `idle`, `playing`, `paused`, `transient` (a slider moved: "Transient after your change, not the settled day."), `error`; `layerOff` (`midcoat`, `primer`, `topcoat`) shows "<Layer> is off in the live simulator"; `lane` is `worker` or `inline` (inline says "single lane"); `speed` is one of 0.5, 1, 2, 4; exactly three sliders (sun, air temperature, wind) or a build error (exit 4)
+- contract: `watchPhysics({ state, speed, reduced, lane, layerOff?, recipe, aluminium, sliders, id? })` returns `<div class="tv-watchphysics" data-watch-physics data-state role="group">` with the honesty badge "Model output, not a measurement", Play or Pause (`phys-play`), +1 h (`phys-step`), Restart day (`phys-restart`), speed (`phys-speed`), the model time (`phys-time`), three sliders, the status line (`phys-status`), two panes, the live difference (`phys-diff`) and the heat balance residual (`phys-residual`), and the notes (illustrative scale, rays show fractions not photons, one surface temperature, ageing not shown)
+- accessibility: every control has a name and a 44 px target; the status is a polite live region; the numbers at the cursor are text
+- motion rule: nothing autoplays; Pause is reachable by Tab; reduced motion has no particle layer and moves one model hour per press; hidden tab and closed disclosure freeze it
+- do: say "Model output, not a measurement" and "Illustrative scale". don't: autoplay, call a result recommended or best, or claim a temperature field through the layers
