@@ -2,7 +2,7 @@ import { PhysicsRangeError } from "../errors"
 import { emitEvent } from "../events"
 import { requireIn } from "./ranges"
 
-const SIGMA = 5.670374419e-8 // W m^-2 K^-4 (CODATA 2018, exact)
+export const SIGMA = 5.670374419e-8 // W m^-2 K^-4 (CODATA 2018, exact)
 const DAY_S = 86400
 const SIM_S = 2 * DAY_S
 const OUT_S = 600
@@ -37,7 +37,7 @@ export type SimulateOpts = {
   onStep?: (tS: number, tK: number) => void
 }
 
-function validate(p: ThermalInputs): void {
+export function validateThermalInputs(p: ThermalInputs): void {
   const m = "thermal"
   requireIn(m, "r_solar", p.r_solar, 0, 1)
   requireIn(m, "emissivity", p.emissivity, TINY, 1)
@@ -64,7 +64,7 @@ export function netFluxWM2(tK: number, gWM2: number, p: ThermalInputs): number {
 
 /** Root of netFluxWM2 in T by bisection (the flux is strictly decreasing in T). */
 export function steadyStateTempK(p: ThermalInputs, gWM2: number): number {
-  validate(p)
+  validateThermalInputs(p)
   requireIn("thermal", "gWM2", gWM2, 0, 2000)
   let lo = 100
   let hi = 600
@@ -83,11 +83,30 @@ export function steadyStateTempK(p: ThermalInputs, gWM2: number): number {
 }
 
 /** G(t) = G_peak * max(0, sin(pi (t - 6 h) / 12 h)), periodic with period 24 h. */
-function halfSine(gPeak: number): (tS: number) => number {
+export function halfSine(gPeak: number): (tS: number) => number {
   return (tS) => {
     const s = Math.sin((Math.PI * ((tS % DAY_S) - 21600)) / 43200)
     return s > 0 ? gPeak * s : 0
   }
+}
+
+/**
+ * One classical RK4 step of dT/dt = flux(T, t) from (tK, tS) over dtS; the slope function is evaluated at the stage times tS, tS + dt/2
+ * (twice) and tS + dt. Extracted unchanged (same operation order) from simulateDay and simulateSeriesDay so the live stepper of plan 09
+ * shares the exact arithmetic; tests/fixtures/rk4_golden.json pins every oracle output bit for bit.
+ */
+export function rk4Step(
+  tK: number,
+  tS: number,
+  dtS: number,
+  flux: (tK: number, tS: number) => number,
+): number {
+  const h2 = dtS / 2
+  const k1 = flux(tK, tS)
+  const k2 = flux(tK + h2 * k1, tS + h2)
+  const k3 = flux(tK + h2 * k2, tS + h2)
+  const k4 = flux(tK + dtS * k3, tS + dtS)
+  return tK + (dtS / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 }
 
 /**
@@ -99,7 +118,7 @@ export function simulateDay(
   p: ThermalInputs,
   opts: SimulateOpts = {},
 ): DiurnalResult {
-  validate(p)
+  validateThermalInputs(p)
   const dtS = opts.dtS ?? 60
   if (!(dtS > 0 && dtS <= OUT_S && OUT_S % dtS === 0)) {
     emitEvent("model.out_of_range", "error", {
@@ -124,7 +143,7 @@ export function simulateDay(
   let tK = p.t_air_k
   let tMax = Number.NEGATIVE_INFINITY
   let qSum = 0
-  const h2 = dtS / 2
+  const slope = (t: number, s: number): number => netFluxWM2(t, g(s), p) * invC
   for (let n = 0; n < nSteps; n++) {
     const tS = n * dtS
     if (onStep) onStep(tS, tK)
@@ -133,11 +152,7 @@ export function simulateDay(
       qSum += (tK - p.t_inside_k) / p.r_total_m2k_w
       if ((n - day2Start) % stride === 0) series[(n - day2Start) / stride] = tK
     }
-    const k1 = netFluxWM2(tK, g(tS), p) * invC
-    const k2 = netFluxWM2(tK + h2 * k1, g(tS + h2), p) * invC
-    const k3 = netFluxWM2(tK + h2 * k2, g(tS + h2), p) * invC
-    const k4 = netFluxWM2(tK + dtS * k3, g(tS + dtS), p) * invC
-    tK += (dtS / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+    tK = rk4Step(tK, tS, dtS, slope)
   }
   if (onStep) onStep(nSteps * dtS, tK)
   const out: DiurnalResult = {

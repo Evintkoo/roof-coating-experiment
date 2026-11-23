@@ -6,7 +6,12 @@ import {
   validateSeries,
 } from "../indonesia/series"
 import { requireIn } from "./ranges"
-import { type DiurnalResult, netFluxWM2, type ThermalInputs } from "./thermal"
+import {
+  type DiurnalResult,
+  netFluxWM2,
+  rk4Step,
+  type ThermalInputs,
+} from "./thermal"
 
 const DAY_S = 86400
 const HOUR_S = 3600
@@ -130,7 +135,6 @@ export function simulateSeriesDay(
   const series = new Float64Array(DAY_S / OUT_S)
   const invC = 1 / p.c_a_j_m2k
   const onStep = opts.onStep
-  const h2 = dtS / 2
   let tK = tAir[0] as number
   let tMax = Number.NEGATIVE_INFINITY
   let qSum = 0
@@ -144,11 +148,7 @@ export function simulateSeriesDay(
       qSum += (tK - p.t_inside_k) / p.r_total_m2k_w
       if ((n - day2Start) % stride === 0) series[(n - day2Start) / stride] = tK
     }
-    const k1 = flux(tK, tS)
-    const k2 = flux(tK + h2 * k1, tS + h2)
-    const k3 = flux(tK + h2 * k2, tS + h2)
-    const k4 = flux(tK + dtS * k3, tS + dtS)
-    tK += (dtS / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+    tK = rk4Step(tK, tS, dtS, flux)
     if (!Number.isFinite(tK)) {
       throw new PhysicsRangeError(
         "t_surface_k",
