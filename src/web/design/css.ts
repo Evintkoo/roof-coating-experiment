@@ -140,6 +140,21 @@ export const MOLECULE_CSS = {
 .tv-lane__line--c1{stroke:${t("viz-3")};stroke-dasharray:2 3}
 .tv-lane__cursor{stroke:${t("text-primary")};stroke-width:1}
 `,
+  sweepChart: `
+.tv-sweep-frame{margin:0;min-width:0}
+.tv-sweep{display:block;width:100%;height:auto;font-family:${t("font-sans")}}
+.tv-sweep__grid{stroke:${t("border-panel")};stroke-width:1}
+.tv-sweep__tick,.tv-sweep__axis,.tv-sweep__missing{fill:${t("text-muted")};font-size:${t("size-small")}}
+.tv-sweep__title{fill:${t("text-primary")};font-size:${t("size-small")};font-weight:${t("weight-semibold")}}
+.tv-sweep__band{fill:${t("viz-3")};fill-opacity:0.18;stroke:none}
+.tv-sweep__line{fill:none;stroke-width:2}
+.tv-sweep__line--recipe{stroke:${t("viz-recommended")}}
+.tv-sweep__line--c0{stroke:${t("viz-baseline")};stroke-dasharray:6 4}
+.tv-sweep__line--c1{stroke:${t("viz-3")};stroke-dasharray:2 3}
+.tv-sweep__cursor{stroke:${t("text-primary")};stroke-width:1}
+.tv-sweep__dot{fill:${t("viz-recommended")};stroke:${t("surface-base")};stroke-width:1}
+.tv-sweep__legend{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-2")};margin-top:${t("space-1")};color:${t("text-muted")};font-size:${t("size-small")}}
+`,
   fluxSchematic: `
 .tv-flux{display:block;width:100%;max-width:calc(${t("space-16")} * 4.75);justify-self:center;height:auto;font-family:${t("font-sans")}}
 .tv-flux__roof{fill:${t("viz-baseline")};fill-opacity:0.5;stroke:${t("text-muted")};stroke-width:1}

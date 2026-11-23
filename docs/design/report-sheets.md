@@ -354,3 +354,13 @@ The comparison and the sweep reuse the plan 07 rules: motion is explanatory only
 - motion rule: the cursor moves with the day player's clock only; nothing else moves
 - do: take every value from the solved series. don't: draw a C1 line the datasheet does not give, smooth, or give a lane its own clock
 
+### R36 SweepChart
+
+- purpose: one outcome of the one-variable sweep: the modelled curve over the swept range, its p5 to p95 band, the control lines and a cursor that moves along the range.
+- tokens: curve `viz-recommended`, band `viz-3` at 18 % fill, C0 `viz-baseline` dashed, C1 `viz-3` dotted, grid `border-panel`, ticks, axis label and notes `text-muted` at `size-small`, title and cursor `text-primary`
+- states: `outcome` (closed union `t_max_c`, `r_solar`, `corrosion_risk`, `delam_proxy`, `cost_proxy`) and `controlKind` (`flat`, `curve`); no band for cost (said in words); a control with no finite value is not drawn and the chart says "C1: datasheet, not modelled" or "Bare aluminium: not modelled"; a curve with no finite value says "Not modelled while this layer is off"
+- contract: `sweepChart({ outcome, xs, nominal, lo, hi, c0, c1, controlKind, cursor, unit, xLabel })` returns `<figure class="tv-sweep-frame" data-outcome><svg data-sweep-chart role="img">` and a caption; series carry `data-source="sweep:<outcome>:nominal"`, `:band`, `:c0`, `:c1` (the controls also `data-control-kind`), the cursor `clock:sweep`; a `flat` control whose values vary is a build error (exit 4); gaps lift the pen, nothing is interpolated; PROXY badge on corrosion, delamination and cost; band legend "p5 to p95 band, parameter uncertainty only"
+- accessibility: the SVG has a name; the three lines differ by dash as well as colour; the values at the cursor are text in WatchSweep
+- motion rule: the cursor and dot move along a curve that was computed before; playing never recomputes
+- do: draw the control as a curve when it varies with the swept variable. don't: assume a control is fixed, draw a C1 line for a quantity the datasheet does not give, or show a band without its label
+
