@@ -1,39 +1,35 @@
 # Licensing, in plain terms
 
-This page explains how `LICENSE` applies to this repository. If this page and `LICENSE` ever disagree, `LICENSE` governs.
-It is not legal advice.
+A summary of `LICENSE` (Spandek Source-Available License 1.0). If this page and `LICENSE` disagree, `LICENSE` governs. It is not
+legal advice. Licensor: Evint Leovonzko (see `NOTICE`).
 
-**Licence:** PolyForm Strict 1.0.0 (`LICENSE`, unmodified official text). **Licensor:** Evint Leovonzko (see `NOTICE`).
+## You may, without asking (clause 2)
 
-## You may, without asking
+- Read the code, plans and documents.
+- Install and run the **unmodified** software on your own equipment for a noncommercial purpose: personal study, research and
+  testing for public knowledge, hobby projects, and use by charities, schools and universities, public research bodies, public
+  health, safety and environmental bodies, and governments (clause 1.7).
+- Supply your own input data and configuration values. That is use, not modification (2.2).
+- Keep the files the software writes for your noncommercial use (2.4), and rely on fair use or fair dealing.
 
-- Read the code, the plans and the documents.
-- Run the software on your own machine for a noncommercial purpose: personal study, research, experiment and testing for public
-  knowledge, hobby projects, and use by charities, schools and universities, public research bodies, public health, safety and
-  environmental bodies, and government institutions.
-- Keep the files the software writes for you (run folders, CSVs, `report.html`) for that noncommercial use.
-- Rely on fair use and similar rights your law gives you; the licence does not take them away.
+## You may not, without the licensor's written permission (clause 3)
 
-## You may not, without the licensor's written permission
-
-| Action | Why |
+| Action | Clause |
 |---|---|
-| Use it for any commercial purpose, including inside a company for a product, a service, a quotation, a tender, or a coating you sell | Only noncommercial purposes are permitted. |
-| Change the code, or build a new work from it | The licence excludes "making changes or new works". |
-| Copy, publish, host or send the code to anyone else, including a fork or a mirror | The licence excludes distribution. |
-| Share a built `report.html` with another person or publish it | The report is a single file that contains the software (the live simulator), so sharing it is distributing the software. Ask first. |
-| Sublicense, or pass your rights on | "No Other Rights" in `LICENSE`. |
+| Any commercial use, including by a company to design, specify, price, quote, tender for, market or sell a product or service | 3.1, 1.6 |
+| Modify the code or build a work on it | 3.2 |
+| Copy, publish, host, fork, mirror or package it for anyone else | 3.3 |
+| Share or publish a built `report.html`, which embeds the software | 3.4, 1.5 |
+| Sublicense, sell, lend, assign or transfer your rights | 3.5 |
+| Remove notices, or the statement that results are model outputs | 3.6 |
+| Present a result as a measurement, certification or endorsement, or use the name Spandek or the licensor's name to suggest endorsement | 3.7 |
 
-The licensor may grant anyone permission for any of these, in writing, and may use the software commercially without
-restriction. Commercial or other permission requests: contact the repository owner through the GitHub profile `Evintkoo`.
+The licensor keeps every other right, may use the software commercially, and may license it to anyone on other terms (clause 5).
 
-## Things the licence leaves open (so they are stated here)
+## Also in the licence
 
-- **Model results are not a warranty.** Every number is a model output, not a measurement, and corrosion and delamination are
-  proxies (see `README.md`). `LICENSE` disclaims all warranty.
-- **Contributions.** The licence grants no right to make or share changes, so a pull request is accepted only after the licensor
-  agrees to it in writing (see `CONTRIBUTING.md`).
-- **Third-party material** (fonts, data, vendored files, npm packages) keeps its own terms and is not relicensed; see `NOTICE`.
-- **Licence ends on breach.** After written notice of a violation, your licences continue only if you fully comply within 32 days
-  (`LICENSE`, "Violations").
-- **Patent claims.** Your patent licence ends immediately if you claim the software infringes a patent.
+- **Contributions (6):** accepted only if the licensor agreed in writing beforehand; anything you send is licensed to the licensor for any use.
+- **Termination (7):** it ends on breach. After a first written notice you have 32 days to comply fully and correct the consequences. A patent claim against the software ends your patent licence at once. Then you delete every copy.
+- **No warranty, no reliance (8):** results are model outputs, not measurements, and must not be used for engineering, safety, procurement or investment decisions.
+- **Liability (9):** capped at what you paid, which is zero if you paid nothing.
+- **Third-party material (4):** fonts, data, vendored files and packages keep their own terms (`NOTICE`).

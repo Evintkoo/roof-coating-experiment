@@ -29,4 +29,4 @@ Bugs: open an issue with the command, its exit code and the `run.jsonl` events (
 
 ## Licence
 
-The code is PolyForm Strict 1.0.0 (see `LICENSE`). Outside contributions to the code need the owner's written agreement, because the licence grants no right to make or share changes. Open an issue first.
+The code is under the Spandek Source-Available License 1.0 (see `LICENSE`, clause 6). A change is accepted only if the owner agreed to it in writing before it was made, and anything you send is licensed to the owner for any use. Open an issue first.
