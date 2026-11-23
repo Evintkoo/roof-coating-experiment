@@ -2,12 +2,14 @@ import { beforeAll, expect, test } from "bun:test"
 import fc from "fast-check"
 import { mergeOrdered } from "../../../src/core/anim/screening"
 import {
+  isFailure,
   isSweepable,
   layerOf,
   liveValueOf,
   SweepError,
   type SweepVar,
   sweepChunk,
+  sweepChunkSafe,
   sweepContext,
   sweepInputs,
   sweepValues,
@@ -80,8 +82,8 @@ test("sweepValuesContainTheLiveValueD6", () => {
       expect(xs.includes(live)).toBe(true)
       for (let i = 1; i < xs.length; i++)
         expect(xs[i] as number).toBeGreaterThan(xs[i - 1] as number)
-      expect(xs[0]).toBeGreaterThanOrEqual(v.min)
-      expect(xs.at(-1)).toBeLessThanOrEqual(v.max)
+      expect(xs[0]).toBe(v.min) // the sweep runs over the whole configured range, end to end
+      expect(xs.at(-1)).toBe(v.max)
     }),
     { numRuns: 200 },
   )
@@ -253,4 +255,45 @@ test("layersAndInputsAreMappedPerVariable", () => {
   ).toBe(0.3)
   expect(sweepContext(ctx, k("ph"), 3)).toBe(ctx)
   expect(sweepInputs(base, k("ph"), 3).ph).toBe(3)
+})
+
+test("aValueOutsideAModelRangeFailsThatPointOnlyF3", async () => {
+  // the primer DFT domain of the model is 2 to 12 um: a range edited to 0 to 20 leaves it at both ends
+  const v: SweepVar = {
+    ...(vars.find((x) => x.key === "primer_dft_um") as SweepVar),
+    min: 0,
+    max: 20,
+  }
+  const values = sweepValues(v, liveValueOf(v, base, ctx), 11)
+  const out = sweepChunkSafe(
+    ctx,
+    base,
+    v,
+    values,
+    values.map((_, i) => i),
+    2,
+    LIVE_SEED,
+  )
+  expect(out.length).toBe(11)
+  const failed = out.filter((o) => isFailure(o.value)).map((o) => o.index)
+  expect(failed.length).toBeGreaterThan(0)
+  expect(failed.length).toBeLessThan(11) // the other points are drawn
+  for (const o of out)
+    expect(isFailure(o.value)).toBe(
+      values[o.index]! < 2 || values[o.index]! > 12,
+    )
+})
+
+test("theSweepKeepsBothEndsEvenWhenTheLiveValueIsNearOne", () => {
+  const v: SweepVar = { ...(vars[0] as SweepVar), min: 0, max: 1 }
+  for (const live of [0.99, 0.005, 0.0126, 0.9874, 1, 0, 0.5]) {
+    const xs = sweepValues(v, live, N)
+    expect(xs.length).toBe(N)
+    expect(xs[0]).toBe(0)
+    expect(xs.at(-1)).toBe(1)
+    expect(xs.includes(live)).toBe(true)
+    for (let i = 1; i < N; i++)
+      expect(xs[i] as number).toBeGreaterThan(xs[i - 1] as number)
+  }
+  expect(() => sweepValues(v, 0.5, 2)).toThrow(SweepError)
 })

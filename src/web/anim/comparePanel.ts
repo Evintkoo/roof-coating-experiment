@@ -113,7 +113,26 @@ export function mountComparePanel(
   const draw = (): void => {
     if (!latest) return
     try {
-      lanes = laneSeries(latest.r, latest.inputs, latest.weather)
+      const next = laneSeries(latest.r, latest.inputs, latest.weather)
+      const tH = player.state().tH
+      const tmp = document.createElement("div")
+      tmp.innerHTML = watchCompare(toCompareProps(next, tH))
+      const fresh = tmp.firstElementChild as HTMLElement
+      root.replaceChildren(...fresh.childNodes)
+      lanes = next
+      geo = new Map(
+        lanes.map((l) => [
+          l.id,
+          laneChartGeometry(l.c1 ? [l.recipe, l.c0, l.c1] : [l.recipe, l.c0]),
+        ]),
+      )
+      delete root.dataset.state
+      drawn = true
+      deps.log?.("compare.open", "info", {
+        lanes: lanes.length,
+        controls: lanes.every((l) => l.c1) ? 2 : 1,
+      })
+      frame(tH)
     } catch (e) {
       drawn = false
       showError(
@@ -122,26 +141,7 @@ export function mountComparePanel(
       deps.log?.("compare.error", "error", {
         reason: e instanceof SpandekError ? e.phase : "unknown",
       })
-      return
     }
-    const tH = player.state().tH
-    const tmp = document.createElement("div")
-    tmp.innerHTML = watchCompare(toCompareProps(lanes, tH))
-    const fresh = tmp.firstElementChild as HTMLElement
-    root.replaceChildren(...fresh.childNodes)
-    delete root.dataset.state
-    geo = new Map(
-      lanes.map((l) => [
-        l.id,
-        laneChartGeometry(l.c1 ? [l.recipe, l.c0, l.c1] : [l.recipe, l.c0]),
-      ]),
-    )
-    drawn = true
-    deps.log?.("compare.open", "info", {
-      lanes: lanes.length,
-      controls: lanes.every((l) => l.c1) ? 2 : 1,
-    })
-    frame(tH)
   }
 
   const off = player.onFrame(frame)

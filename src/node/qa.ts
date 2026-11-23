@@ -4,7 +4,7 @@
 // Usage: bun run qa <report.html> [--throttle N]. Exit 0 clean, 1 defects, 2 bad usage.
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
-import { chromium, type Page } from "playwright"
+import { chromium, type Locator, type Page } from "playwright"
 
 export type QaSeverity = "major" | "minor"
 export type QaDefect = { id: string; severity: QaSeverity; repro: string }
@@ -214,14 +214,22 @@ export async function runQa(
       await n.blur()
       checked.controls++
     }
-    for (const s of await page.locator("select").all()) {
-      for (const o of await s.locator("option").all())
-        await s.selectOption({
-          index: (await o.evaluate(
-            (e) => (e as HTMLOptionElement).index,
-          )) as number,
-        })
-      checked.controls++
+    const driveSelects = async (scope: Page | Locator): Promise<void> => {
+      for (const s of await scope.locator("select:visible").all()) {
+        for (const o of await s.locator("option:not([disabled])").all())
+          await s.selectOption({
+            index: (await o.evaluate(
+              (e) => (e as HTMLOptionElement).index,
+            )) as number,
+          })
+        checked.controls++
+      }
+    }
+    await driveSelects(page)
+    // plan 08: the controls of the other two tabs of the "more ways to watch" disclosure
+    for (const tab of ["compare", "sweep", "screening"]) {
+      await page.locator(`#watch-tabs-tab-${tab}`).click()
+      await driveSelects(page.locator(`#watch-tabs-panel-${tab}`))
     }
     for (const c of await page
       .locator("#live-controls input[type=checkbox]")

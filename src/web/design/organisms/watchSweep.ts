@@ -22,7 +22,7 @@ export { STATE_WORDS, SWEEP_STATES, type SweepState }
 export const LAYER_OFF_NOTE =
   "This layer is off in the live simulator, so this variable has no effect on the curves."
 export const SWEEP_NOTE =
-  "Every other input is held at the live simulator's values; one variable at a time, so interactions between variables are not shown. Initial values only: ageing is not shown. Cost is in relative cost units. Bands are parameter uncertainty only."
+  "Every other input is held at the live simulator's values; one variable at a time, so interactions between variables are not shown. Initial values only: ageing is not shown. Cost is in relative cost units. Bands are parameter uncertainty only. Between the 41 computed values the readout is a straight-line interpolation, and the value box shows where the cursor is."
 
 export type WatchSweepProps = {
   variables: readonly SweepVar[]

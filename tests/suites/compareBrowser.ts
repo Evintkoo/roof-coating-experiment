@@ -6,6 +6,7 @@ import { join } from "node:path"
 import type { Page } from "playwright"
 import { OVERCLAIM_PATTERN } from "../../src/core/report/outline"
 import { repoRoot, visibleText } from "../helpers"
+import { textContrast } from "../support/pageContrast"
 import { type QaBrowser, qaReport, startQa } from "../support/qaPage"
 import type { Tier } from "./scale"
 
@@ -356,5 +357,32 @@ export function compareBrowserSuite(S: CompareScale): void {
     )
     expect(bare).toBe(0)
     expect(page.errors).toEqual([])
+  })
+
+  t("textContrastOfTheNewPanelsMeetsAABothThemesH13", async () => {
+    for (const scheme of ["light", "dark"] as const) {
+      const page = await qa.open({ hash: "#test", scheme })
+      await mounted(page)
+      await page.evaluate((th) => {
+        document.documentElement.dataset.theme = th
+      }, scheme)
+      let n = 0
+      for (const tab of ["compare", "sweep"] as const) {
+        await openTab(page, tab)
+        if (tab === "sweep") await ready(page)
+        const rows = await textContrast(page, `#watch-tabs-panel-${tab}`)
+        expect(rows.length, `${scheme} ${tab}`).toBeGreaterThan(10)
+        n += rows.length
+        for (const r of rows.filter((x) => !x.gradient && !x.exempt))
+          expect(
+            r.ratio,
+            `${scheme} ${tab} ${r.key} "${r.text}"`,
+          ).toBeGreaterThanOrEqual(4.5)
+      }
+      console.log(
+        `text contrast of the new panels, ${scheme}: ${n} text elements, all at least 4.5`,
+      )
+      await page.context().close()
+    }
   })
 }

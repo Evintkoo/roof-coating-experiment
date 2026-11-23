@@ -212,3 +212,30 @@ test("aMissingC1SeriesKeepsRecipeAndC0AndLogsOneControlF1", async () => {
   expect(log.at(-1)).toContain(`"lanes":${LANE_IDS.length}`)
   expect(fxErrors(p)).toEqual([])
 }, 60000)
+
+test("aNonFiniteSeriesValueIsTheErrorStateNotAThrowFix4", async () => {
+  const p = await h.open()
+  const threw = await p.evaluate(() => {
+    const r = window.RESULT
+    const bad = (r.series.t_k as Float64Array).slice()
+    bad[10] = Number.NaN
+    window.CP.setOpen(true)
+    try {
+      window.CP.update(
+        { ...r, series: { ...r.series, t_k: bad } },
+        window.LIVE,
+        window.CTX.weather,
+      )
+      return false
+    } catch {
+      return true
+    }
+  })
+  expect(threw).toBe(false)
+  expect(await p.locator('[data-anim="compare-status"]').innerText()).toContain(
+    "could not be drawn",
+  )
+  await p.evaluate(() => window.P.seek(7))
+  expect(await p.evaluate(() => window.P.state().tH)).toBe(7)
+  expect(fxErrors(p)).toEqual([])
+}, 60000)

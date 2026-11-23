@@ -120,18 +120,26 @@ export function layerOf(v: SweepVar): "primer" | "midcoat" | "topcoat" | null {
   return null
 }
 
-/** `n` ascending values over the range; the grid point nearest the live value is replaced by it, so the live value is on the grid (D6). */
+/**
+ * `n` ascending values over the range; the interior grid point nearest the live value is replaced by it, so the live value is on the
+ * grid (D6) and the sweep still runs over the whole configured range, end to end.
+ */
 export function sweepValues(v: SweepVar, live: number, n: number): number[] {
   if (!isSweepable(v))
     throw new SweepError(`${v.key} is fixed in this configuration`)
-  if (!Number.isInteger(n) || n < 2)
-    throw new SweepError("a sweep needs at least two points")
+  if (!Number.isInteger(n) || n < 3)
+    throw new SweepError("a sweep needs at least three points")
   const xs = Array.from({ length: n }, (_, i) =>
     i === n - 1 ? v.max : v.min + ((v.max - v.min) * i) / (n - 1),
   )
-  if (Number.isFinite(live) && live >= v.min && live <= v.max) {
-    let at = 0
-    for (let i = 1; i < n; i++)
+  if (
+    Number.isFinite(live) &&
+    live >= v.min &&
+    live <= v.max &&
+    !xs.includes(live)
+  ) {
+    let at = 1
+    for (let i = 2; i < n - 1; i++)
       if (
         Math.abs((xs[i] as number) - live) < Math.abs((xs[at] as number) - live)
       )

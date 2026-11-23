@@ -1,0 +1,31 @@
+Q1. Which of the three recommended recipes cools the roof the most? Give its identifier (for example SP-000).
+
+Q2. By how many kelvin does that recipe lower the peak surface temperature compared with bare aluminium (scenario mean)? Give one number with one decimal.
+
+Q3. Is the cooling number on the page a measurement?
+  A. Yes, measured on coated aluminium samples
+  B. Partly measured, partly modelled
+  C. No, it is a prediction of a model for the freshly applied coating, not a measurement
+  D. Yes, measured on real roofs in Indonesia
+
+Q4. What does the label PROXY mean next to a number?
+  A. A relative ranking index, not a measurement and not a probability
+  B. A calibrated probability that the coating will fail
+  C. A value measured by a proxy instrument
+  D. A value copied from the manufacturer's datasheet
+
+Q5. On the balanced budget curve, at what cost (relative units, not rupiah) does paying more stop buying much, the knee of the curve? Give one number with two decimals.
+
+Q6. Which of the five Indonesian sites benefits most from the cooling-pick recipe? Give the site name.
+
+Q7. Which of these does the report say it does not model or does not know?
+  A. Sunlight reflected by the coating
+  B. Heat conducted into the building
+  C. Scattering of light by the pigments
+  D. Weathering, ageing and adhesion of the coating
+
+Q8. What does the report recommend as the next step for the cooling pick?
+  A. Coat a real roof now
+  B. Make small coated samples and test them in a laboratory
+  C. Publish the numbers as validated results
+  D. Nothing, the recipe is rejected

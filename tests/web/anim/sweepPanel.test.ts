@@ -330,3 +330,92 @@ test("noEventCarriesARecipeValueAndEveryOneIsEmittedH9", async () => {
   expect(f.variable).toBe("midcoat_dft_um") // the key, never the value
   for (const l of log) expect(l).not.toMatch(/0\.\d{4,}/) // no recipe-identifying number
 }, 60000)
+
+test("twoComputesDuringThePoolStartShareOnePoolNoLeakFix1", async () => {
+  const p = await h.open()
+  const r = await p.evaluate(async () => {
+    window.SP.setOpen(true) // starts the first compute at once
+    const second = window.SP.compute() // a second compute while the pool is still starting
+    const out = await second
+    await new Promise((a) => setTimeout(a, 300))
+    return { out, stats: window.SP.poolStats() }
+  })
+  expect(r.out).toBe("done")
+  const size = await p.evaluate(() =>
+    Math.max(
+      1,
+      Math.min(Math.floor(navigator.hardwareConcurrency || 2) - 1, 6),
+    ),
+  )
+  expect(r.stats?.created).toBe(size) // one pool, never two
+  expect(r.stats?.live).toBe(size)
+}, 60000)
+
+test("aLiveChangeDuringThePoolStartCancelsTheRunFix1", async () => {
+  const p = await h.open()
+  const out = await p.evaluate(
+    async (i) => {
+      window.SP.setOpen(false)
+      const run = window.SP.compute() // the pool has not started yet
+      window.A8.setLive(i) // the live settings change in the same task
+      return { run: await run, state: window.SP.state().state }
+    },
+    { ...h.live, ph: h.live.ph + 0.4 },
+  )
+  expect(out.run).toBe("cancelled")
+  expect(out.state).toBe("stale")
+  await p.waitForTimeout(500)
+  expect(await p.locator('[data-anim="sweep-chart"] svg').count()).toBe(0)
+  expect(await p.evaluate(() => window.LOG.join("\n"))).not.toContain(
+    "sweep.done",
+  )
+}, 60000)
+
+test("closingThePanelReleasesTheWorkersAndAVariableChangeClearsTheOldChartsFix1Fix3", async () => {
+  const p = await h.open()
+  await p.evaluate(() => window.SP.setOpen(true))
+  await p.waitForFunction(
+    () => window.SP.state().state === "ready",
+    undefined,
+    { timeout: 30000 },
+  )
+  expect(await p.locator('[data-anim="sweep-chart"] svg').count()).toBe(5)
+  // a variable change empties the charts at once: the old variable's curves never sit under the new name
+  const cleared = await p.evaluate(() => {
+    window.SP.selectVariable("topcoat_dft_um")
+    return (
+      document.querySelectorAll('[data-anim="sweep-chart"] svg').length +
+      document.querySelector('[data-anim="sweep-readout"]')!.textContent!.length
+    )
+  })
+  expect(cleared).toBe(0)
+  await p.waitForFunction(
+    () => window.SP.state().state === "ready",
+    undefined,
+    { timeout: 30000 },
+  )
+  await p.evaluate(() => window.SP.setOpen(false))
+  expect(await p.evaluate(() => window.SP.poolStats())).toBeNull() // a closed panel holds no pool
+}, 60000)
+
+test("theEndsOfTheRangeAreSweptEvenNearTheLiveValueFix2", async () => {
+  const p = await h.open()
+  await p.evaluate(() => window.SP.setOpen(true))
+  await p.waitForFunction(
+    () => window.SP.state().state === "ready",
+    undefined,
+    { timeout: 30000 },
+  )
+  for (const k of ["midcoat_dft_um", "wind_m_s"]) {
+    await p.evaluate((x) => window.SP.selectVariable(x), k)
+    await p.waitForFunction(
+      () => window.SP.state().state === "ready",
+      undefined,
+      { timeout: 30000 },
+    )
+    const d = await p.evaluate(() => window.SP.data())
+    const v = pick(k)
+    expect(d?.xs[0]).toBe(v.min)
+    expect(d?.xs.at(-1)).toBe(v.max)
+  }
+}, 120000)

@@ -179,6 +179,7 @@ export function mountSweepPanel(
   let data: Data | null = null
   let dataKey = ""
   let pool: Pool | null = null
+  let poolP: Promise<Pool> | null = null
   let current: { cancel(): void } | null = null
   let runSeq = 0
   let clock: ClockState = initialClock("once")
@@ -233,7 +234,8 @@ export function mountSweepPanel(
     const d = data
     const x = xAt(d)
     scrub.value = String(clock.tH)
-    valueBox.value = liveValue((d.v.max - d.v.min) / 200, x)
+    if (document.activeElement !== valueBox)
+      valueBox.value = liveValue((d.v.max - d.v.min) / 200, x)
     for (const o of SWEEP_OUTCOMES) {
       const s = d.series[o]
       const g = sweepChartGeometry(d.xs, [
@@ -254,9 +256,10 @@ export function mountSweepPanel(
         x,
       )
       if (dot && Number.isFinite(y)) {
+        dot.removeAttribute("visibility")
         dot.setAttribute("cx", cx)
         dot.setAttribute("cy", String(Math.round(g.y(y) * 100) / 100))
-      }
+      } else dot?.setAttribute("visibility", "hidden")
     }
     const xs = Float64Array.from(d.xs)
     const at = (a: number[]): number =>
@@ -272,11 +275,12 @@ export function mountSweepPanel(
         Number.isFinite(c) ? `${signed(v - c, digits)}${u} vs ${name}` : ""
       const c1 = s.c1 ? vs("C1", at(s.c1)) : "C1 datasheet, not modelled"
       const c0 = vs("C0", at(s.c0))
+      const against = [c0, c1].filter(Boolean).join(", ")
       parts.push(
-        `${READ_NAME[o]} ${fmt(v, digits)}${READ_UNIT[o]} (${[c0, c1].filter(Boolean).join(", ")})`,
+        `${READ_NAME[o]} ${fmt(v, digits)}${READ_UNIT[o]}${against ? ` (${against})` : ""}`,
       )
     }
-    readout.textContent = `At ${d.v.label} = ${liveValue((d.v.max - d.v.min) / 200, x)}${unitText(d.v.unit) ? ` ${unitText(d.v.unit)}` : ""}: ${parts.join("; ")}.`
+    readout.textContent = `At ${d.v.label} = ${liveValue((d.v.max - d.v.min) / 200, x)}${unitText(d.v.unit) ? ` ${unitText(d.v.unit)}` : ""}${parts.length ? `: ${parts.join("; ")}.` : ": no outcome is modelled at this value."}`
     const label = clock.playing
       ? "Pause"
       : clock.tH >= 24
@@ -303,13 +307,38 @@ export function mountSweepPanel(
     }
   }
 
-  const poolFor = async (): Promise<Pool> => {
-    if (pool) return pool
-    pool = await createPool("auto", deps.workerUrl, deps.ctxJson, {
+  // one pool at a time: a second compute while the first pool starts shares it (no leaked workers)
+  const poolFor = (): Promise<Pool> => {
+    if (poolP) return poolP
+    const mk: Promise<Pool> = createPool("auto", deps.workerUrl, deps.ctxJson, {
       ...(deps.inline ? { inlineSweep: deps.inline } : {}),
       onEvent: (n, l, f) => deps.log?.(n, l, f),
-    })
-    return pool
+    }).then(
+      (p) => {
+        if (poolP === mk) pool = p
+        return p
+      },
+      (e) => {
+        if (poolP === mk) poolP = null
+        throw e
+      },
+    )
+    poolP = mk
+    return mk
+  }
+  /** D12: a closed panel holds no workers. */
+  const closePool = (): void => {
+    const pending = poolP
+    poolP = null
+    pool = null
+    void pending?.then(
+      (p) => p.terminate(),
+      () => {},
+    )
+  }
+  const clearView = (): void => {
+    for (const o of SWEEP_OUTCOMES) slot(o).innerHTML = ""
+    readout.textContent = ""
   }
 
   const cancelRun = (
@@ -325,10 +354,16 @@ export function mountSweepPanel(
   async function compute(): Promise<"done" | "cancelled" | "failed"> {
     cancelRun("variable_changed")
     const me = ++runSeq
+    // a placeholder handle until the pool runs, so a cancel during the pool start is a cancel (newest wins)
+    current = {
+      cancel() {},
+    }
     const v = variable()
     const live = deps.live()
     updateLayerNote()
     if (!(v.max > v.min)) {
+      current = null
+      clearView()
       setState("error")
       return "failed"
     }
@@ -362,6 +397,13 @@ export function mountSweepPanel(
         if (isFailure(pt))
           deps.log?.("sweep.error", "error", { reason: pt.reason, index })
       })
+      if (points.every(isFailure)) {
+        current = null
+        data = null
+        clearView()
+        setState("error")
+        return "failed"
+      }
       data = buildSeries(v, values, points)
       dataKey = `${v.key}|${JSON.stringify(live)}`
       drawCharts(data)
@@ -379,6 +421,7 @@ export function mountSweepPanel(
       const reason = (e as { reason?: string }).reason
       if (reason === "cancelled") return "cancelled"
       current = null
+      clearView()
       setState("error")
       deps.log?.("sweep.error", "error", {
         reason: reason === "no_worker" ? "no_worker" : "worker_failed",
@@ -444,6 +487,7 @@ export function mountSweepPanel(
       clock = initialClock("once")
       data = null
       dataKey = ""
+      clearView()
       if (open) void compute()
       else {
         cancelRun("variable_changed")
@@ -483,6 +527,7 @@ export function mountSweepPanel(
       if (!o) {
         pause("user")
         cancelRun("closed")
+        closePool()
         if (state === "running") setState(data ? "ready" : "idle")
         return
       }
@@ -536,8 +581,7 @@ export function mountSweepPanel(
       off?.()
       off = null
       cancelRun("closed")
-      pool?.terminate()
-      pool = null
+      closePool()
     },
   }
   return api

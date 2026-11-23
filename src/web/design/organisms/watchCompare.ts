@@ -19,7 +19,7 @@ export type CompareDiff = Record<LaneId, { c0: number; c1: number | null }>
 export const C1_NOTE =
   "C1 is a commercial datasheet product made in the US (initial values from its brochure, thermal quantities only, not an Indonesian datasheet)."
 export const COMPARE_NOTE =
-  "Reflected and absorbed sunlight follow the day's irradiance and each line's solar reflectance; conducted heat follows the solved surface temperature; the cumulative lane adds the conducted heat up. Initial values only: ageing is not shown."
+  "Reflected and absorbed sunlight follow the day's irradiance and each line's solar reflectance; conducted heat follows the solved surface temperature; the cumulative lane adds the conducted heat up to 23:50. Between the solved points (every 10 minutes) the readouts are straight-line interpolations. Initial values only: ageing is not shown."
 
 /** The unit of a difference: a temperature difference is in K, everything else keeps the lane's unit. */
 export const diffUnit = (unit: string): string => (unit === "°C" ? "K" : unit)
