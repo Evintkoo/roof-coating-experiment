@@ -110,6 +110,28 @@ export const MOLECULE_CSS = {
 .tv-speed__select{min-height:${t("target-min")};padding:${t("space-1")} ${t("space-2")};border:${t("hairline")} solid ${t("border-control")};border-radius:${t("radius-control")};background:${t("surface-glass")};color:${t("text-primary")};font-family:${t("font-sans")};font-size:${t("size-body")}}
 .tv-time{min-width:calc(${t("space-8")} * 2);font-family:${t("font-mono")};font-size:${t("size-body")};color:${t("text-primary")};text-align:center}
 `,
+  physicsScene: `
+.tv-scene{display:block;width:100%;height:auto;font-family:${t("font-sans")}}
+.tv-scene__title{fill:${t("text-primary")};font-size:${t("size-small")};font-weight:${t("weight-semibold")}}
+.tv-scene__note,.tv-scene__value{fill:${t("text-muted")};font-size:${t("size-small")}}
+.tv-scene__label{fill:${t("text-primary")};font-size:${t("size-small")}}
+.tv-scene__temp{fill:${t("text-primary")};font-size:${t("size-label")};font-family:${t("font-mono")}}
+.tv-scene__layer{stroke:${t("border-panel")};stroke-width:1}
+.tv-scene__layer--topcoat{fill:${t("viz-seq-7")}}
+.tv-scene__layer--midcoat{fill:${t("viz-seq-6")}}
+.tv-scene__layer--primer{fill:${t("viz-seq-4")}}
+.tv-scene__layer--aluminium{fill:${t("viz-baseline")}}
+.tv-scene__ray{stroke-width:2;stroke-linecap:round}
+.tv-scene__ray--uv{stroke:${t("viz-6")}}
+.tv-scene__ray--visible{stroke:${t("viz-4")}}
+.tv-scene__ray--nir{stroke:${t("viz-2")}}
+.tv-scene__arrow line{stroke:${t("text-primary")};stroke-width:3}
+.tv-scene__arrow--absorbed line{stroke:${t("viz-recommended")}}
+.tv-scene__arrow--radiated line{stroke:${t("viz-3")}}
+.tv-scene__arrow--convected line{stroke:${t("viz-5")}}
+.tv-scene__arrow--conducted line{stroke:${t("status-stop")}}
+.tv-scene__head{fill:${t("text-primary")}}
+`,
   dayChart: `
 .tv-daychart-frame{margin:0;min-width:0}
 .tv-daychart{display:block;width:100%;height:auto;font-family:${t("font-sans")}}

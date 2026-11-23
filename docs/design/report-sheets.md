@@ -384,3 +384,17 @@ The comparison and the sweep reuse the plan 07 rules: motion is explanatory only
 - motion rule: nothing moves until Play range is pressed; playing moves a cursor over curves computed before and never recomputes; reduced motion draws the full curves and moves only on a press; the tab being hidden freezes the cursor
 - do: say "parameter uncertainty only" next to every band. don't: autoplay, recompute while playing, or call a point on the curve a recommendation
 
+
+## Animation (plan 09)
+
+The live physics scene follows the plan 07 and 08 rules: motion is explanatory only, every moving region has a pause control, every moving or numeric element declares its source (`data-source`) and sits inside a container labelled "Model output, not a measurement". Rays show fractions, not photons. Nothing is drawn that the repo's models do not compute: there is no temperature per layer and no scattering visual (BLOCKED-19 to BLOCKED-21).
+
+### R39 PhysicsScene
+
+- purpose: one pane of the live physics scene: the stack cross-section (topcoat, midcoat, primer, aluminium, or bare aluminium), sunlight rays split by band into reflected and absorbed, and four heat arrows at the surface (absorbed, radiated, convected, conducted).
+- tokens: layers `viz-seq-7`, `viz-seq-6`, `viz-seq-4` and `viz-baseline`; rays `viz-6` (UV), `viz-4` (visible), `viz-2` (NIR); arrows `viz-recommended`, `viz-3`, `viz-5`, `status-stop`; text `text-primary` and `text-muted` at `size-small`
+- states: `pane` is a closed union (`recipe`, `aluminium`); `bands` null draws no rays and says "spectrum not available"; a layer that is off is not drawn; non-finite numbers are a build error (exit 4)
+- contract: `physicsScene({ pane, bands, rays, layers, terms, tK, source, seed? })` returns `<svg class="tv-scene" data-physics-scene>`; each ray is a `<line data-ray data-band data-reflected data-source="bands:<id>">` whose reflected count per band is `round(N_b R_b)` in a fixed low-discrepancy order (only the start position is jittered, from a seeded generator); each arrow is a `<g data-arrow data-source="<source>:<term>">` whose length is `60 px * flux / 1000 W/m2`, the same scale in both panes; the temperature text carries `data-source="<source>:t_k"`; `arrowGeometry` and `rayPoints` are the one geometry
+- accessibility: the SVG has a name that says what is drawn; the numbers of every arrow and the temperature are text; the label "Illustrative scale: layers are not to scale" is inside the drawing
+- motion rule: rays move only while the panel plays and are absent under reduced motion; arrows and numbers change with the stepper frame
+- do: take every count and length from the bands and the stepper. don't: draw a scattering mark, a temperature per layer or a ray count that is not a quota of the spectrum
