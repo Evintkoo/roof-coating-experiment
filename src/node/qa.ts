@@ -227,9 +227,41 @@ export async function runQa(
     }
     await driveSelects(page)
     // plan 08: the controls of the other two tabs of the "more ways to watch" disclosure
-    for (const tab of ["compare", "sweep", "screening"]) {
+    for (const tab of ["compare", "sweep", "physics", "screening"]) {
       await page.locator(`#watch-tabs-tab-${tab}`).click()
       await driveSelects(page.locator(`#watch-tabs-panel-${tab}`))
+      if (tab === "physics") {
+        // plan 09: the live physics controls: play, pause, step, restart and the three sliders to both ends
+        const panel = page.locator("#watch-tabs-panel-physics")
+        await page
+          .waitForFunction(
+            () => document.querySelector('[data-anim="phys-play"]') !== null,
+            undefined,
+            { timeout: 15_000 },
+          )
+          .catch(() =>
+            add("physics_missing", "major", "the live physics tab never drew"),
+          )
+        for (const a of [
+          "phys-play",
+          "phys-play",
+          "phys-step",
+          "phys-restart",
+        ]) {
+          const b = panel.locator(`[data-anim="${a}"]`)
+          if (await b.count()) {
+            await b.click()
+            await page.waitForTimeout(a === "phys-play" ? 300 : 80)
+            checked.controls++
+          }
+        }
+        for (const r of await panel.locator('input[type="range"]').all()) {
+          await r.focus()
+          await page.keyboard.press("Home")
+          await page.keyboard.press("End")
+          checked.controls++
+        }
+      }
     }
     for (const c of await page
       .locator("#live-controls input[type=checkbox]")

@@ -21,6 +21,14 @@ import { sliderSpecs } from "../liveState"
 export const RAYS_MAX = 150
 export type PaneNow = { tK: number; terms: Terms }
 
+/** FR-6: how many of the rays are shown: the model's irradiance now over its peak (none at night, all at the peak). */
+export function raysShown(terms: Terms, gPeak: number): number {
+  const g = terms.absorbed + terms.reflected
+  return gPeak > 0
+    ? Math.round(RAYS_MAX * Math.min(1, Math.max(0, g / gPeak)))
+    : 0
+}
+
 /** The bands of the live spectrum, or null when the result carries none (F1). A bad grid throws a BandsError (F2). */
 export function bandsOf(ctx: ModelContext, r: LiveResult): Band[] | null {
   const s = r.spectrum?.nominal
@@ -99,6 +107,7 @@ export function physicsProps(
       scene: {
         bands,
         rays: RAYS_MAX,
+        visible: raysShown(now.recipe.terms, inputs.scenario.irradiance_w_m2),
         layers: inputs.layers,
         terms: now.recipe.terms,
         tK: now.recipe.tK,
@@ -109,6 +118,7 @@ export function physicsProps(
       scene: {
         bands,
         rays: RAYS_MAX,
+        visible: raysShown(now.c0.terms, inputs.scenario.irradiance_w_m2),
         layers: { primer: false, midcoat: false, topcoat: false },
         terms: now.c0.terms,
         tK: now.c0.tK,

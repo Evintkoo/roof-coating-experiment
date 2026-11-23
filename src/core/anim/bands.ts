@@ -72,7 +72,7 @@ export function bandSplit(
   if (!(total > 0)) throw new BandsError("the G173 spectrum has no irradiance")
   return BAND_IDS.map((id, k) => ({
     id,
-    lo_um: EDGES[id][0],
+    lo_um: id === "uv" ? Math.min(EDGES.uv[0], gw[0] as number) : EDGES[id][0],
     hi_um: EDGES[id][1],
     share: (den[k] as number) / total,
     reflected:
@@ -86,10 +86,8 @@ export function rayQuota(
   n: number,
 ): { reflected: number; absorbed: number } {
   const count = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
-  const reflected = Math.min(
-    count,
-    Math.max(0, Math.round(count * b.reflected)),
-  )
+  const r = Number.isFinite(b.reflected) ? b.reflected : 0
+  const reflected = Math.min(count, Math.max(0, Math.round(count * r)))
   return { reflected, absorbed: count - reflected }
 }
 

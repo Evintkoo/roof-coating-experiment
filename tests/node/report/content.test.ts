@@ -325,7 +325,11 @@ test("tabularFactsAreTablesAndTheLimitsAreSaidOnce", () => {
   )?.[0] as string
   expect(prov).not.toContain("tv-provenance__facts")
   expect(prov).toMatch(/<table[^>]*id="provenance-run-facts"/)
-  // the only definition lists left are the glossary and the live readouts
+  // the only definition lists left are the glossary and the live readouts (day player, live physics)
   const dls = [...main.matchAll(/<dl class="([^"]*)"/g)].map((m) => m[1])
-  expect(dls.sort()).toEqual(["tv-glossary__list", "tv-watchday__readouts"])
+  expect(dls.sort()).toEqual([
+    "tv-glossary__list",
+    "tv-watchday__readouts",
+    "tv-watchphysics__readouts",
+  ])
 })

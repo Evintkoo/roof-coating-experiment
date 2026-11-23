@@ -3,7 +3,12 @@
 // frame. Both lanes run the same pure stepper (createPair), so the result does not depend on the lane, the frame timing or the machine.
 // The lane keeps a request log (the parameter changes and the steps between them): a killed worker is replaced by an inline lane that
 // replays the log, so it resumes from the last good state and produces the same bytes (F4).
-import { createPair, type Pair, type PaneFrames } from "../core/anim/stepper"
+import {
+  createPair,
+  MAX_STEPS_PER_REQUEST,
+  type Pair,
+  type PaneFrames,
+} from "../core/anim/stepper"
 import { SpandekError } from "../core/errors"
 import { contextFromJson } from "../core/pipeline/contextJson"
 import type { LiveInputs } from "../core/pipeline/live"
@@ -74,10 +79,12 @@ function workerBackend(
   deps: Required<Pick<LaneDeps, "Worker">> & LaneDeps,
   ctxJson: string,
   onDead: (reason: string) => void,
+  onSpawn: (w: { terminate(): void }) => void,
 ): Promise<Backend> {
   return new Promise((resolve, reject) => {
     const hangMs = deps.hangMs ?? 10_000
     const w = new deps.Worker(deps.workerUrl as string | URL)
+    onSpawn(w)
     let dead = false
     let nextId = 1
     const pending = new Map<
@@ -171,6 +178,11 @@ export function openStepperLane(
   let backend: Backend | null = null
   let latest = 0
   let closed = false
+  let spawned: { terminate(): void } | null = null
+  let onClose: () => void = () => {}
+  const closedP = new Promise<null>((res) => {
+    onClose = () => res(null)
+  })
   let failed: Error | null = null
   let lastErr: string | null = null
   let tail: Promise<unknown> = Promise.resolve()
@@ -192,7 +204,10 @@ export function openStepperLane(
       if (e.op === "init") await b.call("init", 0, { inputs: e.inputs })
       else if (e.op === "params")
         await b.call("params", 0, { inputs: e.inputs })
-      else await b.call("step", 0, { n: e.n })
+      // a merged entry can exceed one request (MAX_STEPS_PER_REQUEST), so it is replayed in pieces
+      else
+        for (let left = e.n; left > 0; left -= MAX_STEPS_PER_REQUEST)
+          await b.call("step", 0, { n: Math.min(left, MAX_STEPS_PER_REQUEST) })
     }
     return b
   }
@@ -201,7 +216,8 @@ export function openStepperLane(
     emit("physics.lane.failed", "error", {
       reason: reason === "no_worker" ? "no_worker" : "worker_failed",
     })
-    backend = await inlineFromLog()
+    const b = await inlineFromLog()
+    if (!closed) backend = b
   }
 
   // serialised: every operation waits for the one before it
@@ -223,7 +239,8 @@ export function openStepperLane(
     } catch (e) {
       if (!(e instanceof WorkerFailed) || closed) throw e
       await fallback(e.message)
-      return (backend as Backend).call(op, version, payload)
+      if (backend === null) throw new WorkerFailed("closed")
+      return backend.call(op, version, payload)
     }
   }
 
@@ -231,15 +248,29 @@ export function openStepperLane(
     let b: Backend | null = null
     if (deps.Worker && deps.workerUrl !== undefined) {
       try {
-        b = await workerBackend(
-          deps as Required<Pick<LaneDeps, "Worker">> & LaneDeps,
-          ctxJson,
-          (reason) => {
-            // a worker that dies later is replaced on the next call (see run)
-            emit("physics.lane.failed", "error", { reason: "worker_failed" })
-            void reason
-          },
-        )
+        const started = await Promise.race([
+          workerBackend(
+            deps as Required<Pick<LaneDeps, "Worker">> & LaneDeps,
+            ctxJson,
+            (reason) => {
+              // a worker that dies later is replaced on the next call (see run)
+              if (!closed)
+                emit("physics.lane.failed", "error", {
+                  reason: "worker_failed",
+                })
+              void reason
+            },
+            (w) => {
+              spawned = w
+            },
+          ),
+          closedP,
+        ])
+        if (started === null || closed) {
+          started?.close()
+          return // closed while starting: nothing was built and nothing is posted
+        }
+        b = started
         backend = b
         await b.call("init", 0, { inputs })
         emit("physics.open", "info", {
@@ -307,12 +338,16 @@ export function openStepperLane(
         await run("init", version, { inputs: next })
         note({ op: "init", inputs: next })
       }).catch(() => {
+        lastErr = "physics_range"
         emit("physics.error", "error", { reason: "restart", pane: "both" })
       })
     },
     close() {
       closed = true
-      backend?.close()
+      onClose()
+      // a worker still starting up dies now, not when it answers; a started one is closed by its backend (one terminate each)
+      if (backend) backend.close()
+      else spawned?.terminate()
       backend = null
     },
     kind: () => backend?.kind ?? "inline",

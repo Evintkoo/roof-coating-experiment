@@ -105,7 +105,7 @@ export function watchPhysics(p: WatchPhysicsProps): string {
     `<button type="button" class="tv-play tv-play--step" data-anim="phys-step" aria-label="Forward one model hour">+1 h</button>` +
     `<button type="button" class="tv-play tv-play--step" data-anim="phys-restart" aria-label="Restart the day from the batch state">Restart day</button>` +
     `<label class="tv-speed"><span class="tv-speed__label">Speed</span><select class="tv-speed__select" data-anim="phys-speed">${speeds}</select></label>` +
-    `<output class="tv-time" data-anim="phys-time" data-value="0">day 2, 00:00</output>`
+    `<output class="tv-time" data-anim="phys-time" data-source="stepper:t_s" data-value="0">day 2, 00:00</output>`
   void speed
   return tag(
     "div",

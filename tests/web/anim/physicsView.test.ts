@@ -107,3 +107,22 @@ test("noSpectrumGivesNullBandsF1AndUnequalGridsAreATypedErrorF2", () => {
     ).recipe.scene.bands,
   ).toBeNull()
 })
+
+test("noRaysAreShownAtNightAndAllAtThePeakFR6", async () => {
+  const { raysShown } = await import("../../../src/web/anim/physicsView")
+  const night = physicsProps(ctx, inputs, r, now(), opts)
+  expect(night.recipe.scene.visible).toBe(0) // 00:00: G is zero, so the page before any script shows no rays
+  expect(
+    raysShown(
+      { ...night.recipe.scene.terms, absorbed: 100, reflected: 700 },
+      800,
+    ),
+  ).toBe(RAYS_MAX)
+  expect(
+    raysShown(
+      { ...night.recipe.scene.terms, absorbed: 50, reflected: 350 },
+      800,
+    ),
+  ).toBe(Math.round(RAYS_MAX / 2))
+  expect(raysShown(night.recipe.scene.terms, 0)).toBe(0)
+})

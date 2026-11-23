@@ -114,11 +114,10 @@ test("allocateRaysSumsToTheTotalWithinOneRayH5", () => {
   for (const n of [30, 150, 151]) {
     const a = allocateRays(b, n)
     expect(a.reduce((s, x) => s + x, 0)).toBe(n)
-    a.forEach((c, i) =>
+    for (const [i, c] of a.entries())
       expect(Math.abs(c - n * (b[i] as { share: number }).share)).toBeLessThan(
         1,
-      ),
-    )
+      )
   }
 })
 
@@ -143,4 +142,31 @@ test("noScatterElementIsExposedH9", async () => {
   // Q3: the scattering visual is dropped; the module exports no scatter function (the visual would have no model source).
   const m = await import("../../../src/core/anim/bands")
   expect(Object.keys(m).some((k) => /scatter/i.test(k))).toBe(false)
+})
+
+test("aNaNOrOutOfRangeReflectanceGivesAConsistentQuotaFix", () => {
+  const b = { id: "nir" as const, lo_um: 0.7, hi_um: 4, share: 0.5 }
+  expect(rayQuota({ ...b, reflected: Number.NaN }, 10)).toEqual({
+    reflected: 0,
+    absorbed: 10,
+  })
+  expect(rayQuota({ ...b, reflected: 1.7 }, 10)).toEqual({
+    reflected: 10,
+    absorbed: 0,
+  })
+  expect(rayQuota({ ...b, reflected: -0.3 }, 10)).toEqual({
+    reflected: 0,
+    absorbed: 10,
+  })
+})
+
+test("theUvBandStartsWhereTheG173SpectrumStarts", () => {
+  const b = bandSplit(
+    ctx.wlUm,
+    new Float64Array(ctx.wlUm.length).fill(0.5),
+    ctx.g173,
+  )
+  expect((b[0] as { lo_um: number }).lo_um).toBe(
+    Math.min(0.3, ctx.g173.wl_um[0] as number),
+  )
 })

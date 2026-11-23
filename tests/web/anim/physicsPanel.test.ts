@@ -119,3 +119,57 @@ test("transientNoteAfterAChangeAndRestartClearsItH15", async () => {
   ).not.toContain("Transient")
   expect(p.errors).toEqual([])
 }, 120_000)
+
+// Adversarial review of plan 09 (fixes): closing a tab with a request in flight is not an error, a reopened panel keeps one request in
+// flight, and reduced motion turned on while playing stops the ticker.
+test("closingWhilePlayingIsNotAnErrorAndAReopenedPanelRunsCleanFix", async () => {
+  const p = await open()
+  await p.locator('[data-anim="phys-speed"]').selectOption("4")
+  for (let i = 0; i < 4; i++) {
+    await p.locator('[data-anim="phys-play"]').click()
+    await p.waitForTimeout(40 + i * 20)
+    await p.evaluate(() =>
+      (
+        document.getElementById("watch-tabs-tab-screening") as HTMLElement
+      ).click(),
+    )
+    await p.waitForFunction(() => window.__anim?.physics()?.open === false)
+    await p.evaluate(() =>
+      (
+        document.getElementById("watch-tabs-tab-physics") as HTMLElement
+      ).click(),
+    )
+    await p.waitForFunction(
+      () => window.__anim?.physics()?.ready === true,
+      undefined,
+      { timeout: 30_000 },
+    )
+  }
+  expect((await ph(p)).state).not.toBe("error")
+  expect(
+    await p.locator('[data-anim="phys-status"]').innerText(),
+  ).not.toContain("could not run")
+  await p.locator('[data-anim="phys-play"]').click()
+  await p.waitForTimeout(600)
+  const a = await ph(p)
+  await p.waitForTimeout(600)
+  const b = await ph(p)
+  expect(b.tS).toBeGreaterThan(a.tS) // it runs
+  // one request at a time: the requests counted in 600 ms cannot exceed one per animation frame
+  expect(b.requests - a.requests).toBeLessThanOrEqual(60)
+  expect(p.errors).toEqual([])
+}, 120_000)
+
+test("reducedMotionTurnedOnWhilePlayingStopsTheTickerFix", async () => {
+  const p = await open()
+  await p.locator('[data-anim="phys-play"]').click()
+  await p.waitForFunction(() => window.__anim?.physics()?.ticker === true)
+  await p.emulateMedia({ reducedMotion: "reduce" })
+  await p.waitForFunction(
+    () => window.__anim?.physics()?.ticker === false,
+    undefined,
+    { timeout: 10_000 },
+  )
+  expect((await ph(p)).playing).toBe(false)
+  expect(p.errors).toEqual([])
+}, 120_000)

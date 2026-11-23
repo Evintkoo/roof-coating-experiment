@@ -208,3 +208,21 @@ test("badInputIsABuildErrorUnknownPaneAndTextIsEscapedF8F9", async () => {
     ),
   ).toBe(false)
 })
+
+test("onlyTheVisibleShareOfTheRaysIsShownFR6", async () => {
+  const els = await elementsOf(physicsScene({ ...base, visible: 40 }))
+  const rays = els.filter((e) => e.attrs["data-ray"] !== undefined)
+  expect(rays.length).toBe(150) // the quotas are of all rays; the model's irradiance decides how many are shown
+  expect(rays.filter((r) => r.attrs["visibility"] === "hidden").length).toBe(
+    110,
+  )
+  const night = await elementsOf(physicsScene({ ...base, visible: 0 }))
+  expect(
+    night.filter(
+      (e) =>
+        e.attrs["data-ray"] !== undefined && e.attrs["visibility"] !== "hidden",
+    ).length,
+  ).toBe(0)
+  const day = await elementsOf(physicsScene(base))
+  expect(day.filter((e) => e.attrs["visibility"] === "hidden").length).toBe(0)
+})

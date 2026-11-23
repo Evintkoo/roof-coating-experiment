@@ -114,6 +114,8 @@ export type PhysicsSceneProps = {
   layers: SceneLayers
   terms: Terms
   tK: number
+  /** How many of the rays are shown (the share G(t) over the peak of the model's irradiance); default all. */
+  visible?: number
   /** The data-source prefix of the moving values, e.g. "stepper:recipe". */
   source: string
   seed?: number
@@ -142,6 +144,10 @@ export function physicsScene(p: PhysicsSceneProps): string {
       ? p.layers
       : { primer: false, midcoat: false, topcoat: false }
   const bottom = stackBottom(layers, pane)
+  const visible = Math.max(
+    0,
+    Math.floor(finite(C, "visible", p.visible ?? rays)),
+  )
   const rng = new Xoshiro128(deriveSeed(p.seed ?? 20261123, 900))
 
   let rayMarkup = ""
@@ -157,7 +163,7 @@ export function physicsScene(p: PhysicsSceneProps): string {
           20 + 210 * ((0.5 + i * 0.6180339887498949 + 0.04 * rng.next()) % 1)
         const u0 = (i * 0.37) % 1
         const g = rayPoints(x, refl, u0 * 0.5)
-        rayMarkup += `<line class="tv-scene__ray tv-scene__ray--${b.id}${refl ? " tv-scene__ray--reflected" : ""}" data-ray="${i}" data-band="${b.id}" data-reflected="${refl ? 1 : 0}" data-x="${f(x)}" data-source="bands:${b.id}" x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}"/>`
+        rayMarkup += `<line class="tv-scene__ray tv-scene__ray--${b.id}${refl ? " tv-scene__ray--reflected" : ""}" data-ray="${i}" data-band="${b.id}" data-reflected="${refl ? 1 : 0}" data-x="${f(x)}" data-source="bands:${b.id}"${i >= visible ? ' visibility="hidden"' : ""} x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}"/>`
         i++
       }
     })

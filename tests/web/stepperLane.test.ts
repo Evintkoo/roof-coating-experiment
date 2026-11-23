@@ -214,3 +214,60 @@ test("roundTripWithinBudgetH12", async () => {
   expect(p95).toBeLessThanOrEqual(T_STEP_MS)
   l.close()
 })
+
+// Adversarial review of plan 09 (fix): a merged log entry above one request's cap replayed only 1440 steps, so a worker killed after
+// more than a day of steps resumed about 21 hours back.
+test("aMergedLogEntryAboveOneRequestReplaysInFullAfterAKillF4", async () => {
+  const ref = lane({ worker: false })
+  await ref.ready
+  for (let i = 0; i < 3; i++) ok(await ref.request(1000, 1)) // 3000 steps: one merged entry, two requests' worth over the cap
+  const a = ok(await ref.request(10, 1))
+  const w = lane()
+  await w.ready
+  for (let i = 0; i < 3; i++) ok(await w.request(1000, 1))
+  expect(w.requestLog().map((e) => e.op)).toEqual(["init", "step"])
+  expect((w.requestLog()[1] as { n: number }).n).toBe(3000)
+  w.kill()
+  const b = ok(await w.request(10, 1))
+  expect(w.kind()).toBe("inline")
+  expect(b.frames.recipe[0]?.tS).toBe(86400 + 3000 * 60) // resumed where the worker was, not a day back
+  expect(JSON.stringify(b)).toBe(JSON.stringify(a))
+})
+
+test("closeWhileTheWorkerIsStillStartingTerminatesItAtOnceAndPostsNothingAfterwards", async () => {
+  let created = 0
+  let terminated = 0
+  let postsAfterClose = 0
+  let closedAt = Number.POSITIVE_INFINITY
+  class Counting extends Worker {
+    constructor(u: string | URL, o?: WorkerOptions) {
+      super(u, o)
+      created++
+    }
+    override terminate(): void {
+      terminated++
+      super.terminate()
+    }
+    override postMessage(m: unknown, ...rest: unknown[]): void {
+      if (performance.now() > closedAt)
+        postsAfterClose++
+        // biome-ignore lint/suspicious/noExplicitAny: forwards the overloaded Worker.postMessage
+      ;(super.postMessage as any)(m, ...rest)
+    }
+  }
+  const l = openStepperLane(ctxJson, inputs, {
+    Worker: Counting as unknown as typeof Worker,
+    workerUrl: WORKER_URL,
+  })
+  l.close() // before the worker could answer its init
+  closedAt = performance.now()
+  await sleep(400)
+  expect(created).toBe(1)
+  expect(terminated).toBeGreaterThanOrEqual(1)
+  expect(postsAfterClose).toBe(0)
+  await l.ready.then(
+    () => undefined,
+    () => undefined,
+  )
+  expect(await l.request(1, 1)).toBe("stale")
+})

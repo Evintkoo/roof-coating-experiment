@@ -22,7 +22,7 @@ import {
 } from "../design/organisms/watchPhysics"
 import { openStepperLane, type StepperLane } from "../stepperLane"
 import type { Loop } from "./loop"
-import { idlePane, type PaneNow, physicsProps, RAYS_MAX } from "./physicsView"
+import { idlePane, type PaneNow, physicsProps, raysShown } from "./physicsView"
 
 type Fields = Record<string, string | number | boolean>
 export type PhysicsPanelDeps = {
@@ -186,8 +186,9 @@ export function mountPhysicsPanel(
     const diff = q<HTMLElement>('[data-anim="phys-diff"]')
     if (diff) {
       const v = cur.recipe.tK - cur.c0.tK
+      const r1 = Math.round(v * 10) / 10 // the sign follows the number shown, so -0.04 reads 0.0, not -0.0
       diff.dataset.value = String(v)
-      diff.textContent = `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}`
+      diff.textContent = `${r1 > 0 ? "+" : r1 < 0 ? "−" : ""}${Math.abs(r1).toFixed(1)}`
     }
     const res = q<HTMLElement>('[data-anim="phys-residual"]')
     if (res) {
@@ -196,8 +197,7 @@ export function mountPhysicsPanel(
       res.textContent = Math.abs(r) < 0.005 ? "0.00" : r.toFixed(2)
     }
     // ray density follows the model's own irradiance: the share of the rays shown is G(t) over the peak
-    const g = cur.recipe.terms.absorbed + cur.recipe.terms.reflected
-    shown = Math.round(RAYS_MAX * Math.min(1, Math.max(0, g / gPeak)))
+    shown = raysShown(cur.recipe.terms, gPeak)
     timeText()
   }
   let lastResidual = 0
@@ -255,6 +255,7 @@ export function mountPhysicsPanel(
         lane: lane?.kind() ?? "worker",
       })
     } catch (e) {
+      pause("user") // a drawing that cannot be made stops the clock too
       state = "error"
       const st = q<HTMLElement>('[data-anim="phys-status"]')
       if (st) st.textContent = STATE_WORDS.error
@@ -284,6 +285,7 @@ export function mountPhysicsPanel(
       for (const g of root.querySelectorAll('[data-layer-group="rays"]'))
         g.replaceChildren()
     drawnKey = key(latest.inputs)
+    shown = props.recipe.scene.visible ?? shown
     // sliders show the live inputs (not while one is being dragged)
     for (const [id, k] of Object.entries(IDS)) {
       const el = root.querySelector<HTMLInputElement>(`#${id}`)
@@ -301,6 +303,10 @@ export function mountPhysicsPanel(
 
   const tick = (dtMs: number): void => {
     if (!lane || !playing) return
+    if (deps.reduced()) {
+      pause("reduced") // reduced motion turned on while playing
+      return
+    }
     phase = (phase + (dtMs / 1000) * speed * 0.35) % 1
     if (inFlight) {
       const now = performance.now()
@@ -323,8 +329,9 @@ export function mountPhysicsPanel(
     requests++
     l.request(n, version)
       .then((res) => {
+        if (l !== lane) return // the lane was closed or replaced meanwhile: its reply is nobody's
         inFlight = false
-        if (res !== "stale" && l === lane) apply(res.frames)
+        if (res !== "stale") apply(res.frames)
         if (l.lastError() === "physics_range") {
           const st = q<HTMLElement>('[data-anim="phys-status"]')
           if (st)
@@ -332,6 +339,7 @@ export function mountPhysicsPanel(
         }
       })
       .catch(() => {
+        if (l !== lane) return // a normal close rejects the call in flight: that is not an error
         inFlight = false
         pause("user")
         setState("error")

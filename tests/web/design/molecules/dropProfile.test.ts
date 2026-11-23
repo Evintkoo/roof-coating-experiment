@@ -54,6 +54,9 @@ test("sourcesAndTheIllustrativeLabelH8H10H15", async () => {
       .map((e) => e.attrs["data-source"]),
   ).toEqual([
     "stepper:recipe:r_total",
+    "stepper:recipe:conduction_law",
+    "stepper:recipe:t_k",
+    "stepper:recipe:t_inside_k",
     "stepper:recipe:t_k",
     "stepper:recipe:t_inside_k",
   ])
@@ -82,4 +85,15 @@ test("badInputIsABuildErrorAndTextIsEscapedF8F9", async () => {
       (e) => e.tag === "img",
     ),
   ).toBe(false)
+})
+
+test("theAxisCoversAHotBareAluminiumSurfaceAndEveryNumberDeclaresItsSourceFix", async () => {
+  expect(dropX(358)).toBeGreaterThan(dropX(340)) // 85 degC is not pinned at the edge
+  expect(dropX(373)).toBeLessThan(dropX(380) + 1e-9)
+  const els = await elementsOf(dropProfile(base))
+  for (const a of ["drop-law", "drop-surface-text", "drop-inside-text"])
+    expect(
+      els.find((e) => e.attrs["data-anim"] === a)?.attrs["data-source"],
+      a,
+    ).toMatch(/^stepper:recipe:/)
 })
