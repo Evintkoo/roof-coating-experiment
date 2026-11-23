@@ -65,4 +65,4 @@ Indonesian prices, and measured reflectance of mill-finish aluminium.
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). Agents working in this repository must also read [`AGENTS.md`](AGENTS.md).
-Licence: [PolyForm Strict 1.0.0](LICENSE). Anyone may read and run the code for noncommercial purposes (personal study, research, education, nonprofits); modifying, redistributing and any commercial use need the owner's written permission. This is source-available, not open source. Third-party material keeps its own terms, see [`NOTICE`](NOTICE).
+Licence: [PolyForm Strict 1.0.0](LICENSE). Anyone may read and run the code for noncommercial purposes (personal study, research, education, nonprofits); modifying, redistributing and any commercial use need the owner's written permission. This is source-available, not open source. What is and is not allowed, in plain terms: [`LICENSING.md`](LICENSING.md). Third-party material keeps its own terms, see [`NOTICE`](NOTICE).
