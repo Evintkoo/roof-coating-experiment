@@ -129,3 +129,5 @@ The reference platform is macOS on Apple silicon. The first run of the fast tier
 | Chrome hooks time out | `design.components.browser`, `web/anim/physicsPanel`, `report.design.browser` | cold Chrome on a shared runner; they pass locally |
 
 Treat the Linux numeric differences as open work: either a tolerance-based golden, or a documented statement that results are reproducible per platform only.
+
+A second GitHub run with only the 13 files above left out stopped printing after the animation Chrome suite and was cancelled by the 45-minute job limit about 26 minutes later; no test name identifies the hang. The long-hook end-to-end files (`refine.e2e`, `pipeline.e2e`, `node/budget`, `budget.baseline`, each with hooks of up to an hour) are therefore also left out of `test:ci`, and the job limit is 30 minutes. The hang is unexplained; it may be the same one seen once locally in `refine.e2e` (a 3,600 s hook). A hung CLI child is now killed after 20 minutes by `run` in `tests/helpers.ts`, but these suites also wait on hooks that do not go through it.
