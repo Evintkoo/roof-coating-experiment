@@ -18,3 +18,17 @@ jobs:
       - run: bunx tsc --noEmit
       - name: Layout guard (one test per source file)
         run: bun test tests/layout.guard.test.ts
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: astral-sh/setup-uv@v5
+      - run: bun install --frozen-lockfile
+      - run: google-chrome --version
+      - name: Fast test tier (the same tests as bun run check, after biome and tsc)
+        run: bun run test
