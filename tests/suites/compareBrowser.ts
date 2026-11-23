@@ -42,7 +42,7 @@ export function compareBrowserSuite(S: CompareScale): void {
   }, 180_000)
   afterAll(async () => {
     await qa?.close()
-  })
+  }, 120_000)
   const t = (name: string, fn: () => Promise<void>) =>
     test(name, fn, PER_TEST_MS)
   const mounted = (p: Page) =>

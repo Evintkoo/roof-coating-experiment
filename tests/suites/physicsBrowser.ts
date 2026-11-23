@@ -61,7 +61,7 @@ export function physicsBrowserSuite(S: PhysicsScale): void {
   }, 180_000)
   afterAll(async () => {
     await qa?.close()
-  })
+  }, 120_000)
   const t = (name: string, fn: () => Promise<void>, proofOnly = false) => {
     if (proofOnly && S.tier !== "proof") return
     test(name, fn, PER_TEST_MS)
