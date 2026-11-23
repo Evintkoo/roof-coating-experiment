@@ -1,0 +1,27 @@
+Spandek: digital part of the roof-coating experiment
+Copyright (c) 2026 Evint Leovonzko. All rights reserved except as granted in LICENSE.
+
+The source code of this repository is licensed under the PolyForm Strict License 1.0.0 (see LICENSE): noncommercial use only,
+no distribution, no modification. Commercial use needs the owner's separate written permission.
+
+The licence above covers the owner's own work. The following material is included under its own terms and is not relicensed:
+
+1. Fonts embedded in the report (src/node/report/fonts/): Inter and JetBrains Mono subsets under the SIL Open Font License 1.1.
+   The licence texts are in OFL-Inter.txt and OFL-JetBrainsMono.txt in that directory and are also shown inside every built report
+   (Licences disclosure).
+
+2. vendor/: design tokens, brand assets and Svelte atoms copied from the owner's own repository Evintkoo/torch-inference
+   (torviello-design and torviello-landing), recorded in vendor/VENDORED.md with the source commit. That repository carries an MIT
+   licence for these files; the owner is its copyright holder.
+
+3. Data in data/literature/ and the downloads made by `fetch-data` (provenance and hashes in data/literature/SHA256SUMS and
+   data/indonesia/SHA256SUMS): the ASTM G173 reference solar spectrum, TiO2 optical constants from the refractiveindex.info
+   database (Bond, Siefke), NASA POWER hourly weather, and TMYx typical-year files. Each source has its own terms of use. They have
+   not been reviewed for redistribution inside this repository; check each source's terms before publishing the data files or a
+   derived dataset.
+
+4. Third-party packages (yaml, zod, plotly.js-dist-min, playwright and the dev tools) keep their own licences; see bun.lock for
+   the exact versions.
+
+5. oracle/ contains the public-domain xoshiro128** and f2x reference sources fetched from https://prng.di.unimi.it/ (see
+   oracle/README.md).
