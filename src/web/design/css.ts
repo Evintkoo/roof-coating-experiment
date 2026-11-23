@@ -319,6 +319,18 @@ export const ORGANISM_CSS: Record<string, string> = {
 .tv-watchcompare__diff output{color:${t("text-primary")};font-family:${t("font-mono")}}
 @media (max-width:640px){.tv-watchcompare__grid{grid-template-columns:minmax(0,1fr)}}
 `,
+  watchSweep: `
+.tv-watchsweep{display:grid;gap:${t("space-3")};min-width:0;color:${t("text-primary")};font-family:${t("font-sans")}}
+.tv-watchsweep__label{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-4")}}
+.tv-watchsweep__controls{display:flex;flex-wrap:wrap;align-items:center;gap:${t("space-2")}}
+.tv-watchsweep__value{width:calc(${t("space-16")} * 1.75)}
+.tv-watchsweep__status,.tv-watchsweep__readout{max-width:92ch;margin:0;font-size:${t("size-small")}}
+.tv-watchsweep__readout{color:${t("text-muted")};min-height:calc(${t("size-small")} * 3)}
+.tv-watchsweep[data-state="stale"] .tv-watchsweep__status,.tv-watchsweep[data-state="error"] .tv-watchsweep__status{border-inline-start:${t("ring-width")} solid ${t("status-proxy")};padding-inline-start:${t("space-2")}}
+.tv-watchsweep[data-state="error"] .tv-watchsweep__status{border-inline-start-color:${t("status-stop")}}
+.tv-watchsweep__charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(${t("space-16")} * 4.5),1fr));gap:${t("space-3")} ${t("space-4")}}
+.tv-watchsweep__chart{min-width:0}
+`,
   watchScreening: `
 .tv-watchscreen__stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:${t("space-4")};align-items:start}
 .tv-watchscreen__draws input{width:${t("target-min")};height:${t("target-min")};margin:0;flex:none;accent-color:${t("action-primary")}}

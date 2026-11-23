@@ -374,3 +374,13 @@ The comparison and the sweep reuse the plan 07 rules: motion is explanatory only
 - motion rule: cursors follow the day player's clock only; the day player's pause control is the pause control
 - do: say that C1 is a US datasheet product with thermal values only. don't: add a play button, a second clock or a number that is not a difference of two drawn series
 
+### R38 WatchSweep
+
+- purpose: the one-variable sweep: pick a design, pH, grade or weather variable, play its range from low to high and watch five outcomes move against the control lines, with the p5 to p95 band.
+- tokens: the molecules' tokens; the five chart slots wrap to as many columns as fit; the status line `size-small`, with a `status-proxy` rule when stale and a `status-stop` rule on error
+- states (closed union `state`): `idle`, `running` (the computing indicator is busy), `ready`, `stale` (the live settings changed; the range is out of date), `error`; `layerOff` shows the note "This layer is off in the live simulator"; a variable whose range has no width is listed as "fixed in this configuration" and disabled
+- contract: `watchSweep({ variables, selected, state, layerOff?, speed?, id? })` returns `<div class="tv-watchsweep" data-watch-sweep data-state role="group">` with the honesty badge, the variable select (`data-anim="sweep-var"`), the play button (`sweep-play`), the position scrubber (`sweep-scrub`), a value box (`sweep-value`), the speed select (`sweep-speed`), the computing indicator (`sweep-computing`), the layer note (`layer-off`), the status line (`role="status"`), five empty chart slots (`sweep-chart`, one per outcome), the readout (`sweep-readout`) and the notes (one variable at a time, initial values, relative cost units, parameter uncertainty only); an unknown state or a selected variable that is not listed is a build error (exit 4)
+- accessibility: every control has a name and a 44 px target; Space toggles play when focus is in the panel; the status is a polite live region; the values at the cursor are text
+- motion rule: nothing moves until Play range is pressed; playing moves a cursor over curves computed before and never recomputes; reduced motion draws the full curves and moves only on a press; the tab being hidden freezes the cursor
+- do: say "parameter uncertainty only" next to every band. don't: autoplay, recompute while playing, or call a point on the curve a recommendation
+
