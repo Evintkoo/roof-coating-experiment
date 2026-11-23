@@ -6,7 +6,7 @@ import { SCENE_H, SURF_Y } from "./physicsScene"
 
 export const DROP_W = 150
 export const DROP_SURFACE_Y = SURF_Y
-export const DROP_INSIDE_Y = SURF_Y + 112
+export const DROP_INSIDE_Y = SURF_Y + 76
 const T_LO_K = 280
 const T_HI_K = 360
 const X_LO = 24
@@ -50,14 +50,14 @@ export function dropProfile(p: DropProfileProps): string {
       "data-r-total": f(r),
       "data-source": `${s}:r_total`,
     },
-    `<line class="tv-drop__axis" x1="${X_LO}" x2="${X_HI}" y1="${DROP_INSIDE_Y + 30}" y2="${DROP_INSIDE_Y + 30}"/>` +
+    `<line class="tv-drop__axis" x1="${X_LO}" x2="${X_HI}" y1="${DROP_INSIDE_Y + 32}" y2="${DROP_INSIDE_Y + 32}"/>` +
       `<text class="tv-drop__note" x="${X_LO}" y="${DROP_INSIDE_Y + 44}">${T_LO_K - 273} to ${T_HI_K - 273} °C</text>` +
       `<line class="tv-drop__law" data-anim="drop-law" x1="${f(xs)}" y1="${DROP_SURFACE_Y}" x2="${f(xi)}" y2="${DROP_INSIDE_Y}"/>` +
       `<circle class="tv-drop__dot" data-anim="drop-surface" data-source="${s}:t_k" data-value="${f(ts)}" cx="${f(xs)}" cy="${DROP_SURFACE_Y}" r="5"/>` +
       `<circle class="tv-drop__dot" data-anim="drop-inside" data-source="${s}:t_inside_k" data-value="${f(ti)}" cx="${f(xi)}" cy="${DROP_INSIDE_Y}" r="5"/>` +
       `<text class="tv-drop__value" data-anim="drop-surface-text" x="${X_LO}" y="${DROP_SURFACE_Y - 12}">surface ${f(ts - 273.15)} °C</text>` +
       `<text class="tv-drop__value" data-anim="drop-inside-text" x="${X_LO}" y="${DROP_INSIDE_Y + 22}">inside ${f(ti - 273.15)} °C</text>` +
-      `<text class="tv-drop__note" x="${X_LO}" y="${DROP_SURFACE_Y + 60}">straight line:</text><text class="tv-drop__note" x="${X_LO}" y="${DROP_SURFACE_Y + 74}">conduction law</text>` +
+      `<text class="tv-drop__note" x="${X_LO}" y="58">straight line:</text><text class="tv-drop__note" x="${X_LO}" y="72">conduction law</text>` +
       `<text class="tv-drop__note" x="${X_LO}" y="14">Illustrative scale: one</text><text class="tv-drop__note" x="${X_LO}" y="28">surface temperature,</text><text class="tv-drop__note" x="${X_LO}" y="42">none per layer</text>`,
   )
 }

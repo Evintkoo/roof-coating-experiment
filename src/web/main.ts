@@ -28,6 +28,7 @@ import {
   mountDayPlayer,
 } from "./anim/dayPlayer"
 import { browserLoop, type Loop, testHooksEnabled } from "./anim/loop"
+import { mountPhysicsPanel, type PhysicsPanel } from "./anim/physicsPanel"
 import { mountScreeningPanel, type Panel } from "./anim/screeningPanel"
 import { mountSweepPanel, type SweepPanel } from "./anim/sweepPanel"
 import { createTweens, type Tweens } from "./anim/tween"
@@ -120,6 +121,9 @@ declare global {
         terminated: number
         live: number
       } | null
+      physics: () => ReturnType<PhysicsPanel["state"]> | null
+      physicsKill: () => void
+      physicsStep: (n: number) => void
     }
   }
 }
@@ -356,6 +360,7 @@ type Watch = {
   player(): DayPlayer | null
   panel: Panel | null
   sweep(): SweepPanel | null
+  physics(): PhysicsPanel | null
 }
 
 function ringNote(line: string): void {
@@ -416,13 +421,43 @@ function initWatch(): Watch {
       log: wlog,
     })
   }
-  /** The comparison and the sweep work only while their tab is on screen (plan 08 D12). */
+  const ensurePhysics = (): void => {
+    const host = document.getElementById("watch-tabs-panel-physics")
+    if (physics || !host) return
+    const ctx = contextFromJson(D.ctxJson)
+    physics = mountPhysicsPanel(host, {
+      ctx,
+      ctxJson: D.ctxJson,
+      workerUrl: URL.createObjectURL(
+        new Blob([D.workerSrc], { type: "text/javascript" }),
+      ),
+      ...(typeof Worker === "undefined" ? {} : { Worker }),
+      loop,
+      reduced,
+      // D10: the panel's sliders write the live simulator's own sliders, so there is one source of truth
+      setScenario: (patch) => {
+        for (const [k, v] of Object.entries(patch)) {
+          const rg = document.getElementById(
+            `live-range-${k}`,
+          ) as HTMLInputElement | null
+          if (!rg) continue
+          rg.value = String(v)
+          rg.dispatchEvent(new Event("input", { bubbles: true }))
+        }
+      },
+      log: wlog,
+    })
+    if (lastResult) physics.update(lastResult.r, lastResult.inputs)
+  }
+  /** The comparison, the sweep and the live physics work only while their tab is on screen (plan 08 D12, plan 09 D13). */
   const syncOpen = (): void => {
     const open = detailsEl?.open === true
     const tab = tabNow()
     compare?.setOpen(open && tab === "compare")
     if (open && tab === "sweep") ensureSweep()
     sweep?.setOpen(open && tab === "sweep")
+    if (open && tab === "physics") ensurePhysics()
+    physics?.setOpen(open && tab === "physics")
   }
   detailsEl?.addEventListener("toggle", syncOpen)
   tabsEl?.addEventListener("tabs-change", syncOpen)
@@ -430,6 +465,8 @@ function initWatch(): Watch {
   let player: DayPlayer | null = null
   let compare: ComparePanel | null = null
   let sweep: SweepPanel | null = null
+  let physics: PhysicsPanel | null = null
+  let lastResult: { r: LiveResult; inputs: LiveInputs } | null = null
   let lastInputs: LiveInputs | null = null
   let lastKey = ""
   const dayRoot = document.querySelector<HTMLElement>("[data-watch-day]")
@@ -441,6 +478,7 @@ function initWatch(): Watch {
     tweens,
     panel: null,
     sweep: () => sweep,
+    physics: () => physics,
     player: () => player,
     stopGlide: (key) => tweens.stop(key),
     glide(key, target, apply) {
@@ -476,6 +514,8 @@ function initWatch(): Watch {
         syncOpen()
       }
       compare?.update(r, inputs, weather)
+      lastResult = { r, inputs }
+      physics?.update(r, inputs)
       lastInputs = inputs
       const k = JSON.stringify(inputs)
       if (k !== lastKey) {
@@ -1056,4 +1096,7 @@ if (testHooksEnabled(location.hash))
     sweep: () => watch.sweep()?.state() ?? null,
     sweepKill: (id) => watch.sweep()?.killLane(id),
     sweepStats: () => watch.sweep()?.poolStats() ?? null,
+    physics: () => watch.physics()?.state() ?? null,
+    physicsKill: () => watch.physics()?.killLane(),
+    physicsStep: (n) => watch.physics()?.step(n),
   }

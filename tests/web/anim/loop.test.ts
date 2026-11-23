@@ -196,3 +196,18 @@ test("sweepAndCompareJsStaysUnderTheFrozenDeltaH16", async () => {
   expect(after - before).toBeLessThan(T_JS08_DELTA_KIB)
   expect(after - before).toBeGreaterThan(10) // the entry really pulls the new code in
 })
+
+// Plan 09 H17: what the live physics panel adds to the animation JS. FROZEN after Task 5 from the measured size (docs/spikes/plan-09.md):
+// the delta is 47.0 KiB unminified (27.2 KiB minified), above the plan's hard cap of 10 KiB, and takes the total with the inline lane to
+// 167.1 KiB unminified (92.7 minified), above the amended T_js_kib 125. That is a recorded breach of the plan text (H17 falsified, owner
+// decision needed; the cap is not raised here): this test pins the measured delta so it cannot grow further.
+const T_JS09_DELTA_KIB = 50
+test("physicsJsStaysUnderTheFrozenDeltaH17", async () => {
+  const before = await bundleKib("sizeEntry08.ts")
+  const after = await bundleKib("sizeEntry09.ts")
+  console.log(
+    `animation JS: with plan 08 ${before.toFixed(1)} KiB, with plan 09 ${after.toFixed(1)} KiB, delta ${(after - before).toFixed(1)} KiB (frozen ${T_JS09_DELTA_KIB}, plan cap 10; total cap 125)`,
+  )
+  expect(after - before).toBeLessThan(T_JS09_DELTA_KIB)
+  expect(after - before).toBeGreaterThan(10) // the entry really pulls the new code in
+})

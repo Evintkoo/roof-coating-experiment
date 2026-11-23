@@ -109,3 +109,21 @@ Items that cannot be completed digitally. Owner of every entry: Evint. Entries a
 - Reason: the controls C2 (no topcoat) and C3 (no primer) exist only for the shortlisted candidates in the batch run; the live result and the sweep carry C0 and C1 only, so the comparison does not show them.
 - Owner: Evint
 - Unblock condition: a decision that C2 and C3 are wanted next to the live recipe; then `liveSimulate` returns them (two more thermal solves per point) and the lanes and sweep charts get one more dashed line.
+
+## BLOCKED-19: No temperature field through the layers
+
+- Reason: the thermal model is one node (`thermal.ts`: one surface temperature, one areal heat capacity, one total resistance to the inside). No model of the repo holds a temperature per layer or through the substrate, so the live physics drawing joins the surface and inside temperatures with the model's own conduction law and says "Illustrative scale: one surface temperature, none per layer". A layered conduction model needs per-layer conductivity and heat capacity data that `configs/` does not hold, and a new model plan (owner decision O1 of plan 09).
+- Owner: Evint
+- Unblock condition: per-layer conductivity and heat capacity data with sources, and a decision to commission a layered 1D conduction model (a plan of the plan 02 kind).
+
+## BLOCKED-20: Absorption is not resolved per layer
+
+- Reason: the model has the stack reflectance `R(lambda)` and an opaque aluminium substrate, so the non-reflected sunlight is absorbed and nothing is transmitted; there is no absorbed share per layer. The rays show reflected against absorbed per band, never a split of the absorbed part between layers. The midcoat scattering visual is also dropped (plan 09 Q3): `S(lambda)` exists only inside `midcoatSpectrum`, and exposing it needs a Mie evaluation per slider move on the stepper lane.
+- Owner: Evint
+- Unblock condition: a per-layer optical model with its data, or a decision to expose `S(lambda)` additively and pay the per-move Mie cost.
+
+## BLOCKED-21: Rays show fractions, not photons
+
+- Reason: the rays are deterministic quotas of the model's band fractions (UV, visible, near infrared) and move on a fixed schedule; they are not photon trajectories and not Mie angular scattering, which the models do not compute. The panel says "Rays show fractions, not photons".
+- Owner: Evint
+- Unblock condition: a decision that a stochastic or angular scattering model is wanted, with its own plan and validation data.

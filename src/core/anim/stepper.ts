@@ -223,7 +223,10 @@ export type PaneFrames = { recipe: StepFrame[]; c0: StepFrame[] }
 export interface Pair {
   stepN(n: number): PaneFrames
   setParams(inputs: LiveInputs): void
-  state(): { recipe: { tS: number; tK: number }; c0: { tS: number; tK: number } }
+  state(): {
+    recipe: { tS: number; tK: number }
+    c0: { tS: number; tK: number }
+  }
 }
 export function createPair(ctx: ModelContext, inputs: LiveInputs): Pair {
   const recipe = startLive(paramsFromInputs(ctx, inputs, "recipe"))

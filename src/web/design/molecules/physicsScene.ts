@@ -12,7 +12,7 @@ import { deriveSeed, Xoshiro128 } from "../../../core/rng"
 import { buildError, esc, finite, oneOf, svgTag } from "../html"
 
 export const SCENE_W = 380
-export const SCENE_H = 292
+export const SCENE_H = 248
 export const SURF_Y = 124
 export const TOP_Y = 14
 /** One scale for every arrow of both panes: 60 px stand for 1000 W/m2. */
@@ -167,20 +167,20 @@ export function physicsScene(p: PhysicsSceneProps): string {
     let out = ""
     for (const k of LAYERS_DRAWN)
       if (layers[k]) {
-        out += `<rect class="tv-scene__layer tv-scene__layer--${k}" data-layer="${k}" x="20" y="${y}" width="210" height="${LAYER_H[k]}"><title>${k}</title></rect>`
+        out += `<rect class="tv-scene__layer tv-scene__layer--${k}" data-layer="${k}" x="20" y="${y}" width="200" height="${LAYER_H[k]}"><title>${k}</title></rect>`
         y += LAYER_H[k]
       }
-    return `${out}<rect class="tv-scene__layer tv-scene__layer--aluminium" data-layer="aluminium" x="20" y="${y}" width="210" height="${LAYER_H.aluminium}"><title>aluminium</title></rect>`
+    return `${out}<rect class="tv-scene__layer tv-scene__layer--aluminium" data-layer="aluminium" x="20" y="${y}" width="200" height="${LAYER_H.aluminium}"><title>aluminium</title></rect>`
   }
   const arrows = ARROW_KEYS.map((k) => {
     const w = p.terms[k]
     const g = arrowGeometry(k, w, bottom)
-    const ty = k === "conducted" ? bottom + 78 : 20
+    const ty = k === "conducted" ? bottom + 30 : 20
     return (
       `<g class="tv-scene__arrow tv-scene__arrow--${k}" data-arrow="${k}" data-source="${esc(p.source)}:${k}" data-w="${f(w)}">` +
-      `<line x1="${g.x}" x2="${g.x}" y1="${f(g.y1)}" y2="${f(g.y2)}" marker-end="url(#tv-scene-head)"/>` +
+      `<line x1="${g.x}" x2="${g.x}" y1="${f(g.y1)}" y2="${f(g.y2)}" marker-end="url(#tv-scene-head-${pane})"/>` +
       `<text class="tv-scene__label" x="${g.x}" y="${ty}" text-anchor="middle">${LABEL[k]}</text>` +
-      `<text class="tv-scene__value" x="${g.x}" y="${ty + 14}" text-anchor="middle" data-flux-text="${k}">${f(w)} W/m²</text></g>`
+      `<text class="tv-scene__value" x="${g.x}" y="${ty + 14}" text-anchor="middle" data-flux-text="${k}">${Math.round(w) || 0} W/m²</text></g>`
     )
   }).join("")
   const name = pane === "recipe" ? "Coated recipe" : "Bare aluminium"
@@ -193,15 +193,14 @@ export function physicsScene(p: PhysicsSceneProps): string {
       "data-physics-scene": pane,
       "data-bottom": bottom,
     },
-    `<defs><marker id="tv-scene-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" class="tv-scene__head"/></marker></defs>` +
-      `<text class="tv-scene__title" x="20" y="12">${name}</text>` +
+    `<defs><marker id="tv-scene-head-${pane}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" class="tv-scene__head"/></marker></defs>` +
       `<g data-layer-group="rays" class="tv-scene__rays">${rayMarkup}</g>` +
       layerRects() +
       `<text class="tv-scene__note" x="20" y="${bottom + 16}">Illustrative scale: layers are not to scale</text>` +
       (p.bands === null
-        ? `<text class="tv-scene__note" x="20" y="${TOP_Y + 40}" data-anim="no-spectrum">spectrum not available</text>`
+        ? `<text class="tv-scene__note" x="20" y="62" data-anim="no-spectrum">spectrum not available</text>`
         : "") +
-      `<text class="tv-scene__temp" x="20" y="${bottom + 40}" data-anim="phys-temp" data-source="${esc(p.source)}:t_k" data-value="${f(tK)}">${f(tK - 273.15)} °C</text>` +
+      `<text class="tv-scene__temp" x="20" y="44" data-anim="phys-temp" data-source="${esc(p.source)}:t_k" data-value="${f(tK)}">${f(tK - 273.15)} °C</text>` +
       arrows,
   )
 }
