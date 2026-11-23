@@ -5,6 +5,7 @@ import {
   type ScreeningData,
   screenChunk,
 } from "../core/anim/screening"
+import { createPair, type Pair } from "../core/anim/stepper"
 import { type SweepVar, sweepChunkSafe } from "../core/anim/sweep"
 import type { Scenario } from "../core/design"
 import { SpandekError } from "../core/errors"
@@ -37,6 +38,13 @@ type In =
       seed: number
     }
   | { type: "run"; id: number; inputs: LiveInputs }
+  | {
+      type: "stepper"
+      id: number
+      op: "init" | "params" | "step"
+      version: number
+      payload: { inputs?: LiveInputs; n?: number }
+    }
 type EventFields = Record<string, string | number | boolean>
 
 const w = self as unknown as {
@@ -49,6 +57,7 @@ let screening: {
   scenarios: Scenario[]
   draws: number | null
 } | null = null
+let pair: Pair | null = null
 let buffered: { event: string; level: Level; fields: EventFields }[] = []
 setEventSink((event, level, fields) => {
   buffered.push({ event, level, fields })
@@ -70,6 +79,40 @@ w.onmessage = (e) => {
         draws: m.screening.draws,
       }
     w.postMessage({ type: "ready" })
+    return
+  }
+  if (m.type === "stepper") {
+    // plan 09: the live stepper, one request in flight at a time; the reply carries the request's version back
+    try {
+      if (ctx === null) throw new Error("stepper used before init")
+      if (m.op === "init")
+        pair = createPair(ctx, m.payload.inputs as LiveInputs)
+      else if (pair === null) throw new Error("stepper used before its init")
+      else if (m.op === "params") pair.setParams(m.payload.inputs as LiveInputs)
+      const frames =
+        m.op === "step" && pair ? pair.stepN(m.payload.n ?? 0) : null
+      w.postMessage({
+        type: "stepper",
+        id: m.id,
+        op: m.op,
+        version: m.version,
+        ok: true,
+        frames,
+      })
+    } catch (err) {
+      w.postMessage({
+        type: "stepper",
+        id: m.id,
+        op: m.op,
+        version: m.version,
+        ok: false,
+        error: {
+          code: err instanceof SpandekError ? err.code : 0,
+          phase: err instanceof SpandekError ? err.phase : "worker",
+          key: err instanceof SpandekError ? (err.key ?? "") : "",
+        },
+      })
+    }
     return
   }
   const t0 = performance.now()

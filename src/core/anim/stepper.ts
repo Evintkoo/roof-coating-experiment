@@ -102,7 +102,8 @@ export function balanceTerms(tK: number, tS: number, p: StepperParams): Terms {
   }
 }
 
-function check(p: StepperParams, tS: number): Forcing {
+/** Throws a PhysicsRangeError when the parameters or the forcing at tS leave a model range. */
+export function checkParams(p: StepperParams, tS: number): Forcing {
   validateThermalInputs(p.thermal)
   const f = p.forcing(tS)
   const m = "stepper"
@@ -121,7 +122,7 @@ export function createStepper(
   let p = p0
   let tK = t0K
   let tS = tS0
-  check(p, tS)
+  checkParams(p, tS)
   const scratch: ThermalInputs = { ...p.thermal }
   const slope = (t: number, s: number): number => {
     const f = p.forcing(s)
@@ -139,7 +140,7 @@ export function createStepper(
       const out: StepFrame[] = []
       load()
       for (let i = 0; i < count; i++) {
-        check(p, tS)
+        checkParams(p, tS)
         const terms = balanceTerms(tK, tS, p)
         const next = rk4Step(tK, tS, DT_S, slope)
         if (!Number.isFinite(next))
@@ -161,7 +162,7 @@ export function createStepper(
       return out
     },
     setParams(next) {
-      check(next, tS) // throws before anything changes: the last valid state and parameters stay
+      checkParams(next, tS) // throws before anything changes: the last valid state and parameters stay
       p = next
       load()
     },
@@ -214,5 +215,29 @@ export function paramsFromInputs(
       t_sky_k: thermal.t_sky_k,
       h_conv_w_m2k: thermal.h_conv_w_m2k,
     }),
+  }
+}
+
+export type PaneFrames = { recipe: StepFrame[]; c0: StepFrame[] }
+/** The two panes (recipe and bare aluminium C0) stepped together from the same code (D6), swapped together or not at all. */
+export interface Pair {
+  stepN(n: number): PaneFrames
+  setParams(inputs: LiveInputs): void
+  state(): { recipe: { tS: number; tK: number }; c0: { tS: number; tK: number } }
+}
+export function createPair(ctx: ModelContext, inputs: LiveInputs): Pair {
+  const recipe = startLive(paramsFromInputs(ctx, inputs, "recipe"))
+  const c0 = startLive(paramsFromInputs(ctx, inputs, "c0"))
+  return {
+    stepN: (n) => ({ recipe: recipe.stepN(n), c0: c0.stepN(n) }),
+    setParams(next) {
+      const pr = paramsFromInputs(ctx, next, "recipe")
+      const pc = paramsFromInputs(ctx, next, "c0")
+      checkParams(pr, recipe.state().tS) // both checked before either changes
+      checkParams(pc, c0.state().tS)
+      recipe.setParams(pr)
+      c0.setParams(pc)
+    },
+    state: () => ({ recipe: recipe.state(), c0: c0.state() }),
   }
 }
