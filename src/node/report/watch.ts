@@ -47,7 +47,7 @@ export const watchSection: ReportSection = {
       id: "details-screening",
     })(
       `<p class="page-hint">${esc(
-        "The same models as the batch run, computed here on a pool of workers. Values are checked against the batch results embedded in this page.",
+        "Computed here in your browser by the same models as the batch run. The screening is checked against the batch results embedded in this page.",
       )}</p>${watchScreening({
         candidates: nCand,
         scenarios: nScen,
