@@ -116,3 +116,16 @@ A wall-clock assertion in the fast tier must stay meaningful on a loaded machine
 - A browser test on a heavily loaded machine can fail on a hook or navigation timeout rather than on an assertion; re-run that file alone before reading it as a regression.
 - Pure parts have their own fast files: `tests/core/anim/*`, `tests/web/anim/*` (loop, tween, day player, fan, flux, screening panel, day data), `tests/web/pool.test.ts`, the component files under `tests/web/design/*`, and `tests/node/report/watch.test.ts` (the section markup, order, closed disclosure, sources, wording scan, same bytes).
 - Known load sensitivity (2026-11-24): the four Chrome suites `tests/web/anim/sweepPanel.test.ts`, `report.compare.browser`, `report.physics.browser` and `report.animation.browser` all pass when run one at a time at load 4 to 6 (14, 7, 13 and 14 tests). Inside the full parallel gate on a loaded machine Chrome can die mid-file ("Target page, context or browser has been closed") and the rest of that file then fails in milliseconds; the worker-kill (F6) and truncated-context (F7) sweep tests timed out at 120 s once at load 6 to 8. The cause is not established (load, or a real hang those two paths expose under load); it is listed here as unconfirmed, not as a known-good flake.
+
+## Platform sensitivity (found by the first run on GitHub, 2026-11-23)
+
+The reference platform is macOS on Apple silicon. The first run of the fast tier on `ubuntu-latest` (x86-64) gave 1316 pass and 16 fail in 801 s. The failures fall into four groups, and `bun run test:ci` (the GitHub job) leaves those 13 files out:
+
+| Group | Files left out in CI | Cause |
+|---|---|---|
+| Needs downloaded data that is git-ignored | `node/indonesia`, `indonesia.e2e`, `node/report/indonesia`, `node/epw`, `honesty` | `data/indonesia/raw` and `tmyx` are fetched by `fetch-data`, not committed (see NOTICE) |
+| **Numbers differ on Linux** | `core/models/thermal` (the RK4 golden hash), `oracle.fixtures` (the thermal fixture), `node/refine` and `refine.baseline` (a delamination-cap check returned -0.108 where it is 0 within 1e-6 on macOS) | floating-point results are not bit-identical across platforms. This is a real reproducibility finding, not a flake: the goldens and the optimiser outcome depend on the platform. Not yet investigated. |
+| Depends on the machine | `web/pool` (parallel speedup floor of 1.5 on a 2-core runner) | the runner has too few cores |
+| Chrome hooks time out | `design.components.browser`, `web/anim/physicsPanel`, `report.design.browser` | cold Chrome on a shared runner; they pass locally |
+
+Treat the Linux numeric differences as open work: either a tolerance-based golden, or a documented statement that results are reproducible per platform only.
