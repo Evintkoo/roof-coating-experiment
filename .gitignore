@@ -11,3 +11,4 @@ data/indonesia/tmyx/
 .claude/worktrees/
 .claude/settings.local.json
 coverage/
+.private/
