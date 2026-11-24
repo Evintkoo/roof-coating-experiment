@@ -12,6 +12,8 @@ const CHROME =
 const NOT_PORTABLE: Record<string, string> = {
   "tests/node/indonesia.test.ts": "needs downloaded weather data (git-ignored)",
   "tests/indonesia.e2e.test.ts": "needs downloaded weather data (git-ignored)",
+  "tests/indonesia.crosscheck.test.ts":
+    "needs downloaded weather data (git-ignored)",
   "tests/node/epw.test.ts": "needs downloaded weather data (git-ignored)",
   "tests/honesty.test.ts": "needs downloaded weather data (git-ignored)",
   "tests/core/pipeline/live.test.ts": "wall-clock bound",
