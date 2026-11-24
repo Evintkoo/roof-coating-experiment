@@ -119,14 +119,31 @@ A wall-clock assertion in the fast tier must stay meaningful on a loaded machine
 
 ## Platform sensitivity and the GitHub tier
 
-The reference platform is macOS on Apple silicon, where `bun run check` is the gate. GitHub runs `bun run test:ci` (`scripts/test-ci.ts`): every fast test except the files that drive Chrome (found by following imports, so a new browser suite is excluded automatically) and the files listed in that script with a reason each. The first run on `ubuntu-latest` (x86-64) with nothing excluded had 1,316 pass and 16 fail in 801 s:
+The reference platform is macOS on Apple silicon, where `bun run check` is the gate. GitHub runs `bun run test:ci` (`scripts/test-ci.ts`): every fast test except the files that drive Chrome (found by following imports, so a new browser suite is excluded automatically) and the files listed in that script with a reason each (thermal, oracle.fixtures, node/refine and refine.baseline are no longer among them). The first run on `ubuntu-latest` (x86-64) with nothing excluded had 1,316 pass and 16 fail in 801 s:
 
 | Group | Cause |
 |---|---|
 | Needs downloaded data that is git-ignored (Indonesia, EPW, honesty) | `data/indonesia/raw` and `tmyx` are fetched by `fetch-data`, not committed (see NOTICE) |
-| **Numbers differ on Linux** (`core/models/thermal` golden hash, `oracle.fixtures` thermal fixture, `node/refine`, `refine.baseline`: a delamination-cap check returned -0.108 where it is 0 within 1e-6 on macOS) | floating-point results are not bit-identical across platforms. A real reproducibility finding, tracked in plan 10 |
+| Numbers differ on Linux (`core/models/thermal` golden hash, `oracle.fixtures`, `node/refine`, `refine.baseline`) | resolved, see "Floating-point differences between macOS arm64 and Linux x86-64" below; the four files are back in the portable tier |
 | Wall-clock bounds (`core/pipeline/live`, latency tests) | only meaningful on a quiet machine |
 | Chrome hooks time out on a cold shared runner (a different file each run) | cold Chrome on a shared runner; they pass locally |
 | Hooks of up to an hour (`refine.e2e`, `pipeline.e2e`, `node/budget`, `budget.baseline`) | one GitHub run stopped printing for 26 minutes in this group and was cancelled; the hang is unexplained |
 
 A bug in `src/node/logging.ts` (the stderr guard threw `EEXIST: epoll_ctl` on Linux) was found by this run and fixed.
+
+### Floating-point differences between macOS arm64 and Linux x86-64
+
+Measured on `ubuntu-latest` (x86-64, Bun 1.3.14) against macOS arm64 with the same commit; probe runs 45322549822 and 45323234454 (dumps of every value as IEEE bits, diffed offline), green run of the four files 45324078388.
+
+| Source | Measured difference |
+|---|---|
+| `Math.sin`, `cos`, `exp`, `expm1`, `log`, and `**` with a non-integer exponent (20,000 arguments each) | last place only: 18 to 1,450 of 20,000 results differ, never by more than 2.2e-16 relative (1 ulp). `x ** 4` (integer exponent) is identical. This is JavaScriptCore calling the platform libm (Apple libm vs glibc). |
+| `halfSine` (`Math.sin` over the 2,881 minute arguments of a day) | 111 of 2,881 values differ by 1 ulp |
+| 48 h RK4 outputs (220 oracle cases, 32,120 numbers) | 36 numbers differ, at most 1.1e-15 relative; the sha256 of the bytes therefore differs |
+| Python oracle (scipy DOP853 and L-BFGS/SLSQP, numpy, mpmath) regenerated on Linux | `thermal.json` 3,269 of 5,081 numbers differ, at most 1.7e-7 absolute; `thermalSeries` 4.6e-7; `thermalSeriesReal` 5.0e-6; `optimisation` 5.2e-9; `solgel` 2.9e-12 relative; `mie` 1.5e-14 absolute. `gradient`, `benchmarks`, `sobol`, `xoshiro` are byte-identical. The adaptive solvers amplify last-place noise to their own tolerance. Keys, strings and lengths are identical. |
+
+What changed because of it, each with the number that justifies it:
+
+- `goldensUnchangedAfterRk4StepExtraction` compares the 32,120 values (`tests/fixtures/rk4_golden.f64`, written on macOS from the code before the extraction; its sha256 equals the old `rk4_golden.json`) with a relative tolerance `T_RK4_GOLDEN_RTOL = 1e-14`, 9 times the measured 1.1e-15. The byte digest stays in `rk4_golden.json` and is only logged. A 1e-9 error is caught (unit-tested).
+- `oracleFixturesAreFresh` regenerates with `generate.py --out DIR` and compares numerically (`tests/support/oracleCompare.ts`): structure exact, numbers within `atol + rtol max(|a|, |b|)`, with each file's atol about 10 times the measured maximum above. The tolerances were checked to accept the real Linux output and reject a 1e-3 change. `generate.py --check` (byte equality) remains for the reference platform.
+- `delaminationCapActiveIsSolvedNotJustRespected` used a probe that was not well posed. With the shipped objectives nothing prefers a thicker topcoat (at the interior optimum `r_solar_pred`, `t_max_pred`, `corrosion_proxy` and `cost_proxy` are flat or worse in `t1` and `t2`, and delamination wants them thin), so the weighted solve has a flat direction and last-place noise decides where it stops. On macOS the solve ended at the cap with status `stalled` (f 0.076670); on Linux it converged in the interior (constraint -0.108, f 0.076253, a better point); on macOS every one of 8 relative perturbations of the objective normalisation from 1e-16 to 1e-8 left the cap-bound outcome (7 landed in the interior at constraint about -0.108, one at -8e-4), and results.csv itself differs between the platforms in the last places (the Monte Carlo draws pass through `sin`). The trace of the merit diverges from 2.5e-16 at the start to 2e-13 after the first step (the gradient is a finite difference with h 1e-5 to 1e-4, which divides the noise by h), 1e-8 at iteration 11 and 3e-3 at iteration 18, where an active-set and line-search decision splits the paths. This is the optimiser being sensitive on a degenerate problem, not a wrong answer, so the test no longer depends on it: it runs the real constraints (`stackProps`, `delaminationProxy`, `h_c0_top` 7 um) with an objective that strictly prefers a thick topcoat (`1 - t2`). Then the cap is the only stop, the optimum is unique, and the constraint ends at +1e-9 (the feasibility tolerance) from several starts and 1e-12 perturbations of `h_c0`, on both platforms. The assertions (`c <= 1e-9`, `c > -1e-6`, max violation `<= 1e-9`) are unchanged.
