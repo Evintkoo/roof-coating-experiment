@@ -12,18 +12,10 @@ import {
 import { repoRoot } from "../helpers"
 
 type R = { t_max_c: number; q_in_mean_w_m2: number; t_surface_k: Float64Array }
-const digest = (rs: R[]): string => {
-  const h = createHash("sha256")
-  for (const r of rs) {
-    h.update(Float64Array.of(r.t_max_c, r.q_in_mean_w_m2))
-    h.update(r.t_surface_k)
-  }
-  return h.digest("hex")
-}
-export async function rk4Digests(): Promise<{
-  day: string
-  series: string
-  cases: number
+/** Every output of the RK4 cases (per case: t_max_c, q_in_mean_w_m2, the 144 day-2 points), day cases first, then series cases. */
+export async function rk4Values(): Promise<{
+  day: Float64Array[]
+  series: Float64Array[]
 }> {
   const th = (await Bun.file(
     join(repoRoot, "tests/fixtures/oracle/thermal.json"),
@@ -45,9 +37,37 @@ export async function rk4Digests(): Promise<{
     ) as unknown as HourlySeries
     return simulateSeriesDay(c.params, s, se.h_a, se.h_b)
   })
-  return {
-    day: digest(day),
-    series: digest(series),
-    cases: day.length + series.length,
+  const flat = (r: R) =>
+    Float64Array.of(r.t_max_c, r.q_in_mean_w_m2, ...r.t_surface_k)
+  return { day: day.map(flat), series: series.map(flat) }
+}
+
+export async function rk4Digests(): Promise<{
+  day: string
+  series: string
+  cases: number
+}> {
+  const { day, series } = await rk4Values()
+  const dg = (rs: Float64Array[]) => {
+    const h = createHash("sha256")
+    for (const r of rs) h.update(r)
+    return h.digest("hex")
   }
+  return { day: dg(day), series: dg(series), cases: day.length + series.length }
+}
+
+/** Largest |a - b| / |a| over the entries (a is the reference). */
+export function worstRelativeDifference(
+  a: Float64Array,
+  b: Float64Array,
+): number {
+  let worst = 0
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i] as number
+    worst = Math.max(
+      worst,
+      Math.abs(x - (b[i] as number)) / Math.max(Math.abs(x), 1e-300),
+    )
+  }
+  return worst
 }

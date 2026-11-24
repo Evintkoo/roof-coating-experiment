@@ -12,7 +12,11 @@ import {
 } from "../../../src/core/models/thermal"
 import { loadWeather } from "../../../src/node/config"
 import { repoRoot } from "../../helpers"
-import { rk4Digests } from "../../support/rk4Golden"
+import {
+  rk4Digests,
+  rk4Values,
+  worstRelativeDifference,
+} from "../../support/rk4Golden"
 
 const SIGMA = 5.670374419e-8
 const T_THM_RTOL = 5e-7
@@ -297,16 +301,44 @@ test("runtimeUnder3ms", () => {
   expect(median).toBeLessThan(T_THERMAL_MS)
 })
 
-// Plan 09 D1: rk4Step is extracted from simulateDay and simulateSeriesDay; the outputs of all 220 oracle cases stay bit-identical to
-// the digest written from the code before the extraction (tests/fixtures/rk4_golden.json).
+// Plan 09 D1: rk4Step is extracted from simulateDay and simulateSeriesDay; the outputs of all 220 oracle cases stay equal to the values
+// written from the code before the extraction (tests/fixtures/rk4_golden.f64, 32,120 doubles). The comparison is relative with
+// T_RK4_GOLDEN_RTOL, not a hash of the bytes: libm (sin) rounds the last place differently on Linux x86-64 than on macOS arm64 and
+// the measured effect on the 48 h integration is 1.1e-15 relative at most (docs/testing.md, Platform sensitivity). The sha256 of
+// the bytes in rk4_golden.json is kept as information: it must match on the reference platform and is only logged elsewhere.
+const T_RK4_GOLDEN_RTOL = 1e-14
 test("goldensUnchangedAfterRk4StepExtraction", async () => {
   const golden = (await Bun.file(
     join(repoRoot, "tests/fixtures/rk4_golden.json"),
   ).json()) as { day: string; series: string; cases: number }
-  const now = await rk4Digests()
-  expect(now.cases).toBe(golden.cases)
-  expect(now.day).toBe(golden.day)
-  expect(now.series).toBe(golden.series)
+  const ref = new Float64Array(
+    await Bun.file(
+      join(repoRoot, "tests/fixtures/rk4_golden.f64"),
+    ).arrayBuffer(),
+  )
+  const { day, series } = await rk4Values()
+  const now = Float64Array.from([...day, ...series].flatMap((r) => [...r]))
+  expect(day.length + series.length).toBe(golden.cases)
+  expect(now.length).toBe(ref.length)
+  const worst = worstRelativeDifference(ref, now)
+  console.log(
+    `rk4 golden: worst relative difference ${worst}; byte digests ${
+      (await rk4Digests()).day === golden.day
+        ? "equal"
+        : "differ (libm last place)"
+    }`,
+  )
+  expect(worst).toBeLessThanOrEqual(T_RK4_GOLDEN_RTOL)
+})
+
+test("goldenToleranceCatchesARealChange", () => {
+  // The comparison can fail: a 1e-9 relative error in one output (far below any model tolerance, far above libm noise) is caught,
+  // a last-place change (2.2e-16) is not.
+  const ref = Float64Array.of(300, 0.07, 1e3)
+  const off = Float64Array.of(300, 0.07 * (1 + 1e-9), 1e3)
+  const ulp = Float64Array.of(300 * (1 + 2.2e-16), 0.07, 1e3)
+  expect(worstRelativeDifference(ref, off)).toBeGreaterThan(T_RK4_GOLDEN_RTOL)
+  expect(worstRelativeDifference(ref, ulp)).toBeLessThan(T_RK4_GOLDEN_RTOL)
 })
 
 test("rk4StepIsOneClassicalStepOfTheGivenSlope", () => {
