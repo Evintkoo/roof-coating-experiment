@@ -17,6 +17,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: uname -m && bun --version && ldd --version | head -1
       - run: bun scripts/debug-numerics.ts .dbg/linux
+      - run: bun scripts/debug-refine.ts .dbg/linux/refine
       - name: oracle regenerate (writes fixtures into the work tree)
         run: |
           uv run --project oracle oracle/generate.py || true
