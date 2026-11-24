@@ -1,0 +1,29 @@
+name: debug-numerics
+on:
+  push:
+    branches: [debug/linux-numerics]
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: astral-sh/setup-uv@v5
+      - run: bun install --frozen-lockfile
+      - run: uname -m && bun --version && ldd --version | head -1
+      - run: bun scripts/debug-numerics.ts .dbg/linux
+      - name: oracle regenerate (writes fixtures into the work tree)
+        run: |
+          uv run --project oracle oracle/generate.py || true
+          mkdir -p .dbg/linux/oracle
+          cp -r tests/fixtures/oracle/. .dbg/linux/oracle/
+          git diff --stat | tail -20
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-dump
+          path: .dbg/linux
