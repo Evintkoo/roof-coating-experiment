@@ -5,6 +5,8 @@
       "!**/*.md",
       "!**/*.docx",
       "!.superpowers",
+      "!.claude",
+      "!.private",
       "!plans",
       "!bun.lock",
       "!tests/fixtures/oracle",

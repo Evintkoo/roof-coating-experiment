@@ -77,6 +77,8 @@ const args = [
   ...skipped.flatMap((f) => ["--path-ignore-patterns", rel(f)]),
   "--path-ignore-patterns",
   "**/*.proof.test.ts",
+  "--path-ignore-patterns",
+  ".claude/**",
 ]
 const p = Bun.spawnSync(["bun", ...args], {
   cwd: root,
