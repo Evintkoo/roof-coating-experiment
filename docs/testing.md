@@ -117,25 +117,16 @@ A wall-clock assertion in the fast tier must stay meaningful on a loaded machine
 - Pure parts have their own fast files: `tests/core/anim/*`, `tests/web/anim/*` (loop, tween, day player, fan, flux, screening panel, day data), `tests/web/pool.test.ts`, the component files under `tests/web/design/*`, and `tests/node/report/watch.test.ts` (the section markup, order, closed disclosure, sources, wording scan, same bytes).
 - Known load sensitivity (2026-11-24): the four Chrome suites `tests/web/anim/sweepPanel.test.ts`, `report.compare.browser`, `report.physics.browser` and `report.animation.browser` all pass when run one at a time at load 4 to 6 (14, 7, 13 and 14 tests). Inside the full parallel gate on a loaded machine Chrome can die mid-file ("Target page, context or browser has been closed") and the rest of that file then fails in milliseconds; the worker-kill (F6) and truncated-context (F7) sweep tests timed out at 120 s once at load 6 to 8. The cause is not established (load, or a real hang those two paths expose under load); it is listed here as unconfirmed, not as a known-good flake.
 
-## Platform sensitivity (found by the first run on GitHub, 2026-11-23)
+## Platform sensitivity and the GitHub tier
 
-The reference platform is macOS on Apple silicon. The first run of the fast tier on `ubuntu-latest` (x86-64) gave 1316 pass and 16 fail in 801 s. The failures fall into four groups, and `bun run test:ci` (the GitHub job) leaves those 13 files out:
+The reference platform is macOS on Apple silicon, where `bun run check` is the gate. GitHub runs `bun run test:ci` (`scripts/test-ci.ts`): every fast test except the files that drive Chrome (found by following imports, so a new browser suite is excluded automatically) and the files listed in that script with a reason each. The first run on `ubuntu-latest` (x86-64) with nothing excluded had 1,316 pass and 16 fail in 801 s:
 
-| Group | Files left out in CI | Cause |
-|---|---|---|
-| Needs downloaded data that is git-ignored | `node/indonesia`, `indonesia.e2e`, `node/report/indonesia`, `node/epw`, `honesty` | `data/indonesia/raw` and `tmyx` are fetched by `fetch-data`, not committed (see NOTICE) |
-| **Numbers differ on Linux** | `core/models/thermal` (the RK4 golden hash), `oracle.fixtures` (the thermal fixture), `node/refine` and `refine.baseline` (a delamination-cap check returned -0.108 where it is 0 within 1e-6 on macOS) | floating-point results are not bit-identical across platforms. This is a real reproducibility finding, not a flake: the goldens and the optimiser outcome depend on the platform. Not yet investigated. |
-| Depends on the machine | `web/pool` (parallel speedup floor of 1.5 on a 2-core runner) | the runner has too few cores |
-| Chrome hooks time out | `design.components.browser`, `web/anim/physicsPanel`, `report.design.browser` | cold Chrome on a shared runner; they pass locally |
+| Group | Cause |
+|---|---|
+| Needs downloaded data that is git-ignored (Indonesia, EPW, honesty) | `data/indonesia/raw` and `tmyx` are fetched by `fetch-data`, not committed (see NOTICE) |
+| **Numbers differ on Linux** (`core/models/thermal` golden hash, `oracle.fixtures` thermal fixture, `node/refine`, `refine.baseline`: a delamination-cap check returned -0.108 where it is 0 within 1e-6 on macOS) | floating-point results are not bit-identical across platforms. A real reproducibility finding, tracked in plan 10 |
+| Wall-clock bounds (`core/pipeline/live`, latency tests) | only meaningful on a quiet machine |
+| Chrome hooks time out on a cold shared runner (a different file each run) | cold Chrome on a shared runner; they pass locally |
+| Hooks of up to an hour (`refine.e2e`, `pipeline.e2e`, `node/budget`, `budget.baseline`) | one GitHub run stopped printing for 26 minutes in this group and was cancelled; the hang is unexplained |
 
-Treat the Linux numeric differences as open work: either a tolerance-based golden, or a documented statement that results are reproducible per platform only.
-
-A second GitHub run with only the 13 files above left out stopped printing after the animation Chrome suite and was cancelled by the 45-minute job limit about 26 minutes later; no test name identifies the hang. The long-hook end-to-end files (`refine.e2e`, `pipeline.e2e`, `node/budget`, `budget.baseline`, each with hooks of up to an hour) are therefore also left out of `test:ci`, and the job limit is 30 minutes. The hang is unexplained; it may be the same one seen once locally in `refine.e2e` (a 3,600 s hook). A hung CLI child is now killed after 20 minutes by `run` in `tests/helpers.ts`, but these suites also wait on hooks that do not go through it.
-
-Third GitHub run: 1,209 pass, 3 fail in 268 s. One failure was a bug in `src/node/logging.ts` (my own stderr guard threw `EEXIST: epoll_ctl` while building Bun's stderr stream on Linux; now wrapped so logging cannot throw). The other two were `node/qa.test.ts` (`qaFindsEachSeededDefect`, a Chrome script that timed out at 240 s on the cold runner), which is now left out of `test:ci` as well (17 files in all).
-
-Fourth GitHub run: 1,197 pass, 5 fail in 311 s, all timing assertions on the shared runner (`core/pipeline/live`: best of 7 took 131 ms against 100; `web/anim/dayPlayer`: frame clock; `report.compare.browser`: live latency p95 463 ms against 100). Timing bounds are only meaningful on a quiet machine, so those three files are left out of `test:ci` too (20 files in all) and stay in the local gate and the proof tier.
-
-Fifth GitHub run: 1,182 pass, 1 test fails (`report.physics.browser`, live latency p95 580 ms against the fast tier's gross-regression bound of 300 ms). Same class as the other latency files: `report.physics.browser` is left out of `test:ci` too (21 files in all).
-
-Sixth GitHub run: 1,170 pass, 1 Chrome hook timeout (`web/anim/screeningPanel`, 60 s on a cold runner). Chrome suites keep timing out on the shared runner in a different file each round, so the `tests` job is now informational (`continue-on-error`): it reports its counts but does not fail the workflow. The gate that counts is `bun run check` on the reference machine; the static job (biome, tsc, layout guard) is blocking.
+A bug in `src/node/logging.ts` (the stderr guard threw `EEXIST: epoll_ctl` on Linux) was found by this run and fixed.
