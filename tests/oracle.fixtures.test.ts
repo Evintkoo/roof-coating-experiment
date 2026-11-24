@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { readFileSync } from "node:fs"
+import { mkdtempSync, readFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { listFiles, repoRoot } from "./helpers"
+import { compareOracle } from "./support/oracleCompare"
 
 const dir = join(repoRoot, "tests/fixtures/oracle")
 
@@ -26,15 +28,50 @@ test("oracleFixtureHashesMatchSums", () => {
   }
 })
 
+// Regenerated in a temp dir and compared numerically (tests/support/oracleCompare.ts): scipy/numpy round the last place differently on
+// Linux x86-64 and the adaptive solvers amplify it to 1.7e-7 absolute at most (docs/testing.md). `generate.py --check` (byte
+// equality) stays available for the reference platform.
 test("oracleFixturesAreFresh", () => {
   if (Bun.which("uv") === null) {
     throw new Error("uv missing: oracle freshness unproven")
   }
+  const out = mkdtempSync(join(tmpdir(), "spandek-oracle-"))
   const p = Bun.spawnSync(
-    ["uv", "run", "--project", "oracle", "oracle/generate.py", "--check"],
+    ["uv", "run", "--project", "oracle", "oracle/generate.py", "--out", out],
     { cwd: repoRoot, stdout: "pipe", stderr: "pipe" },
   )
-  const out = `${p.stdout.toString()}${p.stderr.toString()}`
-  expect(out).toContain("oracle fixtures fresh")
   expect(p.exitCode).toBe(0)
+  const names = listFiles(dir).filter((f) => f !== "SHA256SUMS")
+  expect(listFiles(out).filter((f) => f !== "SHA256SUMS")).toEqual(names)
+  for (const name of names) {
+    const a = JSON.parse(readFileSync(join(dir, name), "utf8"))
+    const b = JSON.parse(readFileSync(join(out, name), "utf8"))
+    expect({ name, problems: compareOracle(name, a, b) }).toEqual({
+      name,
+      problems: [],
+    })
+  }
 }, 120000)
+
+test("oracleCompareToleratesLastPlaceNoiseAndCatchesRealChanges", () => {
+  const make = (t: number[], label = "a") => ({
+    cases: [{ t, label, gel: null }],
+  })
+  const base = make([300.123456789, 0.07])
+  expect(
+    compareOracle("thermal.json", base, make([300.123456789 + 1e-7, 0.07])),
+  ).toEqual([])
+  expect(
+    compareOracle("thermal.json", base, make([300.123456789, 0.07 + 1e-3])),
+  ).toHaveLength(1)
+  expect(
+    compareOracle("thermal.json", base, make([300.123456789, 0.07], "b")),
+  ).toHaveLength(1)
+  expect(
+    compareOracle("thermal.json", base, make([300.123456789])),
+  ).toHaveLength(1)
+  // files without a listed tolerance are compared exactly
+  expect(
+    compareOracle("gradient.json", base, make([300.123456789 + 1e-7, 0.07])),
+  ).toHaveLength(1)
+})

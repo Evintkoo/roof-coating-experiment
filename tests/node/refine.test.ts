@@ -12,7 +12,9 @@ import { parseCsv } from "../../src/core/csv"
 import { weatherL9 } from "../../src/core/design"
 import { SpandekError } from "../../src/core/errors"
 import { delaminationProxy } from "../../src/core/models/delamination"
-import { makeModel, solveScalar } from "../../src/core/opt/objective"
+import { gradient } from "../../src/core/opt/gradient"
+import { makeModel } from "../../src/core/opt/objective"
+import { minimise } from "../../src/core/opt/projectedBfgs"
 import {
   normaliseObjectives,
   OBJECTIVE_NAMES,
@@ -69,12 +71,6 @@ const PAIR = { starts: 2 }
 const DELAM_PROBE_H_C0 = 7
 /** |delam_proxy - cap| below which the cap counts as active at the optimum. */
 const DELAM_ACTIVE_TOL = 1e-6
-/** Corrosion-heavy weights of the delam-active case (the other objectives weigh 0). */
-const DELAM_PROBE_WEIGHTS: Record<string, number> = {
-  r_solar_pred: 0.1,
-  t_max_pred: 0.1,
-  corrosion_proxy: 0.8,
-}
 
 beforeAll(async () => {
   plan3 = tmp("spandek-p3-")
@@ -333,11 +329,14 @@ test(
 test(
   "delaminationCapActiveIsSolvedNotJustRespected",
   () => {
-    // H6 on the third constraint. With the shipped materials delam_proxy <= 0.5 is slack at every optimum, because the
-    // delamination objective itself pushes the topcoat to the box floor. A private materials copy with a small critical
-    // topcoat thickness (h_c0_top = 7 um) and a corrosion-heavy weight vector (corrosion wants the thick, high-MTES
-    // topcoat) makes the cap bind. Measured once on this data: delam_proxy 0.5000, constraint value -4.6e-8.
-    // The model is the real one (stackProps, delaminationProxy); only the materials copy differs.
+    // H6 on the third constraint. The shipped objectives never push the topcoat toward the cap (measured: r_solar_pred, t_max_pred,
+    // corrosion_proxy and cost_proxy are flat or worse with a thicker topcoat, delamination itself wants it thin), so a scalarised
+    // solve under any weight vector leaves a flat direction and where it ends is decided by last-place noise: the earlier probe
+    // (weights 0.1/0.1/0.8) ended at the cap on macOS arm64 with status "stalled" (f 0.07667) and in the interior (c -0.108, f 0.07625,
+    // a better point) on Linux x86-64, and a 1e-16 relative change of the normalisation flipped it on macOS too (docs/testing.md).
+    // Here the cap is the only thing that stops the solver: the REAL constraints (stackProps, delaminationProxy, h_c0_top 7 um)
+    // with an objective that strictly prefers a thicker topcoat (f = 1 - t2). The optimum is unique and on the cap; measured c = +1e-9
+    // (the feasibility tolerance) from starts 0, 0.2 and 0.5 on macOS, and a 1e-12 relative change of h_c0 moves t2 by 1e-10 only.
     const tight = structuredClone(ctx)
     tight.mat.barrier.h_c0_top_um.value = DELAM_PROBE_H_C0
     const results = parseResultsCsv(
@@ -351,14 +350,28 @@ test(
       tight.ranges.max_total_dft_um.value,
       tight.mat,
     )
-    const w = OBJECTIVE_NAMES.map((n) => DELAM_PROBE_WEIGHTS[n] ?? 0)
-    const o = solveScalar(model, w, new Float64Array(VARS.length).fill(0.5))
-    const d = model.delam(o.u)
-    const c = model.constraint(o.u, 2)
-    console.log(`delam-active case: delam_proxy ${d}, constraint ${c}`)
-    expect(model.maxViolation(o.u)).toBeLessThanOrEqual(1e-9)
-    expect(c).toBeLessThanOrEqual(1e-9)
-    expect(c).toBeGreaterThan(-DELAM_ACTIVE_TOL)
+    const T2 = VARS.findIndex((v) => v.id === "t2")
+    const hs = VARS.map((v) => v.h)
+    const f = (u: Float64Array) => 1 - (u[T2] as number)
+    const g = (u: Float64Array) => gradient(f, u, hs)
+    const cons = ([0, 1, 2] as const).map(
+      (j) => (u: Float64Array) => model.constraint(u, j),
+    )
+    for (const start of [0.5, 0.2]) {
+      const o = minimise(f, g, new Float64Array(VARS.length).fill(start), cons)
+      const d = model.delam(o.u)
+      const c = model.constraint(o.u, 2)
+      console.log(
+        `delam-active case (start ${start}): delam_proxy ${d}, constraint ${c}, t2 ${o.u[T2]}`,
+      )
+      expect(o.status).toBe("converged")
+      expect(model.maxViolation(o.u)).toBeLessThanOrEqual(1e-9)
+      expect(c).toBeLessThanOrEqual(1e-9)
+      expect(c).toBeGreaterThan(-DELAM_ACTIVE_TOL)
+      // an interior topcoat (not on a box bound): the cap, not the box, stopped it
+      expect(o.u[T2]).toBeGreaterThan(0.1)
+      expect(o.u[T2]).toBeLessThan(0.9)
+    }
   },
   LONG,
 )

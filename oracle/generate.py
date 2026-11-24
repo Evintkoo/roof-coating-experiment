@@ -1,8 +1,9 @@
 """Oracle fixture generator (test-only). Shares no code with src/.
 
-Usage: uv run --project oracle oracle/generate.py [--check]
+Usage: uv run --project oracle oracle/generate.py [--check | --out DIR]
   (no flag)  write the fixtures and SHA256SUMS
-  --check    regenerate in memory and compare with the committed files
+  --check    regenerate in memory and compare byte for byte with the committed files (reference platform only)
+  --out DIR  regenerate into DIR (tests/oracle.fixtures.test.ts compares numerically, see tests/support/oracleCompare.ts)
 """
 
 import hashlib
@@ -907,6 +908,14 @@ def sums_text(files: dict[str, str]) -> str:
 def main() -> int:
     files = build_fixtures()
     sums = sums_text(files)
+    if "--out" in sys.argv[1:]:
+        # regenerate into DIR without touching the committed fixtures (the cross-platform freshness test compares them numerically)
+        dest = Path(sys.argv[sys.argv.index("--out") + 1])
+        dest.mkdir(parents=True, exist_ok=True)
+        for name, text in files.items():
+            (dest / name).write_text(text)
+        print(f"regenerated {', '.join(files)} into {dest}")
+        return 0
     if "--check" in sys.argv[1:]:
         for name, text in files.items():
             if (FIXTURES / name).read_text() != text:
